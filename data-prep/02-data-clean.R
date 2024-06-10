@@ -1,11 +1,34 @@
 
+# library -----------------------------------------------------------------
+library(sf)
+library(ggplot2)
+library(tidyverse)
+library(sp)
+
+# load data ---------------------------------------------------------------
+
 samples <- readRDS("data-raw/dogfish_samples.rds")
 sets <- readRDS("data-raw/dogfish_sets.rds")
 catchcount <- readRDS("data-raw/dogfish_counts.rds")
 
-# QA/QC location names -------------------------------------------------------------
 names(samples) <- tolower(names(samples))
 names(sets) <- tolower(names(sets))
+
+unique(samples$trip_comment)
+samples <- samples |>
+  mutate(category = case_when(year %in% c(1986, 1989) ~ "dog",
+                              year %in%  c(2005, 2008, 2011, 2014) ~ "dog",
+                              year == 2019 & trip_comment == "The 2019 Strait of Georgia Dogfish Longline Survey." ~ "dog",
+                              year == 2019 & trip_comment == "The 2019 Dogfish Gear/Timing Comparison Survey. Originally part of 2019 HBLL trip 85073." ~ "comp-hbll",
+                              year == 2023 & trip_comment == "The 2023 Dogfish longline gear comparison survey on the Neocaligus. Samples are added at the skate level"  ~ "comp-dog",
+                              year == 2023 & trip_comment == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus. Conducted simultaneously with the HBLL survey. No CTDs on first half."  ~ "comp-hbll",
+                              year == 2022 ~ "comp-hbll",
+                              year == 2023 & trip_comment ==  "The 2023 Dogfish longline gear comparison survey on the Neocaligus. Samples are added at the skate level." ~ "comp-dog",
+                              year == 2004 ~ "comp-dog"))
+saveRDS(samples, "data-raw/dogfish_samples.rds")
+
+# QA/QC location names -------------------------------------------------------------
+
 
 sets |>
   select(grouping_spatial_id) |>
@@ -243,30 +266,33 @@ names(count) <- tolower(names(count))
 regsurveys <- sets |>
   filter(survey_series_id %in% c(93, 92)) |>
   left_join(count)
-unique(regsurveys$year)
 
 compsurveys <- sets |>
   filter(survey_series_id == 48 & year %in% c(2004, 2022,2023)) |>
   left_join(count, by = c("fishing_event_id" = "fe_parent_event_id", "fe_sub_level_id" = "fe_sub_level_id")) |>
   select(-fishing_event_id.y)
-unique(compsurveys$year)
 
 compsurveys2019 <- sets |>
   filter(survey_series_id == 48 & year == 2019) |>
   left_join(count)
-unique(compsurveys2019$year)
 
 final <- rbind(regsurveys, compsurveys, compsurveys2019)
 unique(final$year)
 
-ggplot(final, aes(species_code, catch_count)) +
-  geom_point() +
-  facet_wrap(~year)
+final <- final |>
+  mutate(category = case_when(year %in% c(1986, 1989) ~ "dog",
+            year %in%  c(2005, 2008, 2011, 2014) ~ "dog",
+            year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
+            year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" ~ "comp-hbll",
+            year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey"  ~ "comp-dog",
+            year == 2023 &
+            survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus."  ~ "comp-hbll",
+            year == 2022 ~ "comp-hbll",
+            year == 2004 ~ "comp-dog"))
 
-ggplot(final, aes(species_code, lglsp_hook_count)) +
-  geom_point() +
-  facet_wrap(~year)
-
+final <- final |> mutate(cat2 = paste0(category, hook_desc))
+final <- final |> mutate(julian = lubridate::yday(retrive))
+final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
 saveRDS(final, "data-generated/dogfishs_allsets_allspecies_counts.rds")
 
 
