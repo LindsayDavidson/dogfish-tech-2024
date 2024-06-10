@@ -21,20 +21,22 @@ library(tidyverse)
 
 final <- readRDS("data-generated/dogfishs_allsets_allspecies_counts.rds")
 samples <- readRDS("data-raw/dogfish_samples.rds")
-
 #take out the 2023 J hook sets as that was for the yelloweye comparative work, not dogfish
 jhook <- final |> filter(year == 2023 & cat2 == "comp-dogJ-HOOK")
 final <- final |> filter(!fishing_event_id %in% (jhook$fishing_event_id))
 final <- filter(final, species_code == "044")
 
-# sets <- readRDS("data-generated/sets_cleaned2.rds")
-# count <- readRDS("data-raw/dogfish_counts.rds")
-# sets_df <- readRDS("data-generated/dogfishs_allsets_allspecies_counts.rds")
-
 final |> group_by(survey_series_id) |> distinct(year, .keep_all = TRUE) |>
   reframe(count = n())
 final |> group_by(survey_series_id, year) |> distinct() |>
   reframe()
+
+
+
+# date --------------------------------------------------------------------
+
+final |> group_by(year, hook_desc, hooksize_desc, survey_desc ) |>
+  reframe(min = min(trip_start_date), max = max(trip_end_date))
 
 # number of sets dropped each year ----------------------------------------
 
@@ -54,8 +56,6 @@ df <- d|>
 
 
 # Fishing summaries -------------------------------------------------------
-df |> group_by(year, hook_desc, hooksize_desc, survey_desc ) |>
-  reframe(min = min(fe_end_deployment_time), max = max(fe_end_deployment_time))
 
 df |> group_by(year, hook_desc, hooksize_desc, survey_desc ) |>
   dplyr::select(year, fishing_event_id, hook_desc, hooksize_desc) |>
