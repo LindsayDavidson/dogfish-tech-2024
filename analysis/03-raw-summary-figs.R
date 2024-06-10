@@ -17,27 +17,27 @@ final <- filter(final, species_code == "044")
 final |>
   ggplot() +
   geom_jitter(aes(year, soak, colour = cat2)) +
-  theme_classic() + scale_colour_viridis_d(option = "mako")
-ggsave("Figures/soak-time-variability.png", width = 4, height = 4)
+  theme_classic()
+ggsave("Figures/soak-time-variability.png", width = 6, height = 4)
 
 final |>
   ggplot() +
   geom_jitter(aes(year, julian, colour = cat2)) +
   theme_classic() + scale_colour_viridis_d()
-ggsave("Figures/julian-variability.png", width = 4, height = 4)
+ggsave("Figures/julian-variability.png", width = 6, height = 4)
 
 final |>
   ggplot() +
   geom_jitter(aes(grouping_depth_id, catch_count, group = cat2, colour = cat2)) +
   facet_wrap(~year) + theme_classic() + scale_colour_viridis_d(option = "mako")
-ggsave("Figures/raw-catch-count-by-survey-depth.png", width = 4, height = 4)
+ggsave("Figures/raw-catch-count-by-survey-depth.png", width = 6, height = 4)
 
 final |>
   group_by(cat2) |>
   ggplot() +
   geom_jitter(aes(year, log(catch_count), group = cat2, colour = cat2)) +
   theme_classic() + scale_colour_viridis_d(option = "mako")
-ggsave("Figures/raw-catch-count-by-survey.png", width = 4, height = 4)
+ggsave("Figures/raw-catch-count-by-survey.png", width = 6, height = 4)
 
 df |>
   filter(year %in% c(2005, 2008, 2011, 2014, 2019) & category == "dog") |>
