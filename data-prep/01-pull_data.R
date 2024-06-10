@@ -6,10 +6,10 @@
 
 # Code for creating one database of all Dogfish surveys including comparisons, j hooks, and dogfish surveys
 # Note
-# SURVEY_SERIES_ID == 48) #2004, 2019, 2022, 2023 survey since it was 2 different sets with different hooks
-# SURVEY_SERIES_ID == 93) # 2005 onwards dogfish survey
-# SURVEY_SERIES_ID == 76) # 1986 onwards dogfish survey DROP THIS ONE
-# SURVEY_SERIES_ID == 92) # 1986, 1989 survey
+# SURVEY_SERIES_ID == 48) #comp work 2004, 2019, 2022, 2023 survey since it was 2 different sets with different hooks
+# SURVEY_SERIES_ID == 93) #circle hook dog surveys 2005 onwards
+# SURVEY_SERIES_ID == 76) #all jhook and circle hook dog surveys 1986 onwards does not include 2004
+# SURVEY_SERIES_ID == 92) #j hook dog surveys 1986, 1989 only
 
 # yelloweye rockfish were not sampled in earlier years. 1986/1989 maybe not 2004?
 # 2004 comparison work had two gear types per set
