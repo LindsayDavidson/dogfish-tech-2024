@@ -1,0 +1,153 @@
+# pull dogfish data
+# all surveys
+# qa/qc
+# there is a branch on PBS assess that has this code.
+# https://github.com/pbs-assess/Dogfish-survey/blob/main/Dogfish_data_pull.R
+
+# Code for creating one database of all Dogfish surveys including comparisons, j hooks, and dogfish surveys
+# Note
+# SURVEY_SERIES_ID == 48) #2004, 2019, 2022, 2023 survey since it was 2 different sets with different hooks
+# SURVEY_SERIES_ID == 93) # 2005 onwards dogfish survey
+# SURVEY_SERIES_ID == 76) # 1986 onwards dogfish survey DROP THIS ONE
+# SURVEY_SERIES_ID == 92) # 1986, 1989 survey
+
+# yelloweye rockfish were not sampled in earlier years. 1986/1989 maybe not 2004?
+# 2004 comparison work had two gear types per set
+# 2019 comparison work dropped separate lines per gear type
+# 2022 comparison work has two gear types per set
+# 2023 comparison work has two gear types per set  and was completed during the HBLL and DOG survey
+
+# pull from csas down -----------------------------------------------------
+# https://github.com/pbs-assess/csasdown
+# install.packages("remotes")
+# remotes::install_github("pbs-assess/csasdown", dependencies = TRUE)
+# setwd("C:/Dogfish_GearComp_TechReport_2024/DogfishGearComp/Report")
+# csasdown::draft("techreport")
+
+
+# library -----------------------------------------------------------------
+library(tidyverse)
+library(sf)
+library(ggplot2)
+library(here)
+library(sp)
+
+
+# Pull dogfish survey samples and sets --------------------------------------------------------------
+# this is the code from pbs-assess
+info <- gfdata::run_sql("GFBioSQL", "SELECT
+S.SURVEY_SERIES_ID,
+SURVEY_SERIES_DESC, FE.FE_MISC_COMMENT, FE.FE_FISHING_GROUND_COMMENT,
+S.SURVEY_ID, SURVEY_DESC, FE.FE_MAJOR_LEVEL_ID, SK.FE_SUB_LEVEL_ID,
+SK.HOOK_DESC, SK.HOOKSIZE_DESC,
+YEAR(TR.TRIP_START_DATE) AS YEAR,
+FE.FISHING_EVENT_ID,
+FE.FE_PARENT_EVENT_ID,
+LGLSP_HOOK_COUNT,
+FE_START_LATTITUDE_DEGREE + FE_START_LATTITUDE_MINUTE / 60 AS LATITUDE,
+-(FE_START_LONGITUDE_DEGREE + FE_START_LONGITUDE_MINUTE / 60) AS LONGITUDE,
+FE_END_DEPLOYMENT_TIME, FE_BEGIN_RETRIEVAL_TIME, FE.GROUPING_CODE, GROUPING_DESC, GROUPING_SPATIAL_ID, GROUPING_DEPTH_ID,
+TR.TRIP_START_DATE,
+TR.TRIP_END_DATE,
+FE_BEGINNING_BOTTOM_DEPTH AS DEPTH_M,
+FE.TRIP_ID
+FROM FISHING_EVENT FE
+LEFT JOIN (
+  SELECT TRIP_ID, FE.FISHING_EVENT_ID, LLSP.LGLSP_HOOK_COUNT, FE_MAJOR_LEVEL_ID, FE_SUB_LEVEL_ID, H.HOOK_DESC, HSZ.HOOKSIZE_DESC
+  FROM FISHING_EVENT FE
+  INNER JOIN LONGLINE_SPECS LLSP ON LLSP.FISHING_EVENT_ID = FE.FISHING_EVENT_ID
+  LEFT JOIN HOOK H ON H.HOOK_CODE = LLSP.HOOK_CODE
+  LEFT JOIN HOOKSIZE HSZ ON HSZ.HOOKSIZE_CODE = LLSP.HOOKSIZE_CODE
+) SK ON SK.TRIP_ID = FE.TRIP_ID AND SK.FE_MAJOR_LEVEL_ID = FE.FE_MAJOR_LEVEL_ID
+INNER JOIN TRIP_SURVEY TS ON FE.TRIP_ID = TS.TRIP_ID
+INNER JOIN TRIP TR ON FE.TRIP_ID = TR.TRIP_ID
+INNER JOIN SURVEY S ON S.SURVEY_ID = TS.SURVEY_ID
+INNER JOIN SURVEY_SERIES SS ON SS.SURVEY_SERIES_ID = S.SURVEY_SERIES_ID
+LEFT JOIN GROUPING G ON G.GROUPING_CODE = FE.GROUPING_CODE
+WHERE S.SURVEY_SERIES_ID IN (48, 76, 92, 93)
+AND FE.FE_MAJOR_LEVEL_ID < 1000 AND FE_PARENT_EVENT_ID IS NULL
+ORDER BY YEAR, TRIP_ID, FE_MAJOR_LEVEL_ID,  FE_SUB_LEVEL_ID")
+
+# what is this for?
+# AND FE.FE_MAJOR_LEVEL_ID < 1000 AND FE_PARENT_EVENT_ID IS NULL
+
+dsurvey_bio <- gfdata::run_sql("GFBioSQL", "SELECT
+A.ACTIVITY_DESC,
+FE_SUB_LEVEL_ID,
+SS.SURVEY_SERIES_ID,
+FE_PARENT_EVENT_ID,
+YEAR(B21.TRIP_START_DATE) AS YEAR,
+B21.TRIP_COMMENT,
+FISHING_EVENT_ID,
+B21.TRIP_ID,
+B21.FE_MAJOR_LEVEL_ID,
+B21.SPECIES_CODE,
+S.SPECIES_SCIENCE_NAME,
+S.SPECIES_COMMON_NAME,
+B22.SPECIMEN_ID,
+B22.SPECIMEN_SEX_CODE,
+B22.Total_Length,
+B22.Round_Weight
+FROM GFBioSQL.dbo.B21_Samples B21
+INNER JOIN GFBioSQL.dbo.B22_Specimens B22 ON B22.SAMPLE_ID = B21.SAMPLE_ID
+INNER JOIN GFBioSQL.dbo.TRIP_ACTIVITY TA ON TA.TRIP_ID = B21.TRIP_ID
+INNER JOIN TRIP_SURVEY TS ON B21.TRIP_ID = TS.TRIP_ID
+INNER JOIN TRIP TR ON TS.TRIP_ID = TR.TRIP_ID
+INNER JOIN SURVEY SR ON TS.SURVEY_ID = SR.SURVEY_ID
+INNER JOIN SURVEY_SERIES SS ON SR.SURVEY_SERIES_ID = SS.SURVEY_SERIES_ID
+INNER JOIN GFBioSQL.dbo.ACTIVITY A ON A.ACTIVITY_CODE = TA.ACTIVITY_CODE
+INNER JOIN GFBioSQL.dbo.SPECIES S ON S.SPECIES_CODE = B21.SPECIES_CODE
+WHERE SR.SURVEY_SERIES_ID IN (48, 76, 92, 93)
+ORDER BY B21.TRIP_ID, B21.FE_MAJOR_LEVEL_ID, B22.SPECIMEN_ID")
+
+# all 2004, 2022 comparison work should have a parent_event_id
+dsurvey_bio |>
+  filter(YEAR %in% c(2004, 2023)) |>
+  group_by(FISHING_EVENT_ID, YEAR) |>
+  distinct(FISHING_EVENT_ID, .keep_all = TRUE) |>
+  reframe(sum = is.na(FE_PARENT_EVENT_ID)) |>
+  filter(sum == TRUE)
+
+# all other years do not have a parent event id
+dsurvey_bio |>
+  filter(!(YEAR %in% c(2004, 2023))) |>
+  group_by(FISHING_EVENT_ID, YEAR) |>
+  distinct(FISHING_EVENT_ID, .keep_all = TRUE) |>
+  reframe(sum = is.na(FE_PARENT_EVENT_ID)) |>
+  filter(sum == FALSE)
+
+# note yelloweye rockfish not sampled, therefore not entries.
+x <- filter(dsurvey_bio, YEAR == 1986)
+unique(x$SPECIES_COMMON_NAME)
+
+# this has the catch count per species
+catchcount <- gfdata::run_sql("GFBioSQL", "SELECT
+FEC.FISHING_EVENT_ID,
+FE.FE_PARENT_EVENT_ID,
+FE.FE_SUB_LEVEL_ID,
+C.SPECIES_CODE,
+SP.SPECIES_COMMON_NAME,
+SP.SPECIES_SCIENCE_NAME,
+SUM(CATCH_COUNT) CATCH_COUNT
+FROM FISHING_EVENT_CATCH FEC
+INNER JOIN FISHING_EVENT FE ON FE.FISHING_EVENT_ID = FEC.FISHING_EVENT_ID
+INNER JOIN CATCH C ON C.CATCH_ID = FEC.CATCH_ID
+INNER JOIN TRIP_SURVEY TS ON TS.TRIP_ID = FEC.TRIP_ID
+INNER JOIN SURVEY S ON S.SURVEY_ID = TS.SURVEY_ID
+INNER JOIN GFBioSQL.dbo.SPECIES SP ON SP.SPECIES_CODE = C.SPECIES_CODE
+WHERE SURVEY_SERIES_ID IN (48, 76, 92, 93)
+GROUP BY FEC.TRIP_ID,
+FEC.FISHING_EVENT_ID,
+FE.FE_PARENT_EVENT_ID,
+FE.FE_SUB_LEVEL_ID,
+C.SPECIES_CODE,
+SP.SPECIES_COMMON_NAME,
+SP.SPECIES_SCIENCE_NAME
+ORDER BY FEC.FISHING_EVENT_ID")
+
+
+saveRDS(dsurvey_bio, "data-raw/dogfish_samples.rds")
+saveRDS(catchcount, "data-raw/dogfish_counts.rds")
+saveRDS(info, "data-raw/dogfish_sets.rds")
+
+
