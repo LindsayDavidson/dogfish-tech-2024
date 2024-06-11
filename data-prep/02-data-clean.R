@@ -1,4 +1,3 @@
-
 # library -----------------------------------------------------------------
 library(sf)
 library(ggplot2)
@@ -14,18 +13,71 @@ catchcount <- readRDS("data-raw/dogfish_counts.rds")
 names(samples) <- tolower(names(samples))
 names(sets) <- tolower(names(sets))
 
-unique(samples$trip_comment)
+
+# get hook info into samples df -------------------------------------------
+sets_fei <- sets |>
+  filter(survey_series_id != 76) |>
+  dplyr::select(fishing_event_id, fe_sub_level_id, hook_desc, hooksize_desc, year)
+
+samples1 <- samples |>
+  filter(!year %in% c(2004, 2022, 2023)) |>
+           left_join(sets_fei)
+
+samples2 <- samples |>
+           filter(year %in% c(2004, 2022, 2023)) |>
+           left_join(sets_fei, by = c(
+            # "fishing_event_id" = "fishing_event_id",
+             "fe_sub_level_id" = "fe_sub_level_id",
+             "fe_parent_event_id" = "fishing_event_id",
+             "year" = "year"))
+
+samples <- bind_rows(samples1, samples2)
+
+x <- filter(samples, is.na(hook_desc) == TRUE)
+unique(samples$survey_desc)
+unique(x$year)
+
 samples <- samples |>
-  mutate(category = case_when(year %in% c(1986, 1989) ~ "dog",
-                              year %in%  c(2005, 2008, 2011, 2014) ~ "dog",
-                              year == 2019 & trip_comment == "The 2019 Strait of Georgia Dogfish Longline Survey." ~ "dog",
-                              year == 2019 & trip_comment == "The 2019 Dogfish Gear/Timing Comparison Survey. Originally part of 2019 HBLL trip 85073." ~ "comp-hbll",
-                              year == 2023 & trip_comment == "The 2023 Dogfish longline gear comparison survey on the Neocaligus. Samples are added at the skate level"  ~ "comp-dog",
-                              year == 2023 & trip_comment == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus. Conducted simultaneously with the HBLL survey. No CTDs on first half."  ~ "comp-hbll",
-                              year == 2022 ~ "comp-hbll",
-                              year == 2023 & trip_comment ==  "The 2023 Dogfish longline gear comparison survey on the Neocaligus. Samples are added at the skate level." ~ "comp-dog",
-                              year == 2004 ~ "comp-dog"))
-saveRDS(samples, "data-raw/dogfish_samples.rds")
+  mutate(survey = case_when(
+    year %in% c(1986, 1989) ~ "dog-jhook",
+    year %in% c(2005, 2008, 2011, 2014) ~ "dog",
+    year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
+    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
+    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
+    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
+    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
+    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "14/0" ~ "dog",
+    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "13/0" ~ "hbll",
+    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "12/0" ~ "dog-jhook",
+    year == 2022 & hooksize_desc == "13/0" ~ "hbll",
+    year == 2022 & hooksize_desc == "14/0" ~ "dog",
+    year == 2004 & hooksize_desc == "14/0" ~ "dog",
+    year == 2004 & hooksize_desc == "12/0" ~ "dog-jhook"
+  ))
+
+
+samples <- samples |>
+  mutate(survey_type = case_when(
+    year %in% c(1986, 1989) ~ "dog",
+    year %in% c(2005, 2008, 2011, 2014) ~ "dog",
+    year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
+    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" ~ "comp-hbll",
+    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" ~ "comp-dog",
+    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." ~ "comp-hbll",
+    year == 2022 ~ "comp-hbll",
+    year == 2004 ~ "comp-dog"
+  ))
+
+
+
+unique(samples$survey)
+x <- filter(samples, is.na(survey) == TRUE)
+unique(x$survey_desc)
+unique(x$fishing_event_id) #why does this one fishing event not have a parent event id??, this is also not found in the sets dataframe
+
+#remove for now
+samples <- filter(samples, fishing_event_id != 5490376)
+saveRDS(samples, "data-raw/dogfish_samples_cleaned.rds")
 
 # QA/QC location names -------------------------------------------------------------
 
@@ -53,7 +105,7 @@ df <- data.frame(cbind(site_name, site_gis = c(
 )))
 
 sites <- left_join(sites, df)
-#sites <- sites |> select(site_gis)
+# sites <- sites |> select(site_gis)
 # convert center utms to lat and longs
 finalsp <- sets
 coordinates(finalsp) <- c("longitude", "latitude")
@@ -67,17 +119,18 @@ finalsp2 <- finalsp %>%
 ptsint <- st_join(sites, finalsp2) # lose the points that dont intersect
 ptsint
 
-#check no NAs in the site_gis
+# check no NAs in the site_gis
 filter(ptsint, is.na(grouping_spatial_id) == TRUE) |>
   dplyr::select(site_gis) |>
   distinct()
-#put in the missing grouping spatial ids
+# put in the missing grouping spatial ids
 ptsint <- ptsint |>
   mutate(grouping_spatial_id = ifelse(is.na(grouping_spatial_id) == TRUE,
-                                      site_shortname,
-                                      grouping_spatial_id)) |>
+    site_shortname,
+    grouping_spatial_id
+  )) |>
   dplyr::select(-site_name)
-#st_geometry(sites) <- NULL
+# st_geometry(sites) <- NULL
 # some points have NA in the grouping_spatial_id so fix that here
 st_geometry(ptsint) <- NULL
 
@@ -90,8 +143,10 @@ p3 <- p2 + geom_point(data = ptsint, aes(longitude, latitude))
 p3
 
 # a couple points fall outside of the polygons
-missing <- anti_join(dplyr::select(sets, year, fishing_event_id, longitude, latitude),
-                     dplyr::select(ptsint, year, fishing_event_id))
+missing <- anti_join(
+  dplyr::select(sets, year, fishing_event_id, longitude, latitude),
+  dplyr::select(ptsint, year, fishing_event_id)
+)
 missing |>
   distinct(.keep_all = TRUE)
 setsmissing <- filter(sets, sets$fishing_event_id %in% missing$fishing_event_id)
@@ -181,28 +236,28 @@ unique(sets$grouping_depth_id) # NAs and a 'SOG Dogfish Site'
 # fix
 sets <- sets |>
   mutate(grouping_desc = ifelse(depth_m <= 55, "SoG Dogfish 0 - 55 m",
-                                ifelse(depth_m > 55 & depth_m <= 110, "SoG Dogfish 56 - 110 m",
-                                       ifelse(depth_m > 110 & depth_m <= 165, "SoG Dogfish 111 - 165 m",
-                                              ifelse(depth_m > 166 & depth_m <= 220, "SoG Dogfish 166 - 220 m",
-                                                     ifelse(depth_m > 220, "SoG Dogfish > 200 m",
-                                                            NA
-                                                     )
-                                              )
-                                       )
-                                )
+    ifelse(depth_m > 55 & depth_m <= 110, "SoG Dogfish 56 - 110 m",
+      ifelse(depth_m > 110 & depth_m <= 165, "SoG Dogfish 111 - 165 m",
+        ifelse(depth_m > 166 & depth_m <= 220, "SoG Dogfish 166 - 220 m",
+          ifelse(depth_m > 220, "SoG Dogfish > 200 m",
+            NA
+          )
+        )
+      )
+    )
   ))
 
 sets <- sets |>
   mutate(grouping_depth_id = ifelse(grouping_desc == "SoG Dogfish 0 - 55 m", 1,
-                                    ifelse(grouping_desc == "SoG Dogfish 56 - 110 m", 2,
-                                           ifelse(grouping_desc == "SoG Dogfish 111 - 165 m", 3,
-                                                  ifelse(grouping_desc == "SoG Dogfish 166 - 220 m", 4,
-                                                         ifelse(grouping_desc == "SoG Dogfish > 200 m", 5,
-                                                                NA
-                                                         )
-                                                  )
-                                           )
-                                    )
+    ifelse(grouping_desc == "SoG Dogfish 56 - 110 m", 2,
+      ifelse(grouping_desc == "SoG Dogfish 111 - 165 m", 3,
+        ifelse(grouping_desc == "SoG Dogfish 166 - 220 m", 4,
+          ifelse(grouping_desc == "SoG Dogfish > 200 m", 5,
+            NA
+          )
+        )
+      )
+    )
   ))
 
 # check
@@ -268,7 +323,7 @@ regsurveys <- sets |>
   left_join(count)
 
 compsurveys <- sets |>
-  filter(survey_series_id == 48 & year %in% c(2004, 2022,2023)) |>
+  filter(survey_series_id == 48 & year %in% c(2004, 2022, 2023)) |>
   left_join(count, by = c("fishing_event_id" = "fe_parent_event_id", "fe_sub_level_id" = "fe_sub_level_id")) |>
   select(-fishing_event_id.y)
 
@@ -280,19 +335,36 @@ final <- rbind(regsurveys, compsurveys, compsurveys2019)
 unique(final$year)
 
 final <- final |>
-  mutate(category = case_when(year %in% c(1986, 1989) ~ "dog",
-            year %in%  c(2005, 2008, 2011, 2014) ~ "dog",
-            year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
-            year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" ~ "comp-hbll",
-            year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey"  ~ "comp-dog",
-            year == 2023 &
-            survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus."  ~ "comp-hbll",
-            year == 2022 ~ "comp-hbll",
-            year == 2004 ~ "comp-dog"))
+  mutate(survey = case_when(
+    year %in% c(1986, 1989) ~ "dog-jhook",
+    year %in% c(2005, 2008, 2011, 2014) ~ "dog",
+    year == 2019 & survey_desc == "Strait of Georgia Longline Dogfish Survey" ~ "dog", year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
+    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
+    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
+    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
+    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "14/0" ~ "dog",
+    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "13/0" ~ "hbll",
+    year == 2022 & hooksize_desc == "13/0" ~ "hbll",
+    year == 2022 & hooksize_desc == "14/0" ~ "dog",
+    year == 2004 & hooksize_desc == "14/0" ~ "dog",
+    year == 2004 & hooksize_desc == "12/0" ~ "dog-jhook"
+  ))
 
-final <- final |> mutate(cat2 = paste0(category, hook_desc))
+
+final <- final |>
+  mutate(survey_type = case_when(
+    year %in% c(1986, 1989) ~ "dog",
+    year %in% c(2005, 2008, 2011, 2014) ~ "dog",
+    year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
+    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" ~ "comp-hbll",
+    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" ~ "comp-dog",
+    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." ~ "comp-hbll",
+    year == 2022 ~ "comp-hbll",
+    year == 2004 ~ "comp-dog"
+  ))
+
+#final <- final |> mutate(cat2 = paste0(category, "-", hook_desc))
 final <- final |> mutate(julian = lubridate::yday(retrive))
 final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
-saveRDS(final, "data-generated/dogfishs_allsets_allspecies_counts.rds")
-
-
+final <- filter(final, fishing_event_id != 5490376)
+saveRDS(final, "data-generated/dogfish_sets_cleaned.rds")
