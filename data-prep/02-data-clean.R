@@ -56,17 +56,17 @@ samples <- samples |>
   ))
 
 
-samples <- samples |>
-  mutate(survey_type = case_when(
-    year %in% c(1986, 1989) ~ "dog",
-    year %in% c(2005, 2008, 2011, 2014) ~ "dog",
-    year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
-    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" ~ "comp-hbll",
-    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" ~ "comp-dog",
-    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." ~ "comp-hbll",
-    year == 2022 ~ "comp-hbll",
-    year == 2004 ~ "comp-dog"
-  ))
+# samples <- samples |>
+#   mutate(survey_type = case_when(
+#     year %in% c(1986, 1989) ~ "dog",
+#     year %in% c(2005, 2008, 2011, 2014) ~ "dog",
+#     year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
+#     year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" ~ "comp-hbll",
+#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" ~ "comp-dog",
+#     year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." ~ "comp-hbll",
+#     year == 2022 ~ "comp-hbll",
+#     year == 2004 ~ "comp-dog"
+#   ))
 
 
 
@@ -294,7 +294,7 @@ d <- sets |>
   mutate(
     hr_diff = (retrivehr - deployhr) * 60,
     min_diff = abs(retrievemin - deploymin),
-    soak = hr_diff + min_diff
+    soak = (hr_diff + min_diff)/60
   )
 
 # some soaks are NA - fix this!
@@ -338,9 +338,11 @@ final <- final |>
   mutate(survey = case_when(
     year %in% c(1986, 1989) ~ "dog-jhook",
     year %in% c(2005, 2008, 2011, 2014) ~ "dog",
-    year == 2019 & survey_desc == "Strait of Georgia Longline Dogfish Survey" ~ "dog", year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
+    year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
+    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
     year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
+    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "12/0" ~ "dog-jhook",
     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
     year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "14/0" ~ "dog",
     year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "13/0" ~ "hbll",
@@ -349,22 +351,25 @@ final <- final |>
     year == 2004 & hooksize_desc == "14/0" ~ "dog",
     year == 2004 & hooksize_desc == "12/0" ~ "dog-jhook"
   ))
+unique(final$survey)
 
+# final <- final |>
+#   mutate(survey_type = case_when(
+#     year %in% c(1986, 1989) ~ "dog-jhook",
+#     year %in% c(2005, 2008, 2011, 2014) ~ "dog-circlehook",
+#     year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog-circlehook",
+#     year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" ~ "comp-hbll",
+#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" ~ "comp-dog",
+#     year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." ~ "comp-hbll",
+#     year == 2022 ~ "comp-hbll",
+#     year == 2004 ~ "comp-dog"
+#   ))
+# unique(final$survey_type)
 
-final <- final |>
-  mutate(survey_type = case_when(
-    year %in% c(1986, 1989) ~ "dog",
-    year %in% c(2005, 2008, 2011, 2014) ~ "dog",
-    year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
-    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" ~ "comp-hbll",
-    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" ~ "comp-dog",
-    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." ~ "comp-hbll",
-    year == 2022 ~ "comp-hbll",
-    year == 2004 ~ "comp-dog"
-  ))
-
-#final <- final |> mutate(cat2 = paste0(category, "-", hook_desc))
+#final <- final |> mutate(category = paste0(survey, "-", hook_desc))
 final <- final |> mutate(julian = lubridate::yday(retrive))
 final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
 final <- filter(final, fishing_event_id != 5490376)
+unique(final$survey)
+
 saveRDS(final, "data-generated/dogfish_sets_cleaned.rds")
