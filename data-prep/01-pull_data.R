@@ -31,6 +31,21 @@ library(sf)
 library(ggplot2)
 library(here)
 library(sp)
+library(gfdata)
+
+
+
+# pull HBLL inside data ---------------------------------------------------
+
+if (!file.exists("data-raw/HBLLsamples.rds")) {
+  hbllsamples <- get_survey_samples(species = "north pacific spiny dogfish", ssid = c(39,40))
+  saveRDS(hbllsamples, "data-raw/HBLLsamples.rds")
+}
+
+if (!file.exists("data-raw/hbllsets.rds")) {
+  hbllsets <- get_survey_sets(species = "north pacific spiny dogfish", ssid = c(39,40))
+  saveRDS(hbllsets, "data-raw/hbllsets.rds")
+}
 
 
 # Pull dogfish survey samples and sets --------------------------------------------------------------
