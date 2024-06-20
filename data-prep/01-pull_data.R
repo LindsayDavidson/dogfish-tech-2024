@@ -35,6 +35,22 @@ library(gfdata)
 
 
 
+
+# pull inside samples data ------------------------------------------------
+
+allsamps <- get_survey_samples("north pacific spiny dogfish")
+unique(allsamps$survey_series_desc)
+test <- filter(allsamps, survey_series_desc == "Strait of Georgia Dogfish Longline")
+unique(test$year)
+
+dogsamps <- filter(allsamps, survey_series_desc %in% c(
+  "Hard Bottom Longline Inside North ",
+  "Strait of Georgia Dogfish Longline",
+  "Hard Bottom Longline Inside South "
+))
+
+saveRDS(dogsamps, "output/samples-hbll-dog.rds")
+
 # pull HBLL inside data ---------------------------------------------------
 
 if (!file.exists("data-raw/HBLLsamples.rds")) {
