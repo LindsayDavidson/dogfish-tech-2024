@@ -31,4 +31,4 @@ grid <- add_utm_columns(grid,
 ) |>
   mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000) |>
   mutate(log_botdepth = log(bot_depth))
-saveRDS('output/prediction-grid-sog.rds')
+saveRDS(grid, 'output/prediction-grid-sog.rds')
