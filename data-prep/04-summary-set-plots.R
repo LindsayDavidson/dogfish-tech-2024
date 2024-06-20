@@ -1,6 +1,7 @@
 # pull data ---------------------------------------------------------------
 
-d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds")
+d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") #no west coast VI expansion set
+d <- readRDS("data-raw/wrangled-hbll-dog-sets-hblls.rds") #no expansion set, no hbll north
 
 
 # summary plots -----------------------------------------------------------
@@ -13,8 +14,19 @@ d |>
     cpue_hk = sum(catch_count) / sum(hook_count)
   ) |>
   ggplot() +
-  geom_point(aes(year, cpue_hk, colour = survey_abbrev)) +
-  geom_line(aes(year, cpue_hk, colour = survey_abbrev))
+  geom_point(aes(year, cpue, colour = survey_abbrev)) +
+  geom_line(aes(year, cpue, colour = survey_abbrev))
+
+
+d |>
+  filter(survey_abbrev == "hbll") |>
+  group_by(survey_abbrev, year) |>
+  ggplot() +
+  geom_jitter(aes(year, catch_count, colour = julian))  +
+  theme_classic()
+  #geom_line(aes(year, catch_count, colour = survey_abbrev))
+x <- filter(d, survey_abbrev == "hbll")
+sort(unique(x$year))
 
 d |>
   group_by(survey_abbrev, year) |>
@@ -47,10 +59,10 @@ ggsave("Figures/summary_surveylocationscatches.png", width = 5, height = 5)
 d |>
   group_by(survey_abbrev, year) |>
   ggplot() +
-  geom_jitter(aes(year, log(catch_count), colour = survey_abbrev), alpha = 0.5) +
+  geom_jitter(aes(year, (catch_count), colour = survey_abbrev), alpha = 0.5) +
   theme_classic() +
   scale_color_manual(values = c("#e69b99", "#24492e", "#2c6184"))
-ggsave("Figures/summary_logcatches.png", width = 5, height = 5)
+ggsave("Figures/summary_catches.png", width = 5, height = 5)
 
 
 d |>
