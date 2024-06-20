@@ -1,6 +1,5 @@
-# notes -------------------------------------------------------------------
-
-# 2004 is missing deployment times and therefore I can't caluculate soak time
+# notes
+# 2004 is missing deployment times and therefore I can't calculate soak time
 # soak times were between 1.5-3 hours
 
 
@@ -17,7 +16,7 @@ coast <- sf::st_crop(
   c(xmin = -175, ymin = 20, xmax = -115, ymax = 70)
 )
 
-coast_proj <- sf::st_transform(coast, crs = 32612)
+coast_proj <- sf::st_transform(coast, crs = bccrs)
 
 
 # library -----------------------------------------------------------------
@@ -30,7 +29,13 @@ library(sdmTMB)
 # pull data ---------------------------------------------------------------
 
 d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds")
-d <- filter(d, year != 2004)
+d <- readRDS("data-raw/wrangled-hbll-dog-sets-hblls.rds") #no expansion set, no hbll north
+
+#rm 2004 calibration work??
+#rm <- filter(d, year == 2004 & survey_abbrev %in% c("dog-jhook", "dog")) #the catch rates are so #low and I don't know what the soak time was
+#d <- filter(d, !(fishing_event_id %in% rm$fishing_event_id))
+
+ggplot(d, aes(longitude, latitude, colour = survey_abbrev)) + geom_point()
 
 
 # grid --------------------------------------------------------------------
@@ -72,8 +77,12 @@ fit <- sdmTMB(
   extra_time = c(1987, 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006, 2007, 2010, 2012, 2016, 2017, 2020)
 )
 
+fitjul <- update(fit, formula = catch_count ~ poly(log_botdepth, 2) + as.factor(survey_abbrev) + poly(julian, 2))
+
 saveRDS(fit, file = "output/fit-sog-hblldog.rds")
 fit <- readRDS("output/fit-sog-hblldog.rds")
+saveRDS(fitjul, file = "output/fit-sog-hblldog-julian.rds")
+fitjul <- readRDS("output/fit-sog-hblldog-julian.rds")
 
 years <- seq(min(d$year), 2023, 1)
 # grid <- purrr::map_dfr(unique(d$year), ~ tibble(grid, year = .x))
@@ -84,17 +93,19 @@ sanity(fit)
 pred <- predict(fit, grid, return_tmb_object = TRUE, response = TRUE)
 index <- get_index(pred, bias_correct = TRUE)
 
+predj <- predict(fitjul, grid, return_tmb_object = TRUE, response = TRUE)
+indexj <- get_index(predj, bias_correct = TRUE)
+
 index <- index |> mutate(model = ifelse(year %in% unique(d$year), "yrs_surved", "yrs_interp"))
 yearlabs <- as.list(index |> filter(model == "yrs_surved") |> reframe(year = year))
 yearlabs <- c(1986, 1989, 2005, 2008, 2009, 2011, 2013, 2014, 2015, 2018, 2019, 2021, 2022, 2023)
 
-ggplot(indexf, aes(year, est / 10000)) +
+ggplot(index, aes(year, est / 10000)) +
   geom_line(col = "#8D9999") +
   geom_point(col = "#8D9999") +
   geom_ribbon(aes(ymin = lwr / 10000, ymax = upr / 10000), alpha = 0.4, fill = "#8D9999") +
   theme_classic() +
   scale_x_continuous(breaks = c(years))
-
 
 ggplot(index, aes(year, est, ymin = lwr, ymax = upr)) +
   # geom_pointrange(data = filter(index, model == "yrs_interp"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, colour = "grey40", alpha = 0.6) +
@@ -102,3 +113,12 @@ ggplot(index, aes(year, est, ymin = lwr, ymax = upr)) +
   theme_classic() +
   scale_x_continuous(breaks = c(yearlabs)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+x <- ggplot(indexj, aes(year, est, ymin = lwr, ymax = upr)) +
+  # geom_pointrange(data = filter(index, model == "yrs_interp"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, colour = "grey40", alpha = 0.6) +
+  geom_pointrange(data = filter(index, model == "yrs_surved"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, colour = "red", alpha = 0.6) +
+  theme_classic() +
+  scale_x_continuous(breaks = c(yearlabs)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+x + geom_pointrange(data = filter(index, model == "yrs_surved"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, colour = "grey", alpha = 0.6) +
+  theme_classic()
