@@ -29,7 +29,7 @@ library(sdmTMB)
 # pull data ---------------------------------------------------------------
 
 d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds")
-d <- readRDS("data-raw/wrangled-hbll-dog-sets-hblls.rds") #no expansion set, no hbll north
+d <- readRDS("data-raw/wrangled-hbll-dog-sets-hblls.rds") #no expansion set, no hbll north except for 2008 year
 
 #rm 2004 calibration work??
 #rm <- filter(d, year == 2004 & survey_abbrev %in% c("dog-jhook", "dog")) #the catch rates are so #low and I don't know what the soak time was
