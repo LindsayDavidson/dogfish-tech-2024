@@ -49,33 +49,6 @@ saveRDS(grid, 'output/prediction-grid-hbll-sog.rds')
 
 # prediction grid for all of Strait of Georgia ----------------------------
 
-# #use management areas from PBSdata and create a grid over that??
-# # remove points that fall into the inside waters using the GMA fishing areas
-# data(major) # from PBSdata
-# unique(major$PID)
-# major <- major %>%
-#   st_as_sf(coords = c("X", "Y"), crs = 4326) %>%
-#   st_transform(crs = bccrs) %>%
-#   group_by(PID) %>%
-#   summarise(geometry = st_combine(geometry)) %>%
-#   st_cast("POLYGON")
-# plot(major)
-#
-# gmas_PIDs <- data.frame(PID = c(1, seq(2, 8,1)), GMAs = c(
-#   "4B", "3C", "3D", "5A", "5B", "5C", "5D" , "5E"
-#   ))
-#
-# gma <- major %>%
-#   left_join(gmas_PIDs) %>%
-#   st_as_sf(coords = c("X", "Y"), crs = 4326) %>%
-#   st_transform(crs = bccrs) %>%
-#   group_by(GMAs) %>%
-#   summarise(geometry = st_combine(geometry)) %>%
-#   st_cast("POLYGON") |>
-#   filter(GMAs %in% c("4B"))
-#
-# plot(gma) #sog n and south are but should intersect with a map to get rid of land area
-
 d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") # no expansion set along the strait
 
 # make the grid function
