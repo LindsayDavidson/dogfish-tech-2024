@@ -9,6 +9,8 @@ gridsize = 2000
 path_extent <- "output/PredictionGridExtent.shp"
 path_center <- "output/PredictionGridCentres.shp"
 path_final <- "output/PredictionGridCentres.rds"
+mindepth <- 5
+maxdepth <- 350
 
 # prediction grid from gfplot ---------------------------------------------
 
@@ -52,11 +54,10 @@ saveRDS(grid, 'output/prediction-grid-hbll-sog.rds')
 d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") # no expansion set along the strait
 
 # make the grid function
-gridfunc <- function(d, iphcreg) {
+gridfunc <- function(d) {
   d_sf <- st_as_sf(d, coords = c("UTM.lon.m", "UTM.lat.m"), crs = bccrs)
   d_sf_crs <- st_transform(d_sf, crs = bccrs)
 
-  #hulls <- concaveman::concaveman(filter(d_sf, survey_abbrev %in% c("HBLL INS S)))
   hull <- concaveman::concaveman(d_sf)
   hulls <- st_buffer(hull, buffersize)
 
@@ -107,13 +108,13 @@ gridfunc <- function(d, iphcreg) {
   grid1 <- add_utm_columns(df_depths,
                            ll_names = c("longitude", "latitude"),
                            utm_names = c("UTM.lon", "UTM.lat"),
-                           utm_crs = new_crs
+                           utm_crs = bccrs
   ) %>%
     mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
 
   # join the points back to the grid so I can predict on the grid
   grid2 <- st_join(grid_extent,
-                   st_as_sf(grid1, coords = c("UTM.lon.m", "UTM.lat.m"), crs = new_crs),
+                   st_as_sf(grid1, coords = c("UTM.lon.m", "UTM.lat.m"), crs = bccrs),
                    join = st_contains
   ) %>%
     drop_na(depth) %>%
@@ -128,5 +129,5 @@ gridfunc <- function(d, iphcreg) {
 }
 
 # run the grid function
-gridfunc(iphc, iphcreg)
+gridfunc(d)
 
