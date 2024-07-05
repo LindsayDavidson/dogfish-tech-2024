@@ -2,10 +2,13 @@
 # 2004 is missing deployment times and therefore I can't calculate soak time
 # soak times were between 1.5-3 hours
 
-
-# params ------------------------------------------------------------------
+library(ggplot2)
+library(tidyverse)
+library(sdmTMB)
 
 bccrs <- 32609
+#loc = "HBLL INS N"
+#loc = "HBLL INS S"
 
 
 # map ---------------------------------------------------------------------
@@ -19,17 +22,18 @@ coast <- sf::st_crop(
 coast_proj <- sf::st_transform(coast, crs = bccrs)
 
 
-# library -----------------------------------------------------------------
 
-library(ggplot2)
-library(tidyverse)
-library(sdmTMB)
-
-
-# pull data ---------------------------------------------------------------
+# data ---------------------------------------------------------------
 
 d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds")
-d <- readRDS("data-raw/wrangled-hbll-dog-sets-hblls.rds") #no expansion set, no hbll north except for 2008 year
+#grid <- readRDS("output/prediction-grid-hbll-sog.rds") #from gfdata hbll
+grid <- readRDS("output/PredictionGridCentres.rds") #from convex hull to have deeper depths
+
+grid$survey_type <- "hbll"
+grid$julian <- mean(d$julian)
+
+plot(grid$longitude, grid$latitude)
+points(d$longitude, d$latitude, col = "red")
 
 #rm 2004 calibration work??
 #rm <- filter(d, year == 2004 & survey_abbrev %in% c("dog-jhook", "dog")) #the catch rates are so #low and I don't know what the soak time was
@@ -37,12 +41,6 @@ d <- readRDS("data-raw/wrangled-hbll-dog-sets-hblls.rds") #no expansion set, no 
 
 ggplot(d, aes(longitude, latitude, colour = survey_abbrev)) + geom_point()
 
-
-# grid --------------------------------------------------------------------
-
-grid <- readRDS("output/prediction-grid-sog.rds")
-grid$survey_abbrev <- "hbll"
-grid$julian <- mean(d$julian)
 
 # mesh  -------------------------------------------------------------------
 
@@ -56,7 +54,7 @@ ggplot() +
   xlab("UTM (km)") +
   ylab("UTM (km)") +
   coord_fixed()
-ggsave("figs/mesh.pdf", width = 6, height = 6)
+ggsave("Figures/mesh.pdf", width = 6, height = 6)
 
 
 
@@ -64,7 +62,7 @@ ggsave("figs/mesh.pdf", width = 6, height = 6)
 unique(sort(d$year))
 
 fit <- sdmTMB(
-  formula = catch_count ~ poly(log_botdepth, 2) + as.factor(survey_abbrev),
+  formula = catch_count ~ poly(log_botdepth, 2) + as.factor(survey_type),
   data = d,
   time = "year",
   offset = "offset",
@@ -77,7 +75,7 @@ fit <- sdmTMB(
   extra_time = c(1987, 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006, 2007, 2010, 2012, 2016, 2017, 2020)
 )
 
-fitjul <- update(fit, formula = catch_count ~ poly(log_botdepth, 2) + as.factor(survey_abbrev) + poly(julian, 2))
+fitjul <- update(fit, formula = catch_count ~ poly(log_botdepth, 2) + as.factor(survey_type) + poly(julian, 2))
 
 saveRDS(fit, file = "output/fit-sog-hblldog.rds")
 fit <- readRDS("output/fit-sog-hblldog.rds")
