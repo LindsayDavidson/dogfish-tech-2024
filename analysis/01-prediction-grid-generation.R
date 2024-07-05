@@ -1,3 +1,15 @@
+library(tidyverse)
+library(PBSdata)
+
+#for now make one grid but need to make a grid for north, south, and then dogfish areas (? or would the south grid work?)
+#params
+bccrs = 32609
+buffersize = 8
+gridsize = 2000
+path_extent <- "output/PredictionGridExtent.shp"
+path_center <- "output/PredictionGridCentres.shp"
+path_final <- "output/PredictionGridCentres.rds"
+
 # prediction grid from gfplot ---------------------------------------------
 
 hbll_ins_s <- gfplot::hbll_inside_s_grid
@@ -32,4 +44,116 @@ grid <- add_utm_columns(grid,
   mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000) |>
   mutate(log_botdepth = log(bot_depth))
 
-saveRDS(grid, 'output/prediction-grid-sog.rds')
+saveRDS(grid, 'output/prediction-grid-hbll-sog.rds')
+
+
+# prediction grid for all of Strait of Georgia ----------------------------
+
+# #use management areas from PBSdata and create a grid over that??
+# # remove points that fall into the inside waters using the GMA fishing areas
+# data(major) # from PBSdata
+# unique(major$PID)
+# major <- major %>%
+#   st_as_sf(coords = c("X", "Y"), crs = 4326) %>%
+#   st_transform(crs = bccrs) %>%
+#   group_by(PID) %>%
+#   summarise(geometry = st_combine(geometry)) %>%
+#   st_cast("POLYGON")
+# plot(major)
+#
+# gmas_PIDs <- data.frame(PID = c(1, seq(2, 8,1)), GMAs = c(
+#   "4B", "3C", "3D", "5A", "5B", "5C", "5D" , "5E"
+#   ))
+#
+# gma <- major %>%
+#   left_join(gmas_PIDs) %>%
+#   st_as_sf(coords = c("X", "Y"), crs = 4326) %>%
+#   st_transform(crs = bccrs) %>%
+#   group_by(GMAs) %>%
+#   summarise(geometry = st_combine(geometry)) %>%
+#   st_cast("POLYGON") |>
+#   filter(GMAs %in% c("4B"))
+#
+# plot(gma) #sog n and south are but should intersect with a map to get rid of land area
+
+d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") # no expansion set along the strait
+
+# make the grid function
+gridfunc <- function(d, iphcreg) {
+  d_sf <- st_as_sf(d, coords = c("UTM.lon.m", "UTM.lat.m"), crs = bccrs)
+  d_sf_crs <- st_transform(d_sf, crs = bccrs)
+
+  #hulls <- concaveman::concaveman(filter(d_sf, survey_abbrev %in% c("HBLL INS S)))
+  hull <- concaveman::concaveman(d_sf)
+  hulls <- st_buffer(hull, buffersize)
+
+  plot(st_geometry(hulls), col = "blue")
+
+  # change resolution here
+  polygony <- st_make_grid(hulls, square = TRUE, cellsize = c(gridsize, gridsize)) %>%
+    st_sf() %>%
+    mutate(cell_ID = row_number())
+  center <- st_centroid(polygony)
+
+  center_extent <- st_intersection(st_geometry(hulls), st_geometry(center))
+  grid_extent <- st_intersection(st_geometry(hulls), st_geometry(polygony))
+  test_center <- st_sf(center_extent)
+  grid_extent <- st_sf(grid_extent)
+  grid_extent$area_km <- st_area(grid_extent) / 1000000 # m to km
+  range(grid_extent$area_km)
+
+  st_write(grid_extent, path_extent, append = FALSE)
+  st_write(test_center, path_center, append = FALSE)
+  testcentre <- st_read(path_center)
+
+  testcentre2 <- st_transform(testcentre, crs = "+proj=latlon +datum=WGS84")
+  df <- testcentre2 %>%
+    mutate(
+      lat = unlist(purrr::map(testcentre2$geometry, 2)),
+      long = unlist(purrr::map(testcentre2$geometry, 1))
+    ) |>
+    st_drop_geometry()
+
+  # browser()
+
+  # # Use get.depth to get the depth for each point
+  # suppressWarnings(bio_depth <- getNOAA.bathy(lon1 = -170, lon2 = -120, lat1 = 30, lat2 = 70, resolution = 1, keep = TRUE))
+  suppressWarnings(bio_depth <- marmap::getNOAA.bathy(lon1 = -180, lon2 = -110, lat1 = 40, lat2 = 60, resolution = 1, keep = TRUE))
+
+  df_depths <- marmap::get.depth(bio_depth, df[, c("long", "lat")], locator = FALSE) %>%
+    mutate(bot_depth = (depth * -1)) %>%
+    rename(longitude = lon, latitude = lat) %>%
+    filter(bot_depth > mindepth & bot_depth < maxdepth) %>%
+    mutate(logbot_depth = log(bot_depth)) %>%
+    inner_join(df, by = c("longitude" = "long", "latitude" = "lat")) |>
+    dplyr::select(-FID) |>
+    distinct(.keep_all = TRUE)
+
+  df_depths[duplicated(df_depths), ] # just checking
+
+  grid1 <- add_utm_columns(df_depths,
+                           ll_names = c("longitude", "latitude"),
+                           utm_names = c("UTM.lon", "UTM.lat"),
+                           utm_crs = new_crs
+  ) %>%
+    mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
+
+  # join the points back to the grid so I can predict on the grid
+  grid2 <- st_join(grid_extent,
+                   st_as_sf(grid1, coords = c("UTM.lon.m", "UTM.lat.m"), crs = new_crs),
+                   join = st_contains
+  ) %>%
+    drop_na(depth) %>%
+    st_drop_geometry()
+
+  grid2 <- grid2 |>
+    mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
+
+  grid4_ras <- grid2 %>%
+    mutate(across(c(UTM.lon, UTM.lat), \(x) round(x, digits = 2)))
+  saveRDS(grid4_ras, path_final)
+}
+
+# run the grid function
+gridfunc(iphc, iphcreg)
+
