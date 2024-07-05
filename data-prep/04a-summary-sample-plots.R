@@ -5,10 +5,10 @@ hbllsamps <- readRDS("output/samples-hbll-dog.rds")
 
 
 # filter data  -----------------------------------------------------------
-samps <- samps |> mutate(name = ifelse(year %in% c(1986, 1989), "DOGJhooks", survey_abbrev))
-samps <- samps %>%
-  mutate(dmy = lubridate::ymd(trip_start_date)) |>
-  mutate(julian = lubridate::yday(dmy))
+# samps <- samps |> mutate(name = ifelse(year %in% c(1986, 1989), "DOGJhooks", survey_abbrev))
+# samps <- samps %>%
+#   mutate(dmy = lubridate::ymd(trip_start_date)) |>
+#   mutate(julian = lubridate::yday(dmy))
 
 ggplot(samps, aes(year, julian, group = name, colour = name)) +
   geom_point() +
