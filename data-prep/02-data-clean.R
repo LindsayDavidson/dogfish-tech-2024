@@ -14,224 +14,154 @@ names(samples) <- tolower(names(samples))
 names(sets) <- tolower(names(sets))
 
 
-# get hook info into samples df -------------------------------------------
-sets_fei <- sets |>
-  filter(survey_series_id != 76) |>
-  dplyr::select(fishing_event_id, fe_sub_level_id, hook_desc, hooksize_desc, year)
-
-samples1 <- samples |>
-  filter(!year %in% c(2004, 2022, 2023)) |>
-           left_join(sets_fei)
-
-samples2 <- samples |>
-           filter(year %in% c(2004, 2022, 2023)) |>
-           left_join(sets_fei, by = c(
-            # "fishing_event_id" = "fishing_event_id",
-             "fe_sub_level_id" = "fe_sub_level_id",
-             "fe_parent_event_id" = "fishing_event_id",
-             "year" = "year"))
-
-samples <- bind_rows(samples1, samples2)
-
-x <- filter(samples, is.na(hook_desc) == TRUE)
-unique(samples$survey_desc)
-unique(x$year)
-
-samples <- samples |>
-  mutate(survey = case_when(
-    year %in% c(1986, 1989) ~ "dog-jhook",
-    year %in% c(2005, 2008, 2011, 2014) ~ "dog",
-    year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
-    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
-    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
-    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
-    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
-    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "14/0" ~ "dog",
-    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "13/0" ~ "hbll",
-    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "12/0" ~ "dog-jhook",
-    year == 2022 & hooksize_desc == "13/0" ~ "hbll",
-    year == 2022 & hooksize_desc == "14/0" ~ "dog",
-    year == 2004 & hooksize_desc == "14/0" ~ "dog",
-    year == 2004 & hooksize_desc == "12/0" ~ "dog-jhook"
-  ))
-
-
+# # get hook info into samples df -------------------------------------------
+# sets_fei <- sets |>
+#   filter(survey_series_id != 76) |> # get rid of 76 as its a duplicate of survey series but does not include comp work
+#   dplyr::select(fishing_event_id, fe_sub_level_id, hook_desc, hooksize_desc, year)
+#
+# samples1 <- samples |>
+#   filter(!year %in% c(2004, 2022, 2023)) |>
+#   left_join(sets_fei)
+#
+# samples2 <- samples |>
+#   filter(year %in% c(2004, 2022, 2023)) |>
+#   left_join(sets_fei, by = c(
+#     # "fishing_event_id" = "fishing_event_id",
+#     "fe_sub_level_id" = "fe_sub_level_id",
+#     "fe_parent_event_id" = "fishing_event_id",
+#     "year" = "year"
+#   ))
+#
+# samples <- bind_rows(samples1, samples2)
+#
+# x <- filter(samples, is.na(hook_desc) == TRUE)
+# unique(samples$survey_desc)
+# unique(x$year)
+#
 # samples <- samples |>
-#   mutate(survey_type = case_when(
-#     year %in% c(1986, 1989) ~ "dog",
+#   mutate(survey = case_when(
+#     year %in% c(1986, 1989) ~ "dog-jhook",
 #     year %in% c(2005, 2008, 2011, 2014) ~ "dog",
 #     year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
-#     year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" ~ "comp-hbll",
-#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" ~ "comp-dog",
-#     year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." ~ "comp-hbll",
-#     year == 2022 ~ "comp-hbll",
-#     year == 2004 ~ "comp-dog"
+#     year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
+#     year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
+#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
+#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
+#     year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "14/0" ~ "dog",
+#     year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "13/0" ~ "hbll",
+#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "12/0" ~ "dog-jhook",
+#     year == 2022 & hooksize_desc == "13/0" ~ "hbll",
+#     year == 2022 & hooksize_desc == "14/0" ~ "dog",
+#     year == 2004 & hooksize_desc == "14/0" ~ "dog",
+#     year == 2004 & hooksize_desc == "12/0" ~ "dog-jhook"
 #   ))
-
-
-
-unique(samples$survey)
-x <- filter(samples, is.na(survey) == TRUE)
-unique(x$survey_desc)
-unique(x$fishing_event_id) #why does this one fishing event not have a parent event id??, this is also not found in the sets dataframe
-
-#remove for now
-samples <- filter(samples, fishing_event_id != 5490376)
-saveRDS(samples, "data-raw/dogfish_samples_cleaned.rds")
+#
+#
+# x <- filter(samples, is.na(survey) == TRUE)
+# unique(x$survey_desc)
+# unique(x$fishing_event_id) # why does this one fishing event not have a parent event id??, this is also not found in the sets dataframe
+#
+# # remove for now
+# samples <- filter(samples, fishing_event_id != 5490376)
+# saveRDS(samples, "data-raw/dogfish_samples_cleaned.rds")
 
 # QA/QC location names -------------------------------------------------------------
 
+unique(sets$grouping_spatial_id) #NAs
 
-sets |>
-  select(grouping_spatial_id) |>
-  unique()
+sets <- sets |>
+  mutate(grouping_spatial_id =
+    case_when(str_detect(fe_fishing_ground_comment, "French") ~ "FC",
+              str_detect(fe_fishing_ground_comment, "Hornby") ~ "HI",
+    str_detect(fe_fishing_ground_comment, "Galiano") ~ "GI",
+    str_detect(fe_fishing_ground_comment, "Gabriola") ~ "EI",
+    str_detect(fe_fishing_ground_comment, "Entrance") ~ "EI",
+    str_detect(fe_fishing_ground_comment, "Epso") ~ "EP",
+    str_detect(fe_fishing_ground_comment, "Espo") ~ "EP", #sp mistake in df
+    str_detect(fe_fishing_ground_comment, "Salamanca") ~ "AP",
+    str_detect(fe_fishing_ground_comment, "Active") ~ "AP",
+    str_detect(fe_fishing_ground_comment, "Porlier") ~ "PP",
+    str_detect(fe_fishing_ground_comment, "Polier") ~ "PP", #sp mistake in df
+    str_detect(fe_fishing_ground_comment, "Sturgeon") ~ "SB",
+    str_detect(fe_fishing_ground_comment, "White") ~ "HB",
+    str_detect(fe_fishing_ground_comment, "Halibut") ~ "HB",
+    str_detect(fe_fishing_ground_comment, "Ajax") ~ "AE",
+    str_detect(fe_fishing_ground_comment, "Lazo") ~ "CL",
+    str_detect(fe_fishing_ground_comment, "Mudge") ~ "CM",
+    str_detect(fe_fishing_ground_comment, "Oyster") ~ "OR",
+    str_detect(fe_fishing_ground_comment, "Sinclair") ~ "SB",
+    str_detect(fe_fishing_ground_comment, "Grant") ~ "GR",
+    str_detect(fe_fishing_ground_comment, "Stillwater") ~ "SB", #I overlaid a map and these points to derive this, see below
+    str_detect(fe_fishing_ground_comment, "North East Pont") ~ "SB", #see overlay
+    str_detect(fe_fishing_ground_comment, "Mid Straits") ~ "CL", #see overlay
+    is.na(fe_fishing_ground_comment) ~ NA
+  ))
 
-unique(sets$grouping_spatial_id)
+#some points have the name galiano but should be active pass based on location
+#based on overlay below I am changing them here
+sets <- sets |>
+  mutate(grouping_spatial_id = ifelse(fishing_event_id %in% c(3369551,3369551,3369552,3369552,336955, 3369553), "AP", grouping_spatial_id))
 
-# FIX LOCATION NAMES
-sets |> filter(is.na(grouping_spatial_id)) # lots of NAs for grouping_spatial_id
+ggplot() +
+  geom_point(data = sets, aes(longitude, latitude, colour = as.factor(grouping_spatial_id)))
+#that NA is fine, its outside of any dogfish survey site
 
-# overlay data locations with polygons
-sites <- st_read("data-raw", "dogfish_polygons_noproj2")
-plot(st_geometry(sites), col = "red")
-site_name <- unique(sites$site_name)
-df <- data.frame(cbind(site_name, site_gis = c(
-  "Ajax Exeter", "Active Pass", "Grants Reef", "Halibut Bank", "Sturgeon Bank",
-  "Oyster River", "Epsom Point", "Sinclair Bank", "Porlier Pass", "Cape Mudge", "French Creek",
-  "Cape Lazo", "Entrance Island", "Hornby Island"
-), site_shortname = c(
-  "AE", "AP", "GR", "HB", "ST", "OR", "EP", "SB", "PP", "CM", "FC",
-  "CL", "EI", "HI"
-)))
-
-sites <- left_join(sites, df)
-# sites <- sites |> select(site_gis)
-# convert center utms to lat and longs
-finalsp <- sets
-coordinates(finalsp) <- c("longitude", "latitude")
-proj4string(finalsp) <- CRS("+proj=longlat + datum=WGS84")
-finalsp <- st_as_sf(finalsp)
-finalsp2 <- finalsp %>%
-  mutate(
-    latitude = unlist(purrr::map(finalsp$geometry, 2)),
-    longitude = unlist(purrr::map(finalsp$geometry, 1))
-  )
-ptsint <- st_join(sites, finalsp2) # lose the points that dont intersect
-ptsint
-
-# check no NAs in the site_gis
-filter(ptsint, is.na(grouping_spatial_id) == TRUE) |>
-  dplyr::select(site_gis) |>
-  distinct()
-# put in the missing grouping spatial ids
-ptsint <- ptsint |>
-  mutate(grouping_spatial_id = ifelse(is.na(grouping_spatial_id) == TRUE,
-    site_shortname,
-    grouping_spatial_id
-  )) |>
-  dplyr::select(-site_name)
-# st_geometry(sites) <- NULL
-# some points have NA in the grouping_spatial_id so fix that here
-st_geometry(ptsint) <- NULL
+saveRDS(sets, "data-generated/sets_cleaned.rds")
 
 
-# intersect of sets and dogfish polygons, red points fall outside of the polygons
-p1 <- ggplot(sites) +
-  geom_sf(aes(fill = site_gis))
-p2 <- p1 + geom_point(data = sets, aes(longitude, latitude), colour = "red")
-p3 <- p2 + geom_point(data = ptsint, aes(longitude, latitude))
-p3
-
-# a couple points fall outside of the polygons
-missing <- anti_join(
-  dplyr::select(sets, year, fishing_event_id, longitude, latitude),
-  dplyr::select(ptsint, year, fishing_event_id)
-)
-missing |>
-  distinct(.keep_all = TRUE)
-setsmissing <- filter(sets, sets$fishing_event_id %in% missing$fishing_event_id)
-p3 + geom_point(data = setsmissing, aes(longitude, latitude, col = grouping_spatial_id))
-
-# check the missing points
-df <- data.frame(
-  fishing_event_id = c(
-    3369466, 3369471, 3369508, 4356186, 3369598, 5490376,
-    5490373, 5490374, 5490375
-  ),
-  grouping_spatial_id = c("EI", NA, "CL", "CL", "OR", NA, "AP", "AP", "AP")
-)
-ptsint2 <- sets |>
-  dplyr::select(-grouping_spatial_id) |>
-  filter(fishing_event_id %in% df$fishing_event_id) |>
-  left_join(df) |>
-  bind_rows(dplyr::select(ptsint, -site_gis))
-
-saveRDS(ptsint2, "data-generated/sets_cleaned.rds")
-
-# check points are close to
-# could do this with a buffer around points and see what intersects
-p1 <- ggplot(sites) +
-  geom_sf(aes(fill = site_gis))
-p2 <- p1 + geom_sf(data = filter(sites, site_gis == "Entrance Island"), fill = "red")
-p2 + geom_point(
-  data = filter(missing, fishing_event_id == 3369466),
-  aes(longitude, latitude), colour = "red"
-)
-
-p1 <- ggplot(sites) +
-  geom_sf(aes(fill = site_gis))
-p2 <- p1 + geom_sf(data = filter(sites, site_gis == "Porlier Pass"), fill = "red")
-p2 + geom_point(
-  data = filter(missing, fishing_event_id == 3369471),
-  aes(longitude, latitude), colour = "red"
-) # nope too far
-
-p1 <- ggplot(sites) +
-  geom_sf(aes(fill = site_gis))
-p2 <- p1 + geom_sf(data = filter(sites, site_gis == "Cape Lazo"), fill = "red")
-p2 + geom_point(
-  data = filter(missing, fishing_event_id == c(3369508, 4356186)),
-  aes(longitude, latitude), colour = "red"
-)
-
-p1 <- ggplot(sites) +
-  geom_sf(aes(fill = site_gis))
-p2 <- p1 + geom_sf(data = filter(sites, site_gis == "Oyster River"), fill = "red")
-p2 + geom_point(
-  data = filter(missing, fishing_event_id == 3369598),
-  aes(longitude, latitude), colour = "red"
-)
-
-p1 <- ggplot(sites) +
-  geom_sf(aes(fill = site_gis))
-p2 <- p1 + geom_sf(data = filter(sites, site_gis == "Active Pass"), fill = "red")
-p2 + geom_point(
-  data = filter(missing, fishing_event_id == c(5490373, 5490374, 5490375)),
-  aes(longitude, latitude), colour = "red"
-)
-
-p1 <- ggplot(sites) +
-  geom_sf(aes(fill = site_gis))
-# p2 <- p1 + geom_sf(data = filter(sites, site_gis == "Active Pass"), fill = "red")
-p1 + geom_point(
-  data = filter(missing, fishing_event_id == c(5490376)),
-  aes(longitude, latitude), colour = "red"
-)
+# polygon and set point overlay -------------------------------------------
 
 
-ptsint2 |>
-  dplyr::select(grouping_spatial_id, fe_fishing_ground_comment) |>
-  distinct()
-ggplot(ptsint2, aes(longitude, latitude, colour = grouping_spatial_id, group = fe_fishing_ground_comment)) +
-  geom_point()
+#leaving this here to show how I checked the spatial location.
+# # overlay data locations with polygons
+# sites <- st_read("data-raw", "dogfish_polygons_noproj2")
+# plot(st_geometry(sites), col = "red")
+# site_name <- unique(sites$site_name)
+# df <- data.frame(cbind(site_name, site_gis = c(
+#   "Ajax Exeter", "Active Pass", "Grants Reef", "Halibut Bank", "Sturgeon Bank",
+#   "Oyster River", "Epsom Point", "Sinclair Bank", "Porlier Pass", "Cape Mudge", "French Creek",
+#   "Cape Lazo", "Entrance Island", "Hornby Island"
+# ), site_shortname = c(
+#   "AE", "AP", "GR", "HB", "SB", "OR", "EP", "SB", "PP", "CM", "FC",
+#   "CL", "EI", "HI"
+# )))
+#
+# p1 <- ggplot(sites) +
+#   geom_sf(aes(colour = site_name), fill = NA)
+# p2 <- p1 + geom_point(data = sets, aes(longitude, latitude, colour = as.factor(grouping_spatial_id)))
+# p2
+#
+# sites <- left_join(sites, df)
+# finalsp <- sets
+# coordinates(finalsp) <- c("longitude", "latitude")
+# proj4string(finalsp) <- CRS("+proj=longlat + datum=WGS84")
+# finalsp <- st_as_sf(finalsp)
+# finalsp2 <- finalsp %>%
+#   mutate(
+#     latitude = unlist(purrr::map(finalsp$geometry, 2)),
+#     longitude = unlist(purrr::map(finalsp$geometry, 1))
+#   )
+# ptsint <- st_join(sites, finalsp2) # lose the points that dont intersect
+# ptsint
+#
+# #based on this,
+# #if a point has a name now but was NA before keep new name
+# #if point is now NA but has name before keep old name
+# #if point name doesn't match old point name, keep new name
+# test <- ptsint |> filter(is.na(grouping_spatial_id) == TRUE) #these are dropped
+# test <- ptsint |> filter(is.na(site_gis) == TRUE) #these are dropped
+# test <- ptsint |> filter(site_shortname != grouping_spatial_id) #these are dropped
+
 
 # QA/QC dates and depth--------------------------------
+# create a consistemt grouping depth id
+# keep this - although we can use the depth_m column in the model it may be useful to have a consistent grouping depth id
 sets <- readRDS("data-generated/sets_cleaned.rds") |>
   filter(is.na(grouping_spatial_id) == FALSE)
 
 # check depths
 unique(sets$grouping_desc) # NAs and a 'SOG Dogfish Site'
-unique(sets$grouping_depth_id) # NAs and a 'SOG Dogfish Site'
+unique(sets$grouping_depth_id) # inconsistent
 
 # fix
 sets <- sets |>
@@ -282,7 +212,9 @@ sets |>
   tally()
 
 # Calculate and QA/QC soak time -----------------------------------------------------
+# keep this, need to account for soak time in the offset
 glimpse(sets$fe_end_deployment_time)
+
 d <- sets |>
   mutate(
     deployhr = lubridate::hour(fe_end_deployment_time),
@@ -294,7 +226,7 @@ d <- sets |>
   mutate(
     hr_diff = (retrivehr - deployhr) * 60,
     min_diff = abs(retrievemin - deploymin),
-    soak = (hr_diff + min_diff)/60
+    soak = (hr_diff + min_diff) / 60
   )
 
 # some soaks are NA - fix this!
@@ -353,20 +285,8 @@ final <- final |>
   ))
 unique(final$survey)
 
-# final <- final |>
-#   mutate(survey_type = case_when(
-#     year %in% c(1986, 1989) ~ "dog-jhook",
-#     year %in% c(2005, 2008, 2011, 2014) ~ "dog-circlehook",
-#     year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog-circlehook",
-#     year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" ~ "comp-hbll",
-#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" ~ "comp-dog",
-#     year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." ~ "comp-hbll",
-#     year == 2022 ~ "comp-hbll",
-#     year == 2004 ~ "comp-dog"
-#   ))
-# unique(final$survey_type)
 
-#final <- final |> mutate(category = paste0(survey, "-", hook_desc))
+# final <- final |> mutate(category = paste0(survey, "-", hook_desc))
 final <- final |> mutate(julian = lubridate::yday(retrive))
 final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
 final <- filter(final, fishing_event_id != 5490376)
