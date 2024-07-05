@@ -1,7 +1,7 @@
 # params
 # daniel looking into this, 2004 and some 2005 are missing deployment times
 # 02a-data-clean-sets.R
-soak2004 <- 1.5
+soak2004 <- 1
 soak2005 <- 2
 bccrs <- 32609
 
@@ -20,6 +20,16 @@ final <- readRDS("data-generated/dogfish_sets_cleaned.rds") |>
 
 
 # hbll wrangle ------------------------------------------------------------
+
+ggplot(hbll) +
+geom_point(aes(longitude, latitude)) + facet_wrap(~survey_abbrev)
+
+# remove two survey years that extended along the west coast VI
+hbll <- filter(hbll, !(latitude < 48.5 & longitude < -123)) # only two years have the sampling around the strait
+hbll <- filter(hbll, !(latitude < 48.75 & longitude < -124.25))
+
+ggplot(hbll) +
+  geom_point(aes(longitude, latitude)) + facet_wrap(~survey_abbrev)
 
 hbll <- hbll |> dplyr::select(survey_desc, year, fishing_event_id, latitude, longitude, depth_m, hook_count, catch_count, survey_abbrev, time_deployed, time_retrieved)
 hbll <- hbll |>
@@ -47,21 +57,16 @@ ggplot(hbll, aes(longitude, latitude, colour = survey_abbrev)) +
   geom_point() +
   facet_wrap(~year)
 
-# keep both HBLL N and HBLL S - yes
-# If keeping HBLL S pull data below 50.5 degree of lat instead of just HBLL S bc the 2008 survey dips below into HBLL S territory but is labelled as HBLL N
+# change the name of the points that fall in the southern HBLL range to HBLL S
+#define the HBLL INS S northern boundary based on the years between 2013 - 2022
+test <- hbll |> filter(year %in% c(2013:2022) & survey_abbrev == "HBLL INS S")
+range(test$latitude)
 
-# if pulling just the hbll s data
-# hbll$survey_abbrev <- "hbll"
-# hbll <- filter(hbll, !(latitude < 48.5 & longitude < -123))
-# hbll <- filter(hbll, !(latitude < 48.75 & longitude < -124.25))
-# ggplot(hbll, aes(longitude, latitude, colour = survey_abbrev)) + geom_point()
+hbll <- hbll |>
+  mutate(survey_abbrev = ifelse(latitude < 50.3, "HBLL INS S", survey_abbrev))
 
-# hbll <- filter(hbll, !(latitude > 50.3 & longitude < -125.5)) #do this for those northern points
-# hbll |>
-#  ggplot() +
-#  geom_point(aes(longitude, latitude))
-
-
+ggplot(hbll, aes(longitude, latitude, colour = survey_abbrev)) +
+  geom_point() + facet_wrap(~survey_abbrev)
 
 # dogfish data -------------------------------------------------------
 
@@ -71,6 +76,10 @@ final <- final |>
     julian, soak
   ) |>
   rename("survey_desc" = "survey_series_desc", "hook_count" = "lglsp_hook_count", "survey_abbrev" = "survey")
+
+final$survey_abbrev <- ifelse(final$survey_abbrev == "hbll" & final$latitude <= 50.3, "HBLL INS S",
+                              ifelse(final$survey_abbrev == "hbll" & final$latitude > 50.3, "HBLL INS N",
+                                     final$survey_abbrev))
 # final <- final |>
 #   mutate(soak = ifelse(year %in% c(2004, 2005), 2, soak))
 
@@ -89,6 +98,8 @@ final |>
   distinct() |>
   reframe()
 
+final$survey_type <- final$survey_abbrev
+
 d <- bind_rows(final, hbll)
 
 # convert to UTMs
@@ -99,20 +110,7 @@ d <- add_utm_columns(d,
 ) |>
   mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
 
+ggplot(d, aes(longitude, latitude, colour = survey_abbrev)) +
+  geom_point() + facet_wrap(~survey_abbrev)
 
-
-# subset the data and save diff rds files ---------------------------------
-
-# remove two survey years that extended along the west coast VI
-d <- filter(d, !(latitude < 48.5 & longitude < -123)) # only two years have the sampling around the strait
-d <- filter(d, !(latitude < 48.75 & longitude < -124.25))
 saveRDS(d, "data-raw/wrangled-hbll-dog-sets.rds") # no expansion set along the strait
-
-# # rm hbll north?
-# keep <- filter(d, year == 2008 & survey_abbrev == "HBLL INS N")
-# d <- filter(d, survey_abbrev != "HBLL INS N")
-# d <- bind_rows(d, keep)
-# range(d$latitude)
-# d <- filter(d, !(latitude > 50.3 & longitude < -125.5)) # keep hbll n points that are in the
-# d <- filter(d, !(latitude > 50.4 & longitude < -125))
-# saveRDS(d, "data-raw/wrangled-hbll-dog-sets-hblls.rds") # no expansion set, no hbll north
