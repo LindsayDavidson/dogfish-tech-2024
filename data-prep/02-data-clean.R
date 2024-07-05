@@ -6,64 +6,11 @@ library(sp)
 
 # load data ---------------------------------------------------------------
 
-samples <- readRDS("data-raw/dogfish_samples.rds")
 sets <- readRDS("data-raw/dogfish_sets.rds")
-catchcount <- readRDS("data-raw/dogfish_counts.rds")
+count <- readRDS("data-raw/dogfish_counts.rds")
 
-names(samples) <- tolower(names(samples))
 names(sets) <- tolower(names(sets))
-
-
-# # get hook info into samples df -------------------------------------------
-# sets_fei <- sets |>
-#   filter(survey_series_id != 76) |> # get rid of 76 as its a duplicate of survey series but does not include comp work
-#   dplyr::select(fishing_event_id, fe_sub_level_id, hook_desc, hooksize_desc, year)
-#
-# samples1 <- samples |>
-#   filter(!year %in% c(2004, 2022, 2023)) |>
-#   left_join(sets_fei)
-#
-# samples2 <- samples |>
-#   filter(year %in% c(2004, 2022, 2023)) |>
-#   left_join(sets_fei, by = c(
-#     # "fishing_event_id" = "fishing_event_id",
-#     "fe_sub_level_id" = "fe_sub_level_id",
-#     "fe_parent_event_id" = "fishing_event_id",
-#     "year" = "year"
-#   ))
-#
-# samples <- bind_rows(samples1, samples2)
-#
-# x <- filter(samples, is.na(hook_desc) == TRUE)
-# unique(samples$survey_desc)
-# unique(x$year)
-#
-# samples <- samples |>
-#   mutate(survey = case_when(
-#     year %in% c(1986, 1989) ~ "dog-jhook",
-#     year %in% c(2005, 2008, 2011, 2014) ~ "dog",
-#     year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
-#     year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
-#     year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
-#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
-#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
-#     year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "14/0" ~ "dog",
-#     year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "13/0" ~ "hbll",
-#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "12/0" ~ "dog-jhook",
-#     year == 2022 & hooksize_desc == "13/0" ~ "hbll",
-#     year == 2022 & hooksize_desc == "14/0" ~ "dog",
-#     year == 2004 & hooksize_desc == "14/0" ~ "dog",
-#     year == 2004 & hooksize_desc == "12/0" ~ "dog-jhook"
-#   ))
-#
-#
-# x <- filter(samples, is.na(survey) == TRUE)
-# unique(x$survey_desc)
-# unique(x$fishing_event_id) # why does this one fishing event not have a parent event id??, this is also not found in the sets dataframe
-#
-# # remove for now
-# samples <- filter(samples, fishing_event_id != 5490376)
-# saveRDS(samples, "data-raw/dogfish_samples_cleaned.rds")
+names(count) <- tolower(names(count))
 
 # QA/QC location names -------------------------------------------------------------
 
@@ -105,8 +52,6 @@ sets <- sets |>
 ggplot() +
   geom_point(data = sets, aes(longitude, latitude, colour = as.factor(grouping_spatial_id)))
 #that NA is fine, its outside of any dogfish survey site
-
-saveRDS(sets, "data-generated/sets_cleaned.rds")
 
 
 # polygon and set point overlay -------------------------------------------
@@ -154,9 +99,9 @@ saveRDS(sets, "data-generated/sets_cleaned.rds")
 
 
 # QA/QC dates and depth--------------------------------
-# create a consistemt grouping depth id
+# create a consistent grouping depth id
 # keep this - although we can use the depth_m column in the model it may be useful to have a consistent grouping depth id
-sets <- readRDS("data-generated/sets_cleaned.rds") |>
+sets <- sets |>
   filter(is.na(grouping_spatial_id) == FALSE)
 
 # check depths
@@ -199,19 +144,8 @@ sets |>
   filter(is.na(grouping_desc) == TRUE) # comment says missing depth in
 sets <- filter(sets, is.na(grouping_desc) != TRUE)
 
-sets |>
-  group_by(year, grouping_spatial_id) |>
-  distinct(grouping_desc) |>
-  tally() |>
-  print(n = 50)
 
-# how many sites fished
-sets |>
-  group_by(year) |>
-  distinct(grouping_spatial_id) |>
-  tally()
-
-# Calculate and QA/QC soak time -----------------------------------------------------
+# QA/QC soak time -----------------------------------------------------
 # keep this, need to account for soak time in the offset
 glimpse(sets$fe_end_deployment_time)
 
@@ -219,12 +153,12 @@ d <- sets |>
   mutate(
     deployhr = lubridate::hour(fe_end_deployment_time),
     deploymin = lubridate::minute(fe_end_deployment_time),
-    retrive = as.Date(fe_begin_retrieval_time, format = "%Y-%m-%d h:m:s"),
-    retrivehr = lubridate::hour(fe_begin_retrieval_time),
+    retrieve = as.Date(fe_begin_retrieval_time, format = "%Y-%m-%d h:m:s"),
+    retrievehr = lubridate::hour(fe_begin_retrieval_time),
     retrievemin = lubridate::minute(fe_begin_retrieval_time)
   ) |>
   mutate(
-    hr_diff = (retrivehr - deployhr) * 60,
+    hr_diff = (retrievehr - deployhr) * 60,
     min_diff = abs(retrievemin - deploymin),
     soak = (hr_diff + min_diff) / 60
   )
@@ -239,27 +173,19 @@ d |>
   tally() # 64 fishing events are missing soak times as the deployment time wasnt recorded
 # most are in 2004 when fishing times were between 1.5 - 3 hours.
 
-saveRDS(d, "data-generated/sets_cleaned2.rds")
 
+# MERGE cleaned sets and count data ---------------------------------------------
 
-# MERGE SETS AND CATCH COUNTS ---------------------------------------------
-sets <- readRDS("data-generated/sets_cleaned2.rds")
-count <- readRDS("data-raw/dogfish_counts.rds")
-
-names(sets) <- tolower(names(sets))
-names(samples) <- tolower(names(samples))
-names(count) <- tolower(names(count))
-
-regsurveys <- sets |>
+regsurveys <- d |>
   filter(survey_series_id %in% c(93, 92)) |>
   left_join(count)
 
-compsurveys <- sets |>
+compsurveys <- d |>
   filter(survey_series_id == 48 & year %in% c(2004, 2022, 2023)) |>
   left_join(count, by = c("fishing_event_id" = "fe_parent_event_id", "fe_sub_level_id" = "fe_sub_level_id")) |>
   select(-fishing_event_id.y)
 
-compsurveys2019 <- sets |>
+compsurveys2019 <- d |>
   filter(survey_series_id == 48 & year == 2019) |>
   left_join(count)
 
@@ -287,7 +213,7 @@ unique(final$survey)
 
 
 # final <- final |> mutate(category = paste0(survey, "-", hook_desc))
-final <- final |> mutate(julian = lubridate::yday(retrive))
+final <- final |> mutate(julian = lubridate::yday(retrieve))
 final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
 final <- filter(final, fishing_event_id != 5490376)
 unique(final$survey)
