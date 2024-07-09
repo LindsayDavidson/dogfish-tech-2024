@@ -5,8 +5,6 @@ soak2004 <- 1
 soak2005 <- 2
 bccrs <- 32609
 
-# library -----------------------------------------------------------------
-
 library(sf)
 library(ggplot2)
 library(tidyverse)
@@ -52,8 +50,11 @@ hbll <- hbll |>
 
 hbll$offset <- log(hbll$hook_count * hbll$soak)
 hbll$log_botdepth <- log(hbll$depth_m)
-
+hbll$survey_type <- "hbll"
 ggplot(hbll, aes(longitude, latitude, colour = survey_abbrev)) +
+  geom_point() +
+  facet_wrap(~year)
+ggplot(hbll, aes(longitude, latitude, colour = survey_type)) +
   geom_point() +
   facet_wrap(~year)
 
@@ -67,6 +68,9 @@ hbll <- hbll |>
 
 ggplot(hbll, aes(longitude, latitude, colour = survey_abbrev)) +
   geom_point() + facet_wrap(~survey_abbrev)
+
+ggplot(hbll, aes(longitude, latitude, colour = survey_type)) +
+  geom_point() + facet_wrap(~survey_type)
 
 # dogfish data -------------------------------------------------------
 
@@ -88,6 +92,12 @@ final <- final |>
     ifelse(year == 2005, soak2005, soak) # what are the soak time supposed to be??
   ))
 
+final <- final |>
+  mutate(survey_type = case_when(
+    survey_abbrev == "HBLL INS S" ~ "hbll",
+    survey_abbrev == "dog" ~ "dog",
+    survey_abbrev == "dog-jhook" ~ "dog-jhook"))
+
 final <- final |> filter(!is.na(soak))
 final <- final |> filter(!is.na(julian))
 final$offset <- log(final$hook_count * final$soak)
@@ -98,7 +108,10 @@ final |>
   distinct() |>
   reframe()
 
-final$survey_type <- final$survey_abbrev
+ggplot(final, aes(longitude, latitude, colour = survey_type)) +
+  geom_point() + facet_wrap(~survey_abbrev)
+ggplot(final, aes(longitude, latitude, colour = survey_type)) +
+  geom_point() + facet_wrap(~survey_type)
 
 d <- bind_rows(final, hbll)
 
@@ -112,5 +125,7 @@ d <- add_utm_columns(d,
 
 ggplot(d, aes(longitude, latitude, colour = survey_abbrev)) +
   geom_point() + facet_wrap(~survey_abbrev)
+ggplot(d, aes(longitude, latitude, colour = survey_type)) +
+  geom_point() + facet_wrap(~survey_type)
 
 saveRDS(d, "data-raw/wrangled-hbll-dog-sets.rds") # no expansion set along the strait
