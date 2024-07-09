@@ -1,5 +1,6 @@
 library(tidyverse)
 library(PBSdata)
+library(sdmTMB)
 
 #for now make one grid but need to make a grid for north, south, and then dogfish areas (? or would the south grid work?)
 #params
@@ -8,7 +9,7 @@ buffersize = 8
 gridsize = 2000
 path_extent <- "output/PredictionGridExtent.shp"
 path_center <- "output/PredictionGridCentres.shp"
-path_final <- "output/PredictionGridCentres.rds"
+path_final <- "output/prediction-grid-hbll-n-s-dog.rds"
 mindepth <- 5
 maxdepth <- 350
 
@@ -46,10 +47,10 @@ grid <- add_utm_columns(grid,
   mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000) |>
   mutate(log_botdepth = log(bot_depth))
 
-saveRDS(grid, 'output/prediction-grid-hbll-sog.rds')
+saveRDS(grid, 'output/prediction-grid-hbll-n-s.rds')
 
 
-# prediction grid for all of Strait of Georgia ----------------------------
+# prediction grid for HBLL north and south and DOG Strait of Georgia ----------------------------
 
 d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") # no expansion set along the strait
 
