@@ -45,6 +45,8 @@ points(d$longitude, d$latitude, col = "red")
 # hbll n only
 d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |> filter(survey_abbrev == "HBLL INS N")
 grid <- readRDS("output/prediction-grid-hbll-n-s.rds") |> filter(area == "hbll_n") # from gfdata HBLL n and south merged
+min(d$latitude)
+grid <- grid |> filter(lat >=50.30182) |> filter(bot_depth <= 150) |> filter(bot_depth >= 35)
 years <- seq(min(d$year), 2023, 1)
 sort(unique(d$year))
 # grid <- purrr::map_dfr(unique(d$year), ~ tibble(grid, year = .x))
@@ -75,16 +77,21 @@ plot(grid$lon, grid$lat)
 points(d$longitude, d$latitude, col = "red")
 
 # dog survey only - need a prediction grid for just DOG points
-d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |> filter(survey_abbrev %in% c("dog", "dog-jhook"))
-grid <- readRDS("output/prediction-grid-hbll-n-s-dog.rds") # this is not right, what would I use?
+d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |> filter(survey_abbrev %in% c("HBLL INS S", "dog", "dog-jhook"))
+max(d$latitude)
+grid <- readRDS("output/prediction-grid-hbll-n-s-dog.rds") |> filter(latitude <= 50.3208)
+
 years <- seq(min(d$year), 2023, 1)
 # grid <- purrr::map_dfr(unique(d$year), ~ tibble(grid, year = .x))
 grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-grid$survey_type <- "dog"
+grid$survey_type <- "hbll"
 grid$julian <- mean(d$julian)
-path <- "output/fit-sog-dog.rds"
-extra_time <-
-  plot(grid$longitude, grid$latitude)
+path <- "output/fit-sog-dog-hblls.rds"
+pathind <- "output/ind-sog-dog-hblls.rds"
+sort(unique(d$year))
+extra_time <- c(1987, 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2006, 2017, 2020)
+
+plot(grid$longitude, grid$latitude)
 points(d$longitude, d$latitude, col = "red")
 
 # rm 2004 calibration work??
@@ -96,11 +103,35 @@ ggplot(d, aes(longitude, latitude, colour = survey_abbrev)) +
 ggplot(d, aes(longitude, latitude, colour = survey_type)) +
   geom_point()
 
+d |>
+  ggplot( ) +
+  geom_point(aes(year, catch_count, colour = survey_type))
+
+d |>
+  ggplot( ) +
+  geom_point(aes(catch_count, log_botdepth,  colour = survey_type))
+
+d |>
+  ggplot( ) +
+  geom_point(aes(catch_count, offset,  colour = survey_type))
+
+d |>
+  group_by(year) |>
+  summarise(catch = sum(catch_count/offset)) |>
+  ggplot( ) +
+  geom_point(aes(year, catch)) +
+  geom_line(aes(year, catch))
+
+range(grid$bot_depth)
+range(grid$log_botdepth)
+range(d$depth_m)
+range(d$log_botdepth)
 
 # make this a function so that I can create index for HBLL N, HBLL --------
 
 indexfunc <- function(d) {
-  mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = 5)
+  #mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = 5)
+  mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = 5) #hbll n only
   plot(mesh)
   mesh$mesh$n
 
@@ -118,7 +149,7 @@ indexfunc <- function(d) {
   fit <- sdmTMB(
     formula =
     #catch_count ~ poly(log_botdepth, 2) + as.factor(survey_type),
-    catch_count ~ poly(log_botdepth, 2) ,
+    catch_count ~ poly(log_botdepth, 2) , #hbll n model, hbll s model
     data = d,
     time = "year",
     offset = "offset",
@@ -134,6 +165,7 @@ indexfunc <- function(d) {
     # index_args = list(area = grid$area_km2)
   )
 
+  fit$sd_report
   sanity(fit)
   # fitjul <- update(fit, formula = catch_count ~ poly(log_botdepth, 2) + as.factor(survey_type) + poly(julian, 2))
   saveRDS(fit, file = path)
@@ -141,11 +173,11 @@ indexfunc <- function(d) {
 
   pred <- predict(fit, grid, return_tmb_object = TRUE, response = TRUE)
   index <- get_index(pred, bias_correct = TRUE)
-  saveRDS(index, file = pathind)
 
   # fit <- readRDS(file = path)
 
   index <- index |> mutate(model = ifelse(year %in% unique(d$year), "yrs_surved", "yrs_interp"))
+  saveRDS(index, file = pathind)
   yearlabs <- as.list(index |> filter(model == "yrs_surved") |> reframe(year = year))
   yearlabs <- yearlabs$year
     #c(1986, 1989, 2005, 2008, 2009, 2011, 2013, 2014, 2015, 2018, 2019, 2021, 2022, 2023)
@@ -164,13 +196,5 @@ indexfunc <- function(d) {
     scale_x_continuous(breaks = c(yearlabs)) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-  # x <- ggplot(indexj, aes(year, est, ymin = lwr, ymax = upr)) +
-  #   # geom_pointrange(data = filter(index, model == "yrs_interp"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, colour = "grey40", alpha = 0.6) +
-  #   geom_pointrange(data = filter(index, model == "yrs_surved"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, colour = "red", alpha = 0.6) +
-  #   theme_classic() +
-  #   scale_x_continuous(breaks = c(yearlabs)) +
-  #   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  #
-  # x + geom_pointrange(data = filter(index, model == "yrs_surved"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, colour = "grey", alpha = 0.6) +
-  #   theme_classic()
+
 }
