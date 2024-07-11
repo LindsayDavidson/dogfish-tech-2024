@@ -45,11 +45,11 @@ unique(test$year)
 
 dogsamps <- filter(allsamps, survey_series_desc %in% c(
   "Hard Bottom Longline Inside North ",
-  "Strait of Georgia Dogfish Longline",
+  #"Strait of Georgia Dogfish Longline", #this doesn't include comp work
   "Hard Bottom Longline Inside South "
 ))
 
-saveRDS(dogsamps, "output/samples-hbll-dog.rds")
+saveRDS(dogsamps, "data-raw/samples-hbll-dog.rds")
 
 # pull HBLL inside data ---------------------------------------------------
 
