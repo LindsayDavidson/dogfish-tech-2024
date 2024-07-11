@@ -94,6 +94,29 @@ extra_time <- c(1987, 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998
 plot(grid$longitude, grid$latitude)
 points(d$longitude, d$latitude, col = "red")
 
+
+# dog survey only - need a prediction grid for just DOG points
+d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |> filter(survey_abbrev %in% c("dog"))
+max(d$latitude)
+range(d$year)
+grid <- d |>  dplyr::select(latitude, longitude, log_botdepth) |>
+  distinct(latitude, longitude, log_botdepth)
+years <- seq(min(d$year), 2023, 1)
+#grid <- purrr::map_dfr(unique(d$year), ~ tibble(grid, year = .x))
+grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
+grid$survey_type <- "dog"
+grid$julian <- mean(d$julian)
+path <- "output/fit-sog-dog.rds"
+pathind <- "output/ind-sog-dog.rds"
+sort(unique(d$year))
+extra_time <- c(1987, 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2006, 2007, 2009, 2010, 2012, 2013, 2015, 2016, 2017, 2018, 2020, 2021)
+extra_time <- c(2006, 2007, 2009, 2010, 2012, 2013, 2015, 2016, 2017, 2018, 2020, 2021)
+
+plot(grid$longitude, grid$latitude)
+points(d$longitude, d$latitude, col = "red")
+
+
+
 # rm 2004 calibration work??
 # rm <- filter(d, year == 2004 & survey_abbrev %in% c("dog-jhook", "dog")) #the catch rates are so #low and I don't know what the soak time was
 # d <- filter(d, !(fishing_event_id %in% rm$fishing_event_id))
@@ -116,6 +139,10 @@ d |>
   geom_point(aes(catch_count, offset,  colour = survey_type))
 
 d |>
+  ggplot( ) +
+  geom_point(aes(catch_count, log_botdepth,  colour = survey_type))
+
+d |>
   group_by(year) |>
   summarise(catch = sum(catch_count/offset)) |>
   ggplot( ) +
@@ -131,7 +158,7 @@ range(d$log_botdepth)
 
 indexfunc <- function(d) {
   #mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = 5)
-  mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = 5) #hbll n only
+  mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = 2) #hbll n only
   plot(mesh)
   mesh$mesh$n
 
