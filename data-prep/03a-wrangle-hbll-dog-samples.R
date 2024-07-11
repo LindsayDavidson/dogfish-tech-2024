@@ -13,15 +13,90 @@ library(sp)
 
 
 # load data ---------------------------------------------------------------
-samps <- readRDS("output/dogfish_samps.rds")
-hbllsamps <- readRDS("output/samples-hbll-dog.rds")
+# samps <- readRDS("output/dogfish_samps.rds")
+hsamps <- readRDS("data-raw/samples-hbll-dog.rds") |>
+  filter(!fishing_event_id %in% c(hbllrm$fishing_event_id))
+range(hsamps$length)
+
+dsamps <- readRDS("data-raw/dogfish_samples_cleaned.rds") |>
+  filter(species_common_name == "NORTH PACIFIC SPINY DOGFISH") |>
+  drop_na(total_length) |>
+  filter(total_length > 0) |>
+  mutate(total_length = total_length/10)
+range(dsamps$total_length)
 
 
-# filter data  -----------------------------------------------------------
-samps <- samps |> mutate(name = ifelse(year %in% c(1986, 1989), "DOGJhooks", survey_abbrev))
-samps <- samps %>%
-  mutate(dmy = lubridate::ymd(trip_start_date)) |>
-  mutate(julian = lubridate::yday(dmy))
+# set data (to remove fishing sets)
+hbll <- readRDS("data-raw/hbllsets.rds")
+final <- readRDS("data-generated/dogfish_sets_cleaned.rds") |>
+  filter(species_code == "044") # pull just dogfish data not other species
+
+
+
+
+# hbll clean up ------------------------------------------------------------
+
+# remove two survey years that extended along the west coast VI
+hbll1 <- filter(hbll, (latitude < 48.5 & longitude < -123.3)) # only two years have the sampling around the strait
+hbll2 <- filter(hbll, (latitude < 48.75 & longitude < -124.25))
+hbllrm <- bind_rows(hbll1, hbll2)
+unique(hbllrm$fishing_event_id) # rm these
+
+test <- filter(hbll, survey_abbrev == "HBLL INS S")
+x <- ggplot(test) +
+  geom_point(aes(longitude, latitude))
+x + geom_point(data = hbllrm, aes(longitude, latitude), col = "red")
+
+
+ggplot(test) +
+  geom_point(aes(longitude, latitude)) + facet_wrap(~year)
+
+
+
+
+# wrangle -----------------------------------------------------------------
+
+hsamps <- hsamps |>
+  filter(!fishing_event_id %in% c(hbllrm$fishing_event_id))
+
+hsamps2 <- hsamps |> dplyr::select(
+  survey_abbrev, year, month, species_common_name,
+  sex, length, weight, fishing_event_id
+)
+
+dsamps <-
+  dsamps |>
+  mutate(
+    date= as.Date(trip_start_date, format = "%Y-%m-%d"),
+    julian = lubridate::yday(date),
+    month = lubridate::month(date))
+
+
+dsamps2 <- dsamps |>
+  dplyr::select(
+    survey, year, month, species_common_name,
+    specimen_sex_code, total_length, round_weight, fishing_event_id
+  ) |>
+  rename(
+    survey_abbrev = survey, sex = specimen_sex_code, length = total_length,
+    weight = round_weight
+  )
+
+samps <- bind_rows(dsamps2, hsamps2)
+
+
+
+# summary plot ------------------------------------------------------------
+ggplot(samps, aes(year, length, col = survey_abbrev)) +
+  geom_jitter()
+
+ggplot(samps, aes(year, length, col = survey_abbrev)) +
+  geom_jitter() +
+  facet_wrap(~sex)
+
+
+
+
 
 
 
@@ -60,28 +135,38 @@ summary(m)
 samps
 glimpse(samps)
 
-samps |> drop_na(weight) |> tally()
+samps |>
+  drop_na(weight) |>
+  tally()
 samps |> tally()
-115952 - 6984 #lots of NAs for weight
+115952 - 6984 # lots of NAs for weight
 
-#use maturity DFO of 55
-#these legnths are from a length weight and length matuirty curve calculated in
-#split-index_by_regionandmaturity.R
+# use maturity DFO of 55
+# these legnths are from a length weight and length matuirty curve calculated in
+# split-index_by_regionandmaturity.R
 test <- samps |>
   filter(sex %in% c(1, 2)) |>
   mutate(lengthgroup = ifelse(length >= 77 & length < 95.5 & sex == 2, "maturingf",
-                              ifelse(length >= 65.1 & length < 76.7 & sex == 1 , "maturingm",
-                                     ifelse(length >= 95.5 & sex == 2, "mf",
-                                            ifelse(length >= 76.7 & sex == 1, "mm",
-                                                   ifelse(length < 77 & sex == 2, "imm",
-                                                          ifelse(length < 65.1 & sex == 1, "imm",
-                                                                 NA))))))) |>
+    ifelse(length >= 65.1 & length < 76.7 & sex == 1, "maturingm",
+      ifelse(length >= 95.5 & sex == 2, "mf",
+        ifelse(length >= 76.7 & sex == 1, "mm",
+          ifelse(length < 77 & sex == 2, "imm",
+            ifelse(length < 65.1 & sex == 1, "imm",
+              NA
+            )
+          )
+        )
+      )
+    )
+  )) |>
   group_by(year, lengthgroup, name) |>
-  mutate(count =  n())
+  mutate(count = n())
 
 ggplot(filter(test, name != "DOGJhooks"), aes(year, count, group = name, colour = name)) +
   geom_line() +
-  facet_wrap(~lengthgroup, scales = "free") + theme_classic() + geom_point()
+  facet_wrap(~lengthgroup, scales = "free") +
+  theme_classic() +
+  geom_point()
 
 
 # Mature female ratio -----------------------------------------------------
@@ -89,18 +174,21 @@ ggplot(filter(test, name != "DOGJhooks"), aes(year, count, group = name, colour 
 test2 <- test |>
   group_by(year, fishing_event_id, name) |>
   filter(lengthgroup != "immatures") |>
-  mutate(sumall =  n())
+  mutate(sumall = n())
 test3 <- test |>
   group_by(year, name) |>
-  filter(lengthgroup  == "mf") |>
+  filter(lengthgroup == "mf") |>
   summarize(summf = n())
 testmm <- test |>
   group_by(year, name) |>
-  filter(lengthgroup  == "mm") |>
+  filter(lengthgroup == "mm") |>
   summarize(summm = n())
 
 final <- inner_join(test3, testmm, by = c("year", "name"))
 final <- final |>
-  mutate(ratio = summf/summm*100)
-ggplot(final, aes(year, ratio, group = name)) + geom_point() + geom_line() + facet_wrap(~name) +
+  mutate(ratio = summf / summm * 100)
+ggplot(final, aes(year, ratio, group = name)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(~name) +
   ylab("Ratio (Mature females:Mature Males)")
