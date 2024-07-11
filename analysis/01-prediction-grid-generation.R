@@ -99,7 +99,7 @@ gridfunc <- function(d) {
     mutate(bot_depth = (depth * -1)) %>%
     rename(longitude = lon, latitude = lat) %>%
     filter(bot_depth > mindepth & bot_depth < maxdepth) %>%
-    mutate(logbot_depth = log(bot_depth)) %>%
+    mutate(log_botdepth = log(bot_depth)) %>%
     inner_join(df, by = c("longitude" = "long", "latitude" = "lat")) |>
     dplyr::select(-FID) |>
     distinct(.keep_all = TRUE)
@@ -126,6 +126,7 @@ gridfunc <- function(d) {
 
   grid4_ras <- grid2 %>%
     mutate(across(c(UTM.lon, UTM.lat), \(x) round(x, digits = 2)))
+  grid4_ras$area_km <- grid4_ras$area_km
   saveRDS(grid4_ras, path_final)
 }
 
