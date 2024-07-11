@@ -1,8 +1,11 @@
 
 # load data ---------------------------------------------------------------
-samps <- readRDS("output/dogfish_samps.rds")
-hbllsamps <- readRDS("output/samples-hbll-dog.rds")
+samps <- readRDS("data-raw/samples-hbll-dog.rds")
+#hbllsamps <- readRDS("output/samples-hbll-dog.rds")
 
+samps <- samps %>%
+  mutate(dmy = lubridate::ymd(trip_start_date)) |>
+  mutate(julian = lubridate::yday(dmy))
 
 # filter data  -----------------------------------------------------------
 # samps <- samps |> mutate(name = ifelse(year %in% c(1986, 1989), "DOGJhooks", survey_abbrev))
@@ -10,7 +13,7 @@ hbllsamps <- readRDS("output/samples-hbll-dog.rds")
 #   mutate(dmy = lubridate::ymd(trip_start_date)) |>
 #   mutate(julian = lubridate::yday(dmy))
 
-ggplot(samps, aes(year, julian, group = name, colour = name)) +
+ggplot(samps, aes(year, julian, group = survey_abbrev, colour = survey_abbrev)) +
   geom_point() +
   geom_line() +
   theme_classic()
@@ -37,8 +40,8 @@ sort(unique(samps$sex)) # 1 male, 2 female, 3 unknown?
 ggplot() +
   geom_density(
     data = samps, aes(length,
-                      group = as.factor(name),
-                      fill = as.factor(name)
+                      group = as.factor(survey_abbrev),
+                      fill = as.factor(survey_abbrev)
     ),
     alpha = 0.35, size = 1, colour = "black"
   ) +
@@ -50,17 +53,19 @@ ggplot() +
   ylab(label = "Density") +
   xlab(label = "Length")
 
+unique(samps$survey_abbrev)
+
 ggplot() +
   geom_density(
-    data = filter(samps, name != "DOGJhooks"), aes(length,
-                                                   group = as.factor(name),
-                                                   fill = as.factor(name)
+    data = filter(samps, survey_abbrev == "DOG"), aes(length,
+                                                   group = as.factor(year),
+                                                   fill = as.factor(year)
     ),
     alpha = 0.35, size = 1, colour = "black"
   ) +
   facet_wrap(~sex) +
   theme_classic() +
-  scale_fill_manual(values = c("lightblue", "yellow", "orange")) +
+  #scale_fill_manual(values = c("lightblue", "yellow", "orange")) +
   # scale_fill_viridis_d() +
   ylab(label = "Density") +
   xlab(label = "Length")
