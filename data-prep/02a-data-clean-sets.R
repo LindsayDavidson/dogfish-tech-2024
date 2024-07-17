@@ -154,6 +154,7 @@ d <- sets |>
     deployhr = lubridate::hour(fe_end_deployment_time),
     deploymin = lubridate::minute(fe_end_deployment_time),
     retrieve = as.Date(fe_begin_retrieval_time, format = "%Y-%m-%d h:m:s"),
+    month = lubridate::month(retrieve),
     retrievehr = lubridate::hour(fe_begin_retrieval_time),
     retrievemin = lubridate::minute(fe_begin_retrieval_time)
   ) |>
@@ -217,5 +218,5 @@ final <- final |> mutate(julian = lubridate::yday(retrieve))
 final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
 final <- filter(final, fishing_event_id != 5490376)
 unique(final$survey)
-
+glimpse(final)
 saveRDS(final, "data-generated/dogfish_sets_cleaned.rds")
