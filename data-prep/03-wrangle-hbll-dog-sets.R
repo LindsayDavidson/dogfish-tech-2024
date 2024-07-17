@@ -4,6 +4,7 @@
 soak2004 <- 1
 soak2005 <- 2
 bccrs <- 32609
+latitude_cutoff <- 49.93883
 
 library(sf)
 library(ggplot2)
@@ -29,7 +30,7 @@ hbll <- filter(hbll, !(latitude < 48.75 & longitude < -124.25))
 ggplot(hbll) +
   geom_point(aes(longitude, latitude)) + facet_wrap(~survey_abbrev)
 
-hbll <- hbll |> dplyr::select(survey_desc, year, fishing_event_id, latitude, longitude, depth_m, hook_count, catch_count, survey_abbrev, time_deployed, time_retrieved)
+hbll <- hbll |> dplyr::select(survey_desc, year, fishing_event_id, latitude, longitude, depth_m, hook_count, catch_count, survey_abbrev, time_deployed, time_retrieved, month)
 hbll <- hbll |>
   mutate(
     # time_retrieved = as.Date(time_retrieved, format = "%Y-%m-%d h:m:s"),
@@ -64,7 +65,7 @@ test <- hbll |> filter(year %in% c(2013:2022) & survey_abbrev == "HBLL INS S")
 range(test$latitude)
 
 hbll <- hbll |>
-  mutate(survey_abbrev = ifelse(latitude < 50.3, "HBLL INS S", survey_abbrev))
+  mutate(survey_abbrev = ifelse(latitude < latitude_cutoff, "HBLL INS S", survey_abbrev))
 
 ggplot(hbll, aes(longitude, latitude, colour = survey_abbrev)) +
   geom_point() + facet_wrap(~survey_abbrev)
@@ -76,13 +77,13 @@ ggplot(hbll, aes(longitude, latitude, colour = survey_type)) +
 
 final <- final |>
   dplyr::select(
-    survey_series_desc, year, survey, fishing_event_id, latitude, longitude, depth_m, lglsp_hook_count, catch_count,
+    survey_series_desc, year, survey, fishing_event_id, latitude, longitude, depth_m, lglsp_hook_count, catch_count, month,
     julian, soak
   ) |>
   rename("survey_desc" = "survey_series_desc", "hook_count" = "lglsp_hook_count", "survey_abbrev" = "survey")
 
-final$survey_abbrev <- ifelse(final$survey_abbrev == "hbll" & final$latitude <= 50.3, "HBLL INS S",
-                              ifelse(final$survey_abbrev == "hbll" & final$latitude > 50.3, "HBLL INS N",
+final$survey_abbrev <- ifelse(final$survey_abbrev == "hbll" & final$latitude <= latitude_cutoff, "HBLL INS S",
+                              ifelse(final$survey_abbrev == "hbll" & final$latitude > latitude_cutoff, "HBLL INS N",
                                      final$survey_abbrev))
 # final <- final |>
 #   mutate(soak = ifelse(year %in% c(2004, 2005), 2, soak))
