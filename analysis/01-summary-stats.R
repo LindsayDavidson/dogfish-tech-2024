@@ -17,6 +17,16 @@
 library(ggplot2)
 library(tidyverse)
 
+
+# load map ----------------------------------------------------------------
+library(sf)
+sf::sf_use_s2(FALSE)
+map_data <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
+bc_coast <- st_crop(
+  map_data,
+  c(xmin = -134, ymin = 46, xmax = -120, ymax = 57)
+)
+
 # load data ---------------------------------------------------------------
 
 final <- readRDS("data-generated/dogfish_sets_cleaned.rds")
