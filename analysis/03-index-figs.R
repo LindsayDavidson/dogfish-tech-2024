@@ -4,6 +4,8 @@ i_hblldog <- readRDS("output/ind-sog-hblldog.rds")|> mutate(type = "all") #noth 
 yearlabs <- as.list(i_hblldog |> filter(model == "yrs_surved") |> reframe(year = year))
 yearlabs <- yearlabs$year
 
+i_hblldogmonth <- readRDS(file = "output/ind-sog-hblldog-month.rds") |> mutate(type = "all_no2004_month")
+
 i_hblldog_no2004 <- readRDS("output/ind-sog-hblldog_no2004.rds") |> mutate(type = "all_no2004")
 
 i_hblln <- readRDS("output/ind-sog-hbll-n.rds") |> mutate(type = "hblln")
@@ -12,7 +14,7 @@ i_hblls<- readRDS("output/ind-sog-hbll-s.rds") |> mutate(type = "hblls")
 
 i_hbllsdog <- readRDS("output/ind-sog-dog-hblls.rds") |> mutate(type = "hblls_dog") #hbll s and dog
 
-index <- bind_rows(i_hblldog, i_hblldog_no2004, i_hblln, i_hblls, i_hbllsdog)
+index <- bind_rows(i_hblldog, i_hblldogmonth, i_hblldog_no2004, i_hblln, i_hblls, i_hbllsdog)
 
 index <- index |>
   group_by(type) |>
@@ -46,10 +48,23 @@ ggplot(data = test, aes(year, log(est), ymin = log(lwr), ymax = log(upr), colour
   #geom_ribbon(aes(ymin = log(lwr), ymax = log(upr)), alpha = 0.4) +
   theme_classic() +
   scale_colour_manual(values = c("#d8b365", "#5ab4ac")) +
-  scale_x_continuous(breaks = c(years)) +
+  scale_x_continuous(breaks = c(yearlabs)) +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5))
 ggsave("Figures/index_without2004.jpg", width = 5, height = 4)
 
+test <- index |>
+  filter(type %in% c("all_no2004", "all_no2004_month")) |>
+  filter(model == "yrs_surved")
+
+ggplot(data = test, aes(year, log(est), ymin = log(lwr), ymax = log(upr), colour = type, fill = type)) +
+  #geom_line() +
+  geom_pointrange(aes(x = year - 0.25), size = 0.2, pch = 5) +
+  #geom_ribbon(aes(ymin = log(lwr), ymax = log(upr)), alpha = 0.4) +
+  theme_classic() +
+  scale_colour_manual(values = c("#d8b365", "#5ab4ac")) +
+  scale_x_continuous(breaks = c(yearlabs)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5))
+ggsave("Figures/index_without2004_withmonth.jpg", width = 5, height = 4)
 
 index |>
   filter(model == "yrs_surved") |>
