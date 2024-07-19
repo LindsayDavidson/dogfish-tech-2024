@@ -35,6 +35,18 @@ library(gfdata)
 
 
 
+# pull inside DOG survey for maturities -----------------------------------
+
+
+allsamps <- get_survey_samples("north pacific spiny dogfish")
+unique(allsamps$survey_series_desc)
+dogsamps <- filter(allsamps, survey_series_desc %in% c(
+  "Hard Bottom Longline Inside North ",
+  "Strait of Georgia Dogfish Longline", #this doesn't include comp work
+  "Hard Bottom Longline Inside South "
+))
+
+saveRDS(dogsamps, "data-raw/samples-hbll-dog-samps.rds")
 
 # pull inside samples data ------------------------------------------------
 
@@ -105,6 +117,7 @@ ORDER BY YEAR, TRIP_ID, FE_MAJOR_LEVEL_ID,  FE_SUB_LEVEL_ID")
 #it would be helful to bring in hook desc and hook size here
 #add these SK.HOOK_DESC, SK.HOOKSIZE_DESC,
 
+
 dsurvey_bio <- gfdata::run_sql("GFBioSQL", "SELECT
 A.ACTIVITY_DESC,
 SURVEY_DESC,
@@ -135,6 +148,52 @@ INNER JOIN GFBioSQL.dbo.ACTIVITY A ON A.ACTIVITY_CODE = TA.ACTIVITY_CODE
 INNER JOIN GFBioSQL.dbo.SPECIES S ON S.SPECIES_CODE = B21.SPECIES_CODE
 WHERE SR.SURVEY_SERIES_ID IN (48, 76, 92, 93)
 ORDER BY B21.TRIP_ID, B21.FE_MAJOR_LEVEL_ID, B22.SPECIMEN_ID")
+
+#add in maturity_code, maturity_name,
+#maturity_convention_code, maturity_desc, trip_start_date, usability_code,
+#sample_id
+
+# dsurvey_bio <- gfdata::run_sql("GFBioSQL", "SELECT
+# A.ACTIVITY_DESC,
+# SURVEY_DESC,
+# FE_SUB_LEVEL_ID,
+# SS.SURVEY_SERIES_ID,
+# FE_PARENT_EVENT_ID,
+# MAT.MATURITY_DESC,
+# USABILITY_CODE,  <- WHERE DOES THIS COME FROM
+# SSAMP.SAMPLE_ID,
+# YEAR(B21.TRIP_START_DATE) AS YEAR,
+# B21.TRIP_COMMENT,
+# FISHING_EVENT_ID,
+# SM.MATURITY_CODE,
+# TR.TRIP_START_DATE,
+# B21.TRIP_ID,
+# B21.FE_MAJOR_LEVEL_ID,
+# B21.SPECIES_CODE,
+# S.SPECIES_SCIENCE_NAME,
+# S.SPECIES_COMMON_NAME,
+# B22.SPECIMEN_ID,
+# B22.SPECIMEN_SEX_CODE,
+# B22.Total_Length,
+# B22.Round_Weight,
+# SSTOM.MATURITY_CODE,
+# SSTOM.MATURITY_CONVENTION_CODE
+# FROM GFBioSQL.dbo.B21_Samples B21
+# INNER JOIN MATURITY MM MM.MATURITY_CODE = B21.MATURITY_CODE
+# INNER JOIN MATURITY MM MM.MATURITY_CODE = SSTOM.MATURITY_CODE
+# INNER JOIN SPECIMEN SM SM.SPECIMEN_ID = SSAMP.SPECIMEN_ID
+# INNER JOIN SPECIMEN_STOMACH SSTOM.SPECIMEN_ID = B21.SPECIMEN_ID
+# INNER JOIN GFBioSQL.dbo.B22_Specimens B22.SPECIMEN_ID = B21.SAMPLE_ID
+# INNER JOIN SPECIMEN_SAMPLE SSAMP ON SSAMP.SPECIMEN_ID = B21.SAMPLE_ID
+# INNER JOIN GFBioSQL.dbo.TRIP_ACTIVITY TA ON TA.TRIP_ID = B21.TRIP_ID
+# INNER JOIN TRIP_SURVEY TS ON B21.TRIP_ID = TS.TRIP_ID
+# INNER JOIN TRIP TR ON TS.TRIP_ID = TR.TRIP_ID
+# INNER JOIN SURVEY SR ON TS.SURVEY_ID = SR.SURVEY_ID
+# INNER JOIN SURVEY_SERIES SS ON SR.SURVEY_SERIES_ID = SS.SURVEY_SERIES_ID
+# INNER JOIN GFBioSQL.dbo.ACTIVITY A ON A.ACTIVITY_CODE = TA.ACTIVITY_CODE
+# INNER JOIN GFBioSQL.dbo.SPECIES S ON S.SPECIES_CODE = B21.SPECIES_CODE
+# WHERE SR.SURVEY_SERIES_ID IN (48, 76, 92, 93)
+# ORDER BY B21.TRIP_ID, B21.FE_MAJOR_LEVEL_ID, B22.SPECIMEN_ID")
 
 # all 2004, 2022 comparison work should have a parent_event_id
 dsurvey_bio |>
