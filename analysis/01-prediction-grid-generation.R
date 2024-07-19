@@ -7,7 +7,7 @@ library(sdmTMB)
 
 bccrs = 32609
 buffersize = 8
-gridsize = 2000 #0.25 km2 grid cell, was 2000 m before, too big bc of depth centroid issues
+gridsize = 1000 #0.25 km2 grid cell, was 2000 m before, too big bc of depth centroid issues
 path_extent <- "output/PredictionGridExtent.shp"
 path_center <- "output/PredictionGridCentres.shp"
 path_final <- paste0("output/prediction-grid-hbll-n-s-dog-", gridsize/1000, "-km.rds")
