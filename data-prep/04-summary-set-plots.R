@@ -7,7 +7,7 @@ cols <- c("#d7191c", "#fdae61", "#2c6184",  "#2c7bb6" )
 # load data ---------------------------------------------------------------
 
 d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") #no west coast VI expansion set
-#d <- readRDS("data-raw/wrangled-hbll-dog-sets-hblls.rds") #no expansion set, no hbll north execpt for the 2008 year
+#d <- readRDS("data-raw/wrangled-hbll-dog-sets-hblls.rds") #no expansion set, no hbll north execpt for the 2008 year, note 2004 got dropped when we dropped NAs in soak time
 
 
 # load map ----------------------------------------------------------------
@@ -21,6 +21,11 @@ bc_coast <- st_crop(
 
 # summary plots -----------------------------------------------------------
 
+ggplot() +
+  geom_point(data = d, aes(longitude, latitude, colour = survey2)) +
+  theme_classic() +
+  geom_sf(data = bc_coast, fill = "grey90", colour = "grey70") +    facet_wrap(~survey2) +
+  guides(colour=guide_legend(title="Survey"))
 
 ggplot() +
   geom_point(data = d, aes(longitude, latitude, colour = survey_abbrev)) +
@@ -88,7 +93,7 @@ d |>
   ggplot() +
   geom_point(aes(year, cpue, colour = survey_abbrev)) +
   geom_line(aes(year, cpue, colour = survey_abbrev)) + theme_classic() +
-  scale_color_manual(values = cols) +
+  #scale_color_manual(values = cols) +
   guides(colour=guide_legend(title="Survey"))
 ggsave("Figures/summary_cpuetrends.png", width = 5, height = 4)
 
@@ -103,8 +108,8 @@ d |>
 
 d |>
   ggplot() +
-  geom_point(aes(longitude, latitude, colour = survey_type)) +
-  facet_wrap(~year + survey_type) +
+  geom_point(aes(longitude, latitude, colour = survey2)) +
+  facet_wrap(~year + survey2) +
   theme_classic() +
   scale_color_manual(values = cols) +
   guides(colour=guide_legend(title="Survey")) +
@@ -114,7 +119,7 @@ ggsave("Figures/summary_surveylocations.png", width = 10, height = 10)
 d |>
   ggplot() +
   geom_point(aes(longitude, latitude, colour = catch_count, fill = catch_count), alpha = 0.5, size = 0.5) +
-  facet_wrap(~year + survey_type) +
+  facet_wrap(~year + survey2) +
   scale_colour_viridis_c(trans = "sqrt") +
   scale_fill_viridis_c(trans = "sqrt") +
   theme_classic() +
@@ -124,7 +129,7 @@ ggsave("Figures/summary_surveylocationscatches.png", width = 10, height = 10)
 d |>
   ggplot() +
   geom_point(aes(longitude, latitude, colour = catch_count, fill = catch_count, size = catch_count), alpha = 0.5) +
-  facet_wrap(~year + survey_type) +
+  facet_wrap(~year + survey2) +
   scale_colour_viridis_c(trans = "sqrt") +
   scale_fill_viridis_c(trans = "sqrt") +
   theme_classic()
@@ -213,7 +218,7 @@ d |>
 ggsave("Figures/summary_depth.png", width = 6, height = 5)
 
 d |>
-  filter(survey_type == "hbll") |>
+  filter(survey2 == "hbll") |>
   group_by(survey_abbrev, year) |>
   ggplot() +
   geom_jitter(aes(log_botdepth,log(catch_count), colour = survey_abbrev), alpha = 0.5) +
