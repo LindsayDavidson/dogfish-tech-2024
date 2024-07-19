@@ -4,33 +4,60 @@ library(sdmTMB)
 
 #for now make one grid but need to make a grid for north, south, and then dogfish areas (? or would the south grid work?)
 #params
+
 bccrs = 32609
 buffersize = 8
-gridsize = 2000
+gridsize = 2000 #0.25 km2 grid cell, was 2000 m before, too big bc of depth centroid issues
 path_extent <- "output/PredictionGridExtent.shp"
 path_center <- "output/PredictionGridCentres.shp"
-path_final <- "output/prediction-grid-hbll-n-s-dog.rds"
+path_final <- paste0("output/prediction-grid-hbll-n-s-dog-", gridsize/1000, "-km.rds")
 mindepth <- 5
 maxdepth <- 350
 
-# prediction grid from gfplot ---------------------------------------------
 
+# # depth file from Dana used in yelloweye assessment
+# x <- readRDS("data-raw/hbll-inside-grid_water-area.rds")
+# ggplot(x, aes(longitude, latitude, colour = depth)) + geom_point()
+# ggplot(x, aes(longitude, latitude, colour = rock100)) + geom_point()
+#
+# #depth file from Sean on slack
+# y <- readRDS("data-raw/complete_research_blocks_table.rds")
+# y <- y |> dplyr::select(starts_with("ZonalStats_bathy100.M"),
+#                         exported_research_blocks.LATITUDE,
+#                         exported_research_blocks.LONGITUDE, exported_research_blocks.SS_ALT_DES) |>
+#   filter(exported_research_blocks.SS_ALT_DES == "INS S") |>
+#   rename(latitude = exported_research_blocks.LATITUDE,
+#          longitude = exported_research_blocks.LONGITUDE,
+#          depth_m_gis = ZonalStats_bathy100.MEAN)
+# ggplot(y, aes(longitude, latitude, colour = depth_m_gis)) + geom_point()
+# ggplot(y, aes(depth_m_gis, longitude, colour = depth_m_gis)) + geom_point()
+#
+# z <- left_join(x, y)
+# grid <- grid |> dplyr::select(-area)
+# ggplot(z, aes(longitude, latitude, colour = depth)) + geom_point()
+# ggplot(z, aes(depth, depth_m_gis)) + geom_point()
+
+
+# prediction grid from gfplot ---------------------------------------------
 hbll_ins_s <- gfplot::hbll_inside_s_grid
 hbll_ins_s$grid$area <- "hbll_s"
 hbll_ins_n <- gfplot::hbll_inside_n_grid
 hbll_ins_n$grid$area <- "hbll_n"
-
-hbll_ins  <- rbind(hbll_ins_n$grid, hbll_ins_s$grid)
+hbll_ins <- rbind(hbll_ins_n$grid, hbll_ins_s$grid)
 
 # needs depth
 range(hbll_ins$X)
 range(hbll_ins$Y)
 hbll_ins <- hbll_ins[!duplicated(hbll_ins), ] # just checking
+ggplot(hbll_ins, aes(Y, X)) + geom_point() +
+  geom_point(data = )
 
 b <- marmap::getNOAA.bathy(lon1 = -128, lon2 = -122, lat1 = 47, lat2 = 51, resolution = 1)
 
 bdepths <- marmap::get.depth(b, hbll_ins[, c("X", "Y")], locator = FALSE) |>
   mutate(bot_depth = (depth * -1)) |>
+  #filter(bot_depth  < 120) |>
+  #filter(bot_depth > 10) |>
 # rename(longitude = lon, latitude = lat) |>
 # filter(bot_depth > 25) |>
 # mutate(logbot_depth = log(bot_depth)) |>
@@ -38,6 +65,14 @@ bdepths <- marmap::get.depth(b, hbll_ins[, c("X", "Y")], locator = FALSE) |>
 
 bdepths[duplicated(bdepths), ] # just checking
 grid <- filter(bdepths, depth < 0)
+range(grid$bot_depth)
+
+ggplot(grid, aes(lon, lat, colour = bot_depth)) + geom_point()
+grid |> filter(bot_depth > 120) |> tally()
+grid |> filter(bot_depth < 10) |> tally()
+
+grid <- filter(grid, bot_depth  < 120)
+grid <- filter(grid, bot_depth > 10)
 
 grid <- add_utm_columns(grid,
                         ll_names = c("lon", "lat"),
@@ -46,6 +81,10 @@ grid <- add_utm_columns(grid,
 ) |>
   mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000) |>
   mutate(log_botdepth = log(bot_depth))
+
+range(grid$depth)
+range(grid$bot_depth)
+range(grid$log_botdepth)
 
 saveRDS(grid, 'output/prediction-grid-hbll-n-s.rds')
 
