@@ -194,23 +194,23 @@ final <- rbind(regsurveys, compsurveys, compsurveys2019)
 unique(final$year)
 
 final <- final |>
-  mutate(survey = case_when(
+  mutate(survey2 = case_when(
     year %in% c(1986, 1989) ~ "dog-jhook",
     year %in% c(2005, 2008, 2011, 2014) ~ "dog",
     year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
-    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
-    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
+    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "13/0" ~ "hbll comp",
+    year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "14/0" ~ "dog comp",
     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "12/0" ~ "dog-jhook",
-    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "13/0" ~ "hbll",
-    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "14/0" ~ "dog",
-    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "13/0" ~ "hbll",
-    year == 2022 & hooksize_desc == "13/0" ~ "hbll",
-    year == 2022 & hooksize_desc == "14/0" ~ "dog",
+    year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "13/0" ~ "hbll comp",
+    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "14/0" ~ "dog comp",
+    year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "13/0" ~ "hbll comp",
+    year == 2022 & hooksize_desc == "13/0" ~ "hbll comp",
+    year == 2022 & hooksize_desc == "14/0" ~ "dog comp",
     year == 2004 & hooksize_desc == "14/0" ~ "dog",
     year == 2004 & hooksize_desc == "12/0" ~ "dog-jhook"
   ))
-unique(final$survey)
+unique(final$survey2)
 
 
 # final <- final |> mutate(category = paste0(survey, "-", hook_desc))
