@@ -20,7 +20,8 @@ latitude_cutoff <- 49.93883
 # samps <- readRDS("output/dogfish_samps.rds")
 hsamps <- readRDS("data-raw/samples-hbll-dog.rds")
 
-dsamps <- readRDS("data-raw/dogfish_samples_cleaned.rds") |>
+#dsamps <- readRDS("data-raw/dogfish_samples_cleaned.rds") |>
+dsamps <- readRDS("data-raw/dogfish_samples_cleaned_withmaturity.rds") |>
   filter(species_common_name == "NORTH PACIFIC SPINY DOGFISH") |>
   drop_na(total_length) |>
   filter(total_length > 0) |>
@@ -56,7 +57,9 @@ hsamps <- hsamps |>
 
 hsamps2 <- hsamps |> dplyr::select(
   survey_abbrev, year, month, species_common_name,
-  sex, length, weight, fishing_event_id, survey_abbrev
+  sex, length, weight, fishing_event_id, survey_abbrev, maturity_code, maturity_name,
+  maturity_convention_code, maturity_desc, trip_start_date, usability_code,
+  sample_id
 ) |> mutate(
   hook_desc = "CIRCLE HOOK", hooksize_desc = "13/0", activity_desc = "HBLL",
 )
@@ -83,7 +86,7 @@ dsamps <-
 
 dsamps2 <- dsamps |>
   dplyr::select(
-    year, month, species_common_name,
+    year, month, species_common_name, maturity_code, usability_code, trip_start_date,
     specimen_sex_code, total_length, round_weight, fishing_event_id, month, fishing_event_id, hooksize_desc, hook_desc, activity_desc, survey2, survey3, survey_abbrev
   ) |>
   rename(
@@ -100,7 +103,10 @@ saveRDS(samps, "output/samps_joined.rds")
 ggplot(samps, aes(year, length, col = survey_abbrev)) +
   geom_jitter() + facet_wrap(~survey2)
 
-ggplot(samps, aes(year, length, col = survey_abbrev)) +
+ggplot(samps, aes(year, maturity_code, col = survey_abbrev)) +
+  geom_jitter() + facet_wrap(~survey3)
+
+ggplot(samps, aes(year, maturity_code, col = survey_abbrev)) +
   geom_jitter() + facet_wrap(~survey3)
 
 ggplot(samps, aes(year, length, col = survey_abbrev)) +
