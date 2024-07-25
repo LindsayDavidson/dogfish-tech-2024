@@ -23,7 +23,7 @@ ggplot(hbll) +
 geom_point(aes(longitude, latitude)) + facet_wrap(~survey_abbrev)
 
 ggplot(final) +
-  geom_point(aes(longitude, latitude)) + facet_wrap(~survey)
+  geom_point(aes(longitude, latitude)) + facet_wrap(~survey2)
 
 # remove two survey years that extended along the west coast VI
 hbll <- filter(hbll, !(latitude < 48.5 & longitude < -123)) # only two years have the sampling around the strait
@@ -54,7 +54,7 @@ hbll <- hbll |>
 hbll$offset <- log(hbll$hook_count * hbll$soak)
 hbll$log_botdepth <- log(hbll$depth_m)
 hbll$survey2 <- "hbll"
-hbll$survey3 <- hbll$survey_abbrev
+hbll$survey3 <- hbll$survey2
 ggplot(hbll, aes(longitude, latitude, colour = survey_abbrev)) +
   geom_point() +
   facet_wrap(~year)
@@ -75,25 +75,31 @@ ggplot(hbll, aes(longitude, latitude, colour = survey_abbrev)) +
 
 ggplot(hbll, aes(longitude, latitude, colour = survey2)) +
   geom_point() + facet_wrap(~survey2)
+ggplot(hbll, aes(longitude, latitude, colour = survey2)) +
+  geom_point() + facet_wrap(~year)
+
+sort(unique(hbll$year))
 
 # dogfish data -------------------------------------------------------
 
 final <- final |>
   dplyr::select(
-    survey_series_desc, year, survey, fishing_event_id, latitude, longitude, depth_m, lglsp_hook_count, catch_count, month,
+    survey_series_desc, year, survey2, fishing_event_id, latitude, longitude, depth_m, lglsp_hook_count, catch_count, month,
     julian, soak
   ) |>
-  rename("survey_desc" = "survey_series_desc", "hook_count" = "lglsp_hook_count", "survey2" = "survey")
+  rename("survey_desc" = "survey_series_desc", "hook_count" = "lglsp_hook_count")
 
 
 ggplot(final, aes(longitude, latitude, colour = survey2)) +
   geom_point() + facet_wrap(~survey2)
 
 
-final$survey_abbrev <- ifelse(final$survey2 == "hbll", "HBLL INS S",
-                                 final$survey2)
-final$survey3 <- ifelse(final$survey2 == "hbll", "HBLL INS S comp",
-                              final$survey2)
+final$survey_abbrev <- ifelse(final$survey2 %in% c("hbll", "hbll comp"), "HBLL INS S",
+                              ifelse(final$survey2 == "dog comp", "dog",
+                                 final$survey2))
+final$survey3 <- ifelse(final$survey2 %in% c("hbll", "hbll comp"), "hbll",
+                        ifelse(final$survey2 == "dog comp", "dog",
+                               final$survey2))
 
 # final$survey2 <- ifelse(final$survey2 == "hbll", "hbll",
 #                               final$survey2)
@@ -117,10 +123,13 @@ final |>
   distinct() |>
   reframe()
 
-ggplot(final, aes(longitude, latitude, colour = survey2)) +
-  geom_point() + facet_wrap(~survey3)
-ggplot(final, aes(longitude, latitude, colour = survey3)) +
+
+ggplot(final, aes(longitude, latitude, colour = survey_abbrev)) +
   geom_point() + facet_wrap(~survey_abbrev)
+ggplot(final, aes(longitude, latitude, colour = survey2)) +
+  geom_point() + facet_wrap(~survey2)
+ggplot(final, aes(longitude, latitude, colour = survey3)) +
+  geom_point() + facet_wrap(~survey3)
 
 d <- bind_rows(final, hbll)
 
@@ -133,9 +142,11 @@ d <- add_utm_columns(d,
   mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
 
 ggplot(d, aes(longitude, latitude, colour = survey2)) +
-  geom_point() + facet_wrap(~survey_abbrev)
-ggplot(d, aes(longitude, latitude, colour = survey3)) +
   geom_point() + facet_wrap(~survey2)
+ggplot(d, aes(longitude, latitude, colour = survey3)) +
+  geom_point() + facet_wrap(~survey3)
+ggplot(d, aes(longitude, latitude, colour = survey_abbrev)) +
+  geom_point() + facet_wrap(~survey_abbrev)
 
 saveRDS(d, "data-raw/wrangled-hbll-dog-sets.rds") # no expansion set along the strait
 unique(d$survey3)
