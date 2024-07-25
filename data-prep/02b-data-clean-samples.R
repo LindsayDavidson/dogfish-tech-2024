@@ -82,3 +82,15 @@ unique(x$fishing_event_id) # why does this one fishing event not have a parent e
 # remove for now
 samples <- filter(samples, fishing_event_id != 5490376)
 saveRDS(samples, "data-raw/dogfish_samples_cleaned.rds")
+
+dog <- filter(samples, species_common_name == "NORTH PACIFIC SPINY DOGFISH")
+# maturity information
+library(gfplot)
+data("maturity_assignment")
+data("maturity_short_names") # males maturity code = 90, female maturity code is >= 77
+maturity_assignment
+maturity_short_names
+
+dog_maturity_short_names <- filter(maturity_short_names, maturity_convention_desc == "DOGFISH")
+dsurvey_bio2 <- left_join(dog, dog_maturity_short_names, by = c("specimen_sex_code" = "sex", "maturity_code" = "maturity_code"))
+saveRDS(dsurvey_bio2, "data-raw/dogfish_samples_cleaned_withmaturity.rds")
