@@ -18,7 +18,8 @@ latitude_cutoff <- 49.93883
 
 # load data ---------------------------------------------------------------
 # samps <- readRDS("output/dogfish_samps.rds")
-hsamps <- readRDS("data-raw/samples-hbll-dog.rds")
+hsamps <- readRDS("data-raw/samples-hbll-dog.rds") #just hbll samples
+names(hsamps)
 
 #dsamps <- readRDS("data-raw/dogfish_samples_cleaned.rds") |>
 dsamps <- readRDS("data-raw/dogfish_samples_cleaned_withmaturity.rds") |>
@@ -54,12 +55,16 @@ ggplot(test) +
 glimpse(hsamps)
 hsamps <- hsamps |>
   filter(!fishing_event_id %in% c(hbllrm$fishing_event_id))
+names(hsamps)
 
-hsamps2 <- hsamps |> dplyr::select(
+hsamps2 <- hsamps |>
+  dplyr::select(
   survey_abbrev, year, month, species_common_name,
-  sex, length, weight, fishing_event_id, survey_abbrev, maturity_code, maturity_name,
-  maturity_convention_code, maturity_desc, trip_start_date, usability_code,
-  sample_id
+  sex, length, weight, fishing_event_id, survey_abbrev,
+  trip_start_date, usability_code,
+  sample_id, maturity_code, maturity_name, maturity_desc,
+  maturity_convention_code, maturity_convention_desc, maturity_convention_maxvalue,
+  age
 ) |> mutate(
   hook_desc = "CIRCLE HOOK", hooksize_desc = "13/0", activity_desc = "HBLL",
 )
@@ -86,11 +91,16 @@ dsamps <-
 
 dsamps2 <- dsamps |>
   dplyr::select(
-    year, month, species_common_name, maturity_code, usability_code, trip_start_date,
-    specimen_sex_code, total_length, round_weight, fishing_event_id, month, fishing_event_id, hooksize_desc, hook_desc, activity_desc, survey2, survey3, survey_abbrev
+    year, month, species_common_name, usability_code, trip_start_date,
+    specimen_sex_code, total_length, round_weight, fishing_event_id, month, fishing_event_id, hooksize_desc, hook_desc, activity_desc, survey2, survey3, survey_abbrev, sample_id, specimen_id,
+    maturity_code, maturity_name, maturity_desc,
+    maturity_convention_code, maturity_convention_desc, maturity_convention_maxvalue,
+    specimen_age
   ) |>
   rename(
-    sex = specimen_sex_code, length = total_length,
+    sex = specimen_sex_code,
+    age = specimen_age,
+    length = total_length,
     weight = round_weight
   )
 
