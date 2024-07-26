@@ -62,7 +62,7 @@ dogsamps <- filter(allsamps, survey_series_desc %in% c(
 ))
 
 saveRDS(dogsamps, "data-raw/samples-hbll-dog.rds")
-dogsamps <- readRDS("data-raw/samples-hbll-dog.rds")
+test <- readRDS("data-raw/samples-hbll-dog.rds")
 
 # pull HBLL inside data ---------------------------------------------------
 
@@ -125,9 +125,9 @@ FE_SUB_LEVEL_ID,
 SS.SURVEY_SERIES_ID,
 FE_PARENT_EVENT_ID,
 YEAR(B21.TRIP_START_DATE) AS YEAR,
+B21.TRIP_START_DATE,
 B21.TRIP_COMMENT,
 LS.FISHING_EVENT_ID,
-TR.TRIP_START_DATE,
 B21.TRIP_ID,
 B21.FE_MAJOR_LEVEL_ID,
 B21.SPECIES_CODE,
@@ -135,10 +135,13 @@ S.SPECIES_SCIENCE_NAME,
 S.SPECIES_COMMON_NAME,
 B22.SPECIMEN_ID,
 B22.SPECIMEN_SEX_CODE,
+B22.SPECIMEN_AGE,
+B22.AGEING_METHOD_CODE,
 B22.Total_Length,
 LS.USABILITY_CODE,
 SC.MATURITY_CODE,
-B22.Round_Weight
+B22.Round_Weight,
+SC.SAMPLE_ID
 FROM GFBioSQL.dbo.B21_Samples B21
 INNER JOIN GFBioSQL.dbo.B22_Specimens B22 ON B22.SAMPLE_ID = B21.SAMPLE_ID
 INNER JOIN GFBioSQL.dbo.TRIP_ACTIVITY TA ON TA.TRIP_ID = B21.TRIP_ID
