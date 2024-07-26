@@ -92,5 +92,15 @@ maturity_assignment
 maturity_short_names
 
 dog_maturity_short_names <- filter(maturity_short_names, maturity_convention_desc == "DOGFISH")
+#if maturities aren't looked at give a maturity_code == 0
+dog <- dog |> mutate(maturity_code = ifelse(is.na(maturity_code) == TRUE, 0, maturity_code))
 dsurvey_bio2 <- left_join(dog, dog_maturity_short_names, by = c("specimen_sex_code" = "sex", "maturity_code" = "maturity_code"))
+dsurvey_bio2 <- dsurvey_bio2 |> mutate(maturity_convention_code = ifelse(maturity_code == 0, 9, maturity_convention_code))
+dsurvey_bio2 <- dsurvey_bio2 |> mutate(maturity_convention_desc = ifelse(maturity_code == 0, "MATURITIES NOT LOOKED AT", maturity_convention_desc))
+dsurvey_bio2 <- dsurvey_bio2 %>% rename_at('Maturity Convention Max Value', ~'maturity_convention_maxvalue')
+dsurvey_bio2 <- dsurvey_bio2 |> mutate(maturity_convention_maxvalue = ifelse(maturity_code == 0, 0, maturity_convention_maxvalue))
+
+#there are a lot of codes I don't know what they are
+#codes <- unique(dog_maturity_short_names$maturity_code)
+#dsurvey_bio3 <- dsurvey_bio2 |> filter(maturity_code %in% codes)
 saveRDS(dsurvey_bio2, "data-raw/dogfish_samples_cleaned_withmaturity.rds")
