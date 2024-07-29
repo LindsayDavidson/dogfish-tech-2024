@@ -53,9 +53,18 @@ sort(unique(sampsm$maturity_code))
 
 # all without 2004 comp work ----------------------------------------------
 #
-# d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
-#   filter(year != 2004)
-# range(d$depth_m)
+d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
+  filter(year != 2004)
+
+test <- d |>
+  mutate(toohigh = ifelse(catch_count > hook_count, "morecatch", "lesscatch")) |>
+  filter(toohigh == "morecatch")
+
+ggplot() +
+  geom_point(data = d, aes(hook_count, catch_count, colour = survey_abbrev)) + facet_wrap(~year) +
+  geom_point(data = test, aes(hook_count, catch_count), colour = 'red') + facet_wrap(~year)
+
+# range(d$depth_m)# range(d$depth_m)year()
 # d$log_botdepth2 <- d$log_botdepth * d$log_botdepth
 # str(d$month)
 # grid <- grid <- readRDS("output/prediction-grid-hbll-n-s-dog-2-km.rds")
@@ -82,6 +91,7 @@ m86 <- gfplot::fit_mat_ogive(samps_86,
   sample_id_re = TRUE,
   custom_maturity_at = c(NA, 55)
 )
+m86$mat_perc$f.p0.95
 gfplot::plot_mat_ogive(m86)
 mat <- m86$pred_data |> mutate(year = 1986)
 
@@ -91,6 +101,7 @@ m08 <- gfplot::fit_mat_ogive(samps_08,
   sample_id_re = TRUE,
   custom_maturity_at = c(NA, 55)
 )
+m08$mat_perc$f.p0.95
 gfplot::plot_mat_ogive(m08)
 mat2 <- m08$pred_data |> mutate(year = 2008)
 
@@ -100,16 +111,18 @@ m23 <- gfplot::fit_mat_ogive(samps_23,
   sample_id_re = TRUE,
   custom_maturity_at = c(NA, 55)
 )
+m23$mat_perc$f.p0.95
 gfplot::plot_mat_ogive(m23)
 mat3 <- m23$pred_data |> mutate(year = 2023)
 
 mat <- rbind(mat, mat2, mat3)
 p <- ggplot(mat, aes(age_or_length, glmm_fe, group = year, colour = as.factor(year))) +
-  geom_line(size = 1) +
+  geom_line(size = 0.5) +
   facet_wrap(~female) +
   scale_colour_viridis_d()
+p
 p + geom_line(data = mat, aes(age_or_length, glmm_re, group = year, colour = as.factor(year), alpha = 0.2))
-
+ggsave("Figures/maturity_curves_temporal.jpg", width = 5, height = 2.5)
 
 m <- gfplot::fit_mat_ogive(samps,
   type = "length",
@@ -159,7 +172,7 @@ range(m95$age_or_length)
 #   distinct(year, lengthgroup, catch_count_group, .keep_all = TRUE)
 
 samps2 <- samps |>
-  filter(!sex  %in% c(0,3)) |>
+  #filter(!sex  %in% c(0,3)) |>
   mutate(lengthgroup = ifelse(length >= 85.10745 & sex == 2, "mf",
                                             ifelse(length >= 69.7079 & sex == 1, "mm",
                                                    ifelse(length < 85.10745 & sex == 2, "immf",
@@ -188,8 +201,14 @@ samps2 |>
   geom_line(aes(year, log(catch_count_group_sum), group = lengthgroup, colour = lengthgroup)) +
   facet_wrap(~survey2)
 
-
 saveRDS(samps2, "output/catch_by_maturitygroup.rds")
+
+test <- samps2 |> dplyr::select(year, fishing_event_id, catch_count_group , survey_abbrev, survey2)
+test<- test |> group_by(year, fishing_event_id, survey_abbrev) |> reframe(sum_samps =catch_count_group)
+d2 <- d |> dplyr::select(year, fishing_event_id, catch_count, survey_abbrev, survey2)
+d2 <- d2 |> group_by(year, fishing_event_id, survey_abbrev) |> reframe(sum_setss =catch_count)
+test2 <- left_join(test, d2)
+ggplot(test2, aes(sum_samps, sum_setss)) + geom_point() + facet_wrap(~year, scales = "free")
 
 # rough figure ----------------------------------------------------
 unique(samps$survey_name2)
