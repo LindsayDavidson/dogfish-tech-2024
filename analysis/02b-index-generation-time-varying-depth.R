@@ -3,86 +3,89 @@ library(tidyverse)
 
 
 # data ---------------------------------------------------------------
-# all without 2004 comp work ----------------------------------------------
-
-d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
-  filter(year != 2004)
-range(d$depth_m)
-d$log_botdepth2 <- d$log_botdepth * d$log_botdepth
-str(d$month)
-grid <- grid <- readRDS(
-  #"output/prediction-grid-hbll-n-s-dog-1-km.rds")
-  "output/prediction-grid-hbll-n-s-dog-2-km.rds")# from convex hull to have deeper depths
-grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
-grid$area_km2 <- as.numeric(grid$area_km)
-years <- seq(min(d$year), 2023, 1)
-grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-grid$survey2 <- "hbll"
-grid$julian <- mean(d$julian)
-grid$month <- 7
-path <- "output/fit-tv-sog-hblldog_no2004.rds"
-pathind <- "output/ind-tv-sog-hblldog_no2004.rds"
-sort(unique(d$year))
-extratime <- c(1987, 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2004, 2006, 2017, 2020)
-
-plot(grid$longitude, grid$latitude)
-points(d$longitude, d$latitude, col = "red")
-
+# # all without 2004 comp work ----------------------------------------------
+#
+# d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
+#   filter(year != 2004)
+# range(d$depth_m)
+# d$log_botdepth2 <- d$log_botdepth * d$log_botdepth
+# str(d$month)
+# grid <- grid <- readRDS(
+#   #"output/prediction-grid-hbll-n-s-dog-1-km.rds")
+#   "output/prediction-grid-hbll-n-s-dog-2-km.rds")# from convex hull to have deeper depths
+# grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
+# grid$area_km2 <- as.numeric(grid$area_km)
+# years <- seq(min(d$year), 2023, 1)
+# grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
+# grid$survey2 <- "hbll"
+# grid$julian <- mean(d$julian)
+# grid$month <- 7
+# path <- "output/fit-tv-sog-hblldog_no2004.rds"
+# pathind <- "output/ind-tv-sog-hblldog_no2004.rds"
+# sort(unique(d$year))
+# extratime <- c(1987, 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2004, 2006, 2017, 2020)
+#
+# plot(grid$longitude, grid$latitude)
+# points(d$longitude, d$latitude, col = "red")
+#
 
 # hbll n and s only -------------------------------------------------------------
 
-d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |> filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
-range(d$depth_m)
-ggplot(d, aes(depth_m, catch_count)) + geom_point()
-ggplot(d, aes(log_botdepth, catch_count)) + geom_point()
-ggplot(d, aes(longitude, latitude, colour = depth_m)) + geom_point()
-
-d$log_botdepth2 <- d$log_botdepth * d$log_botdepth
-grid <- readRDS
-  ("output/prediction-grid-hbll-n-s.rds") |>
-  filter(area %in% c("hbll_s", "hbll_n")) |> filter(log_botdepth >0 ) |> filter(depth > -110)
-grid$
-  grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
+d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
+  filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
+mean <- mean(d$log_botdepth)
+d$log_botdepth2 <- d$log_botdepth^2
+d$log_botdepth_cent <- d$log_botdepth - mean
+d$log_botdepth_cent2 <- d$log_botdepth_cent * d$log_botdepth_cent
+grid <- readRDS("output/prediction-grid-hbll-n-s.rds") |>
+  filter(area %in% c("hbll_s", "hbll_n"))
+grid$log_botdepth2 <- grid$log_botdepth^2
+grid$log_botdepth_cent <- grid$log_botdepth - mean
+grid$log_botdepth_cent2 <- grid$log_botdepth_cent * grid$log_botdepth_cent
 # from gfdata HBLL n and south merged
-years <- seq(min(d$year), 2022, 1)
+years <- seq(min(d$year), 2023, 1)
 sort(unique(d$year))
-# grid <- purrr::map_dfr(unique(d$year), ~ tibble(grid, year = .x))
 grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-grid$julian <- mean(d$julian)
-ggplot(grid, aes(log_botdepth, year)) + geom_point()
-
-path <- "output/fit-sog-hbll-s.rds"
-pathind <- "output/ind-sog-hbll-s.rds"
-extratime <- c(2006,2007, 2010, 2012, 2014, 2016, 2017, 2019, 2020)
-
-plot(grid$lon, grid$lat)
-points(d$longitude, d$latitude, col = "red")
+path <- "output/fit-tv--sog-hbll-ns.rds"
+pathind <- "output/ind-tv-sog-hbll-ns.rds"
+extratime <- c(2006,2017,2020)
 
 
 # time varying model ------------------------------------------------------
 
+mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = 5)
+plot(mesh)
+
+ggplot() +
+  geom_point(data = d |> arrange(year), aes(UTM.lon, UTM.lat
+                                            , colour = year), size = 1,
+             # ), size = 0.25, alpha = 0.25,
+             pch = 16) +
+  inlabru::gg(mesh$mesh,
+              edge.color = "grey60",
+              edge.linewidth = 0.15,
+              # interior = TRUE,
+              # int.color = "blue",
+              int.linewidth = 0.25,
+              exterior = FALSE,
+              # ext.color = "black",
+              ext.linewidth = 0.5) +
+  scale_colour_viridis_c(direction = -1) +
+  labs(colour = "Year") +
+  xlab("UTM (km)") + ylab("UTM (km)") + coord_fixed(expand = FALSE) +
+  theme_classic() +
+  theme(legend.position = "inside", legend.position.inside = c(0.2, 0.25))
+
 fittv <- sdmTMB(
-  formula = catch_count ~ 1 + logbot_depth_cent + logbot_depth_cent2 + as.factor(survey3),
+  formula = catch_count ~ 0 + as.factor(year),
   offset = "offset",
   time = "year",
-  time_varying = ~ 1 + logbot_depth_cent + logbot_depth_cent2,
-  time_varying_type = "rw0",
-  spatiotemporal = "off", # left over variation from the time varying process is ar1
+  time_varying = ~ 0 + log_botdepth + log_botdepth2,
+  #time_varying_type = "rw0",
+  spatiotemporal = "AR1", #off or AR1 left over variation from the time varying process is ar1
   silent = FALSE,
   spatial = "on",
-  # priors = sdmTMBpriors(
-  #   b = normal(location = c(NA, 0, 0), scale = c(NA, 1, 1))
-  # ),
-  # control = sdmTMBcontrol(
-  #   newton_loops = 1L,
-  #   start = list(
-  #     ln_tau_V = matrix(log(0.1), 3, 2)
-  #   ),
-  #   map = list(
-  #     ln_tau_V = factor(as.vector(matrix(c(1, NA, NA, 2, NA, NA), 3, 2)))
-  #   )
-  # ),
-  family = nbinom2(), # goa,nw1, time varying imm, bc mature males
+  family = nbinom2(),
   mesh = mesh,
   data = d,
   do_index = FALSE
@@ -90,16 +93,15 @@ fittv <- sdmTMB(
 
 sanity(fittv)
 fittv$sd_report
-tvpath
 
-saveRDS(fittv, tvpath)
+saveRDS(fittv, path)
 
 # time varying depth plot
 nd <- expand.grid(
-  logbot_depth_cent =
-    seq(min(d$logbot_depth_cent), max(d$logbot_depth_cent), length.out = 500)
+  log_botdepth =
+    seq(min(d$log_botdepth), max(d$log_botdepth), length.out = 500)
 )
-nd$logbot_depth_cent2 <- nd$logbot_depth_cent^2
+nd$log_botdepth2 <- nd$log_botdepth^2
 nd$offset <- 0
 # nd$survey_name <- "GOA"
 # nd$year <- 2021L # L: integer to match original data
@@ -109,12 +111,37 @@ nd <- purrr::map_dfr(year, function(.x) {
   dplyr::mutate(nd, year = .x)
 })
 
-unique(nd$year)
-unique(d$year)
-unique(grid$year)
-
 p <- predict(fittv, newdata = nd, se_fit = TRUE, re_form = NA)
-ptvpath
-p$depth_m <- exp(p$logbot_depth_cent + mean_logbot_depth) * -1
-p$mean_logbot_depth <- mean_logbot_depth
-saveRDS(p, ptvpath)
+#p$depth_m <- exp(p$log_botdepth_cent + mean) * -1
+p$depth_m <- exp(p$log_botdepth)
+p$mean_logbot_depth <- mean
+saveRDS(p, pathind)
+
+p |>
+  ggplot() +
+  geom_line(aes((depth_m ), exp(est), group = as.factor(year), colour = year)) +
+  scale_colour_viridis_c() +
+  theme_classic()
+ggsave("Figures/fit-tv-predicteddepth.jpg", width = 4, height = 3)
+
+p %>%
+  group_by(year) %>%
+  summarize(max_est = max(est), xint = (depth_m[est == max_est])) |>
+  # filter(year > 2003) |>
+  ggplot() +
+  theme_classic() +
+  geom_line(aes(year, xint, colour = year, group = year)) +
+  geom_point(aes(year, xint, colour = year, group = year))
+
+ggplot(p, aes(depth_m, exp(est),
+              ymin = exp(est - 1.96 * est_se),
+              ymax = exp(est + 1.96 * est_se),
+              group = as.factor(year)
+)) +
+  geom_line(aes(colour = year), lwd = 1) +
+  geom_ribbon(aes(fill = year), alpha = 0.1) +
+  scale_colour_viridis_c() +
+  scale_fill_viridis_c() +
+  scale_x_continuous(labels = function(x) round(exp(x * pcod$depth_sd[1] + pcod$depth_mean[1]))) +
+  coord_cartesian(expand = F) +
+  labs(x = "Depth (m)", y = "Biomass density (kg/km2)")
