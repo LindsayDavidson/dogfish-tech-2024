@@ -248,7 +248,8 @@ dsurvey_bio |>
 x <- filter(dsurvey_bio, YEAR == 1986)
 unique(x$SPECIES_COMMON_NAME)
 
-# this has the catch count per species
+# this has the catch count per species per fishing_event_id??
+# this has the catch count per species per fishing_event_id??
 catchcount <- gfdata::run_sql("GFBioSQL", "SELECT
 FEC.FISHING_EVENT_ID,
 FE.FE_PARENT_EVENT_ID,
@@ -263,7 +264,7 @@ INNER JOIN CATCH C ON C.CATCH_ID = FEC.CATCH_ID
 INNER JOIN TRIP_SURVEY TS ON TS.TRIP_ID = FEC.TRIP_ID
 INNER JOIN SURVEY S ON S.SURVEY_ID = TS.SURVEY_ID
 INNER JOIN GFBioSQL.dbo.SPECIES SP ON SP.SPECIES_CODE = C.SPECIES_CODE
-WHERE SURVEY_SERIES_ID IN (48, 76, 92, 93)
+WHERE SURVEY_SERIES_ID IN (48, 92, 93)
 GROUP BY FEC.TRIP_ID,
 FEC.FISHING_EVENT_ID,
 FE.FE_PARENT_EVENT_ID,
@@ -273,6 +274,8 @@ SP.SPECIES_COMMON_NAME,
 SP.SPECIES_SCIENCE_NAME
 ORDER BY FEC.FISHING_EVENT_ID")
 
+#shoudl this be included??
+#AND FE.FE_MAJOR_LEVEL_ID < 1000 AND FE_PARENT_EVENT_ID IS NULL
 
 saveRDS(dsurvey_bio, "data-raw/dogfish_samples.rds")
 saveRDS(catchcount, "data-raw/dogfish_counts.rds")
