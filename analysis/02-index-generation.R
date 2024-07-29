@@ -52,17 +52,16 @@ points(d$longitude, d$latitude, col = "red")
 d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
   filter(year != 2004)
 range(d$depth_m)
-d$log_botdepth2 <- d$log_botdepth * d$log_botdepth
+#d$log_botdepth2 <- d$log_botdepth * d$log_botdepth
 str(d$month)
-grid <- grid <- readRDS
+grid <- grid <- readRDS("output/prediction-grid-hbll-n-s-dog-2-km.rds")
       #("output/prediction-grid-hbll-n-s-dog-1-km.rds")
-      ("output/prediction-grid-hbll-n-s-dog-2-km.rds")
 grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
 grid$area_km2 <- as.numeric(grid$area_km)
 years <- seq(min(d$year), 2023, 1)
 # grid <- purrr::map_dfr(unique(d$year), ~ tibble(grid, year = .x))
 grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-grid$survey2 <- "hbll"
+grid$survey3 <- "hbll"
 grid$julian <- mean(d$julian)
 grid$month <- 8
 path <- "output/fit-sog-hblldog_no2004.rds"
@@ -243,6 +242,15 @@ d |>
   geom_point(aes(year, cpue, group = survey3)) +
   geom_line(aes(year, cpue, group = survey3))
 
+unique(d$survey2)
+d |>
+  filter(!survey2 %in% c("hbll comp", "dog comp")) |>
+  group_by(year, survey_abbrev) |>
+  summarise(cpue = sum(catch_count/offset)) |>
+  ggplot( ) +
+  geom_point(aes(year, cpue, group = survey_abbrev, colour = survey_abbrev)) +
+  geom_line(aes(year, cpue, group = survey_abbrev, colour = survey_abbrev))
+
 range(grid$bot_depth)
 range(grid$log_botdepth)
 range(grid$bot_depth)
@@ -293,11 +301,11 @@ indexfunc <- function(d) {
   # # ggsave("Figures/mesh.pdf", width = 6, height = 6)
 
   unique(sort(d$year))
-  unique(sort(d$survey2))
+  unique(sort(d$survey3))
 
   fit <- sdmTMB(
     formula =
-    catch_count ~ poly(log_botdepth, 2) + as.factor(survey2),
+    catch_count ~ poly(log_botdepth, 2) + as.factor(survey3),
     #catch_count ~ log_botdepth + log_botdepth2, #hbll n model, hbll s model
     data = d,
     time = "year",
@@ -317,7 +325,7 @@ indexfunc <- function(d) {
   fit$sd_report
   sanity(fit)
 
-  # fitmonth <- update(fit, formula = catch_count ~ poly(log_botdepth, 2) + as.factor(survey2) + poly(month, 2))
+  # fitmonth <- update(fit, formula = catch_count ~ poly(log_botdepth, 2) + as.factor(survey3) + poly(month, 2))
   # sanity(fitmonth)
   # fitmonth$sd_report
   # saveRDS(fitmonth, file = "output/fit-sog-hblldog-month.rds")
