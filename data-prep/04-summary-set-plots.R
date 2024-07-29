@@ -84,6 +84,8 @@ ggsave("Figures/summary_locations_dogjhook.png", width = 5, height = 4)
 
 
 d |>
+  filter(survey2 != "hbll comp") |>
+  filter(survey2 != "dog comp") |>
   group_by(survey_abbrev, year) |>
   mutate(
     catch_count_sum = sum(catch_count),
@@ -91,14 +93,30 @@ d |>
     cpue_hk = sum(catch_count) / sum(hook_count)
   ) |>
   ggplot() +
-  geom_point(aes(year, cpue, colour = survey_abbrev)) +
-  geom_line(aes(year, cpue, colour = survey_abbrev)) + theme_classic() +
+  geom_point(aes(year, cpue, colour = survey_abbrev, size = 1)) +
+  geom_line(aes(year, cpue, colour = survey_abbrev), size = 1) + theme_classic() +
   #scale_color_manual(values = cols) +
-  guides(colour=guide_legend(title="Survey"))
+  guides(colour=guide_legend(title="Survey")) +
+  scale_colour_viridis_d()
 ggsave("Figures/summary_cpuetrends.png", width = 5, height = 4)
 
+d |>
+  group_by(survey2, year) |>
+  mutate(
+    catch_count_sum = sum(catch_count),
+    cpue = sum(catch_count) / sum(exp(offset)),
+    cpue_hk = sum(catch_count) / sum(hook_count)
+  ) |>
+  ggplot() +
+  geom_point(aes(year, cpue, colour = survey3, size = 1)) +
+  geom_line(aes(year, cpue, colour = survey3), size = 1) + theme_classic() +
+  #scale_color_manual(values = cols) +
+  guides(colour=guide_legend(title="Survey")) +
+  scale_colour_viridis_d()
 
 d |>
+  filter(survey2 != "hbll comp") |>
+  filter(survey2 != "dog comp") |>
   #filter(survey_abbrev == "hbll") |>
   group_by(survey_abbrev, year) |>
   ggplot() +
@@ -111,7 +129,7 @@ d |>
   geom_point(aes(longitude, latitude, colour = survey2)) +
   facet_wrap(~year + survey2) +
   theme_classic() +
-  scale_color_manual(values = cols) +
+  #scale_color_manual(values = cols) +
   guides(colour=guide_legend(title="Survey")) +
   geom_sf(data = bc_coast, fill = "grey90", colour = "grey70")
 ggsave("Figures/summary_surveylocations.png", width = 10, height = 10)
@@ -161,7 +179,8 @@ d |>
   ggplot() +
   geom_jitter(aes(year, log(catch_count), colour = survey_abbrev), alpha = 0.5) +
   theme_classic() +
-  scale_color_manual(values = cols) + facet_wrap(~survey_abbrev)
+  #scale_color_manual(values = cols) +
+  facet_wrap(~survey_abbrev)
 ggsave("Figures/summary_catches.png", width = 6, height = 5)
 
 
@@ -169,18 +188,18 @@ d |>
   group_by(survey_abbrev, year) |>
   ggplot() +
   geom_jitter(aes(year, hook_count, colour = survey_abbrev), alpha = 0.5) +
-  theme_classic() +
-  scale_color_manual(values = cols)
+  theme_classic()
+  #scale_color_manual(values = cols)
 ggsave("Figures/summary_hookscounts.png", width = 5, height = 4)
 
 
 d |>
-  group_by(survey_abbrev, year) |>
+  group_by(survey2,survey_abbrev, year) |>
   ggplot() +
-  geom_jitter(aes(year, julian, colour = survey_abbrev), alpha = 0.5) +
+  geom_jitter(aes(year, julian, colour = survey2), alpha = 0.5) +
   theme_classic() +
   guides(size="none") +
-  scale_color_manual(values = cols) +
+  #scale_color_manual(values = cols) +
   guides(colour=guide_legend(title="Survey"))
   #facet_wrap(~survey_abbrev, scales = "free")
 ggsave("Figures/summary_julian.png", width = 5, height = 4)
@@ -190,8 +209,8 @@ d |>
   group_by(survey_abbrev, year) |>
   ggplot() +
   geom_jitter(aes(year, soak, colour = survey_abbrev), alpha = 0.5) +
-  theme_classic() +
-  scale_color_manual(values = cols)
+  theme_classic()
+  #scale_color_manual(values = cols)
 ggsave("Figures/summary_soak.png", width = 5, height = 5)
 
 
@@ -213,8 +232,8 @@ d |>
   ggplot() +
   geom_jitter(aes(log_botdepth,log(catch_count), colour = survey_abbrev), alpha = 0.5) +
   facet_wrap(~year) +
-  theme_classic() +
-  scale_color_manual(values = cols)
+  theme_classic()
+  #scale_color_manual(values = cols)
 ggsave("Figures/summary_depth.png", width = 6, height = 5)
 
 d |>
@@ -223,6 +242,6 @@ d |>
   ggplot() +
   geom_jitter(aes(log_botdepth,log(catch_count), colour = survey_abbrev), alpha = 0.5) +
   facet_wrap(~year) +
-  theme_classic() +
-  scale_color_manual(values = cols)
+  theme_classic()
+  #scale_color_manual(values = cols)
 
