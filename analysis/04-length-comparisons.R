@@ -15,7 +15,93 @@ samps <- readRDS("output/samps_joined.rds")
 
 
 
-# length comp figure for each survey --------------------------------------
+# length comp between geartype figure for each survey --------------------------------------
+
+comps <- samps |> filter(year %in% c(2021, 2022, 2023))
+
+ggplot(comps, aes(year, length, group = hook_desc, colour = hook_desc)) +
+  geom_point()
+
+ggplot(comps, aes(year, length, group = hook_desc, colour = hook_desc)) +
+  geom_violin() +
+  facet_wrap(~survey_abbrev)
+
+samps |>
+  filter(activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS") |>
+  filter(!year %in% c(2004, 2019)) |>
+  filter(sex %in% c(1, 2)) |>
+  ggplot(aes(hooksize_desc, length)) +
+  geom_boxplot() +
+  #geom_violin() +
+  #geom_jitter() +
+  facet_wrap(~sex) + theme_classic()
+
+samps |>
+  #filter(activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS") |>
+  filter(sex %in% c(1, 2)) |>
+  filter(!year %in% c(2004)) |>
+  mutate(id = ifelse(year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase", NA)) |> #get rid of the 2019
+  filter(is.na(id) == TRUE) |>
+  ggplot(aes(hooksize_desc, length)) +
+  geom_boxplot() +
+  #geom_violin() +
+  #geom_jitter() +
+  facet_wrap(~sex)
+
+samps |>
+  filter(sex %in% c(1,2)) |>
+  filter(!year %in% c(2004)) |>
+  mutate(id = ifelse(year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase", NA)) |> #get rid of the 2019
+  filter(is.na(id) == TRUE) |>
+  ggplot(aes(length)) +
+  geom_histogram(aes(colour = NA, fill = as.factor(sex), alpha = 0.5)) +
+  facet_wrap(~survey_abbrev, ncol = 5) +
+  theme_classic() +
+  scale_fill_manual(values = c("grey", "red")) +
+  guides(colour = "none")
+ggsave("Figures/lengthcomps.jpg", width = 8, height = 5)
+
+samps |>
+  filter(sex %in% c(1,2)) |>
+  filter(!year %in% c(2004)) |>
+  mutate(id = ifelse(year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase", NA)) |> #get rid of the 2019
+  filter(is.na(id) == TRUE) |>
+  ggplot(aes(length)) +
+  geom_histogram(aes(fill = as.factor(survey_abbrev)), colour = NA, position="stack", width = 2) +
+  facet_wrap(~survey_abbrev + sex, ncol = 2) +
+  theme_classic() +
+  #scale_fill_manual(values = c("grey", "red")) +
+  guides(colour = "none") +
+  scale_fill_viridis_d()
+ggsave("Figures/lengthcomps_bysurvey.jpg", width = 8, height = 5)
+
+samps |>
+  filter(sex %in% c(1,2)) |>
+  filter(!year %in% c(2004)) |>
+  mutate(id = ifelse(year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase", NA)) |> #get rid of the 2019
+  filter(is.na(id) == TRUE) |>
+  ggplot() +
+  geom_boxplot(aes(survey_abbrev, length, fill = as.factor(sex)), alpha = 0.5) +
+  facet_wrap(~sex, ncol = 2) +
+  theme_classic() +
+  scale_fill_manual(values = c("grey", "red")) +
+  guides(colour = "none")
+ggsave("Figures/lengthcomps_bysurvey.jpg", width = 8, height = 5)
+
+samps |>
+  filter(sex %in% c(1,2)) |>
+  filter(!year %in% c(2004)) |>
+  mutate(id = ifelse(year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase", NA)) |> #get rid of the 2019
+  filter(is.na(id) == TRUE) |>
+  filter(activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS") |>
+  ggplot() +
+  geom_boxplot(aes(survey_abbrev, length, fill = as.factor(sex)), alpha = 0.5) +
+  facet_wrap(~sex + year, ncol = 2) +
+  theme_classic() +
+  scale_fill_manual(values = c("grey", "red")) +
+  guides(colour = "none")
+ggsave("Figures/lengthcomps_bysurvey.jpg", width = 8, height = 5)
+
 
 ggplot(samps, aes(length)) +
   geom_histogram(aes(colour = as.factor(sex))) +
@@ -44,6 +130,50 @@ samps |>
   ggplot() +
   geom_density(aes(length)) +
   facet_wrap(~year + month)
+
+
+
+# length comp between seasons figure for each survey --------------------------------------
+
+comps <- samps |> filter(year %in c(2023))
+ggplot(comps, aes(year, cathc_count, group = hook_type, colour = hook_type)) +
+  geom_point()
+
+ggplot(comps, aes(year, length, group = hook_type, colour = hook_type)) +
+  geom_point()
+
+ggplot(comps, aes(year, length, group = hook_type, colour = hook_type)) +
+  geom_violin() +
+  facet_wrap(~survey_abbrev)
+
+ggplot(samps, aes(length)) +
+  geom_histogram(aes(colour = as.factor(sex))) +
+  facet_wrap(~survey_abbrev, ncol = 5)
+
+gfsynopsis::plot_lengths
+
+samps |>
+  filter(survey_abbrev == "dog") |>
+  filter(sex ==2) |>
+  ggplot() +
+  geom_density(aes(length)) +
+  facet_wrap(~year)
+
+samps |>
+  filter(survey_abbrev == "dog") |>
+  filter(sex ==2) |>
+  group_by(year) |>
+  summarize(mean = mean(length)) |>
+  ggplot() +
+  geom_line(aes(year, mean))
+
+samps |>
+  filter(survey_abbrev %in% c("HBLL INS S")) |>
+  filter(sex ==2) |>
+  ggplot() +
+  geom_density(aes(length)) +
+  facet_wrap(~year + month)
+
 
 
 # # anova - are the group means different? ----------------------------------
