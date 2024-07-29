@@ -32,7 +32,7 @@ bc_coast <- st_crop(
 final <- readRDS("data-generated/dogfish_sets_cleaned.rds")
 samples <- readRDS("data-raw/dogfish_samples_cleaned.rds")
 #take out the 2023 J hook sets as that was for the yelloweye comparative work, not dogfish
-jhook <- final |> filter(year == 2023 & survey == "dog-jhook") #should I remove this??
+jhook <- final |> filter(year == 2023 & survey2 == "dog-jhook") #should I remove this??
 final <- final |> filter(!fishing_event_id %in% (jhook$fishing_event_id))
 final <- filter(final, species_code == "044")
 
@@ -60,11 +60,11 @@ d |>
   tally()
 
 x <- final |>
-  dplyr::select(year, survey_type, lglsp_hook_count) |>
+  dplyr::select(year, survey2, lglsp_hook_count) |>
   distinct()
 
 x <- final |>
-  dplyr::select(year, survey_type, soak) |>
+  dplyr::select(year, survey2, soak) |>
   distinct()
 
 # Fishing summaries -------------------------------------------------------
