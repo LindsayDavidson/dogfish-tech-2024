@@ -97,7 +97,7 @@ sets <- readRDS("data-raw/dogfish_sets_getall.rds") # get all function
 
 # QA/QC dates and depth - did use--------------------------------
 # create a consistent grouping depth id
-# keep this - although we can use the depth_m column in the model it may be useful to have a consistent grouping depth id
+# keep this - although we can use the depth_m column in the model it may be useful to have a consistent grouping depth id if we change the grid prediction cells to shallow or deep
 
 # check depths
 unique(sets$grouping_desc) # NAs and a 'SOG Dogfish Site'
@@ -181,7 +181,7 @@ d <- sets |>
 
 # some soaks are NA - fix this!
 d |>
-  filter(is.na(soak) == TRUE)
+  filter(is.na(soak) == TRUE) #mostly 2004
 
 d |>
   filter(is.na(soak) == TRUE) |>
@@ -189,6 +189,11 @@ d |>
   tally() # 66 fishing events are missing soak times as the deployment time wasnt recorded
 # most are in 2004 when fishing times were between 1.5 - 3 hours.
 
+d |>
+  filter(is.na(soak) == TRUE) |>
+  distinct(fishing_event_id, .keep_all = TRUE) |>
+  group_by(year) |>
+  tally ()  #lots of 2005s missing too soak time should have been consistently 2 hours at this time, the time_end_deployment was not recorded
 
 # MERGE cleaned sets and count data ---------------------------------------------
 
@@ -234,8 +239,8 @@ final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
 # final <- filter(final, usability_code != 0) #you lose the jhook is you do this
 final <- filter(final, lglsp_hook_count != 0)
 # final <- filter(final, soak != 0) #will lose all the 2004s do this later
-final$offset <- log(final$lglsp_hook_count * final$soak)
-final$log_botdepth <- log(final$depth_m)
 final <- final |>
-  mutate(soak = ifelse(year %in% c(2005) & survey_abbrev == "DOG", 2, soak)) # safe to assume these ones are around 2 hours
+  mutate(soak = ifelse(year %in% c(2005) & survey_abbrev == "DOG", 2, soak)) # safe to assume these are ~2 hours
+#final$offset <- log(final$lglsp_hook_count * final$soak) #cant bc of nas
+final$log_botdepth <- log(final$depth_m)
 saveRDS(final, "data-generated/dogfish_sets_cleaned_getall.rds")
