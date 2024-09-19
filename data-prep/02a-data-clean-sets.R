@@ -6,13 +6,8 @@ library(sp)
 
 # load data ---------------------------------------------------------------
 
-sets <- readRDS("data-raw/dogfish_sets_getall.rds") #get all function
+sets <- readRDS("data-raw/dogfish_sets_getall.rds") # get all function
 
-sets <- readRDS("data-raw/dogfish_sets.rds")
-count <- readRDS("data-raw/dogfish_counts.rds")
-
-#names(sets) <- tolower(names(sets))
-#names(count) <- tolower(names(count))
 
 # # QA/QC location names - didn't use with the get_all function as no locations names are in the db -------------------------------------------------------------
 #
@@ -110,21 +105,24 @@ unique(sets$grouping_depth_id) # inconsistent
 
 # fix
 sets_nas <- sets |>
-  filter(is.na(grouping_desc)  == TRUE) |>
+  filter(is.na(grouping_desc) == TRUE) |>
   mutate(grouping_desc = ifelse(depth_m <= 55 & survey_abbrev %in% c("DOG", "OTHER"), "SoG Dogfish 0 - 55 m",
     ifelse(depth_m > 55 & depth_m <= 110 & survey_abbrev %in% c("DOG", "OTHER"), "SoG Dogfish 56 - 110 m",
       ifelse(depth_m > 110 & depth_m <= 165 & survey_abbrev %in% c("DOG", "OTHER"), "SoG Dogfish 111 - 165 m",
         ifelse(depth_m > 166 & depth_m <= 220 & survey_abbrev %in% c("DOG", "OTHER"), "SoG Dogfish 166 - 220 m",
           ifelse(depth_m > 220 & survey_abbrev %in% c("DOG", "OTHER"), "SoG Dogfish > 200 m",
-           ifelse(depth_m <= 70 & survey_abbrev == "HBLL INS N", "HBLL IN North, 40 - 70 m",
-                  ifelse(depth_m > 70 & survey_abbrev == "HBLL INS N", "HBLL IN North, 71 - 100 m",
-                         ifelse(depth_m <= 70 & survey_abbrev == "HBLL INS S", "HBLL IN South, 40 - 70 m",
-                                ifelse(depth_m > 70 & survey_abbrev == "HBLL INS S", "HBLL IN South, 71 - 100 m", NA
+            ifelse(depth_m <= 70 & survey_abbrev == "HBLL INS N", "HBLL IN North, 40 - 70 m",
+              ifelse(depth_m > 70 & survey_abbrev == "HBLL INS N", "HBLL IN North, 71 - 100 m",
+                ifelse(depth_m <= 70 & survey_abbrev == "HBLL INS S", "HBLL IN South, 40 - 70 m",
+                  ifelse(depth_m > 70 & survey_abbrev == "HBLL INS S", "HBLL IN South, 71 - 100 m", NA)
+                )
+              )
+            )
           )
         )
       )
     )
-  ))))))
+  ))
 
 sets <- bind_rows(sets_nas, filter(sets, is.na(grouping_desc) != TRUE))
 
@@ -136,25 +134,26 @@ sets <- sets |>
       ifelse(grouping_desc == "SoG Dogfish 111 - 165 m", 3,
         ifelse(grouping_desc == "SoG Dogfish 166 - 220 m", 4,
           ifelse(grouping_desc == "SoG Dogfish > 200 m", 5,
-                 ifelse(grouping_desc == "SoG Dogfish > 220 m", 6,
-                 ifelse(grouping_desc == "HBLL IN North, 40 - 70 m", 1,
-                        ifelse(grouping_desc == "HBLL IN South, 40 - 70 m", 1,
-                               ifelse(grouping_desc == "HBLL IN North, 71 - 100 m", 2,
-                                      ifelse(grouping_desc == "HBLL IN South, 71 - 100 m", 2,
-NA          )
+            ifelse(grouping_desc == "SoG Dogfish > 220 m", 6,
+              ifelse(grouping_desc == "HBLL IN North, 40 - 70 m", 1,
+                ifelse(grouping_desc == "HBLL IN South, 40 - 70 m", 1,
+                  ifelse(grouping_desc == "HBLL IN North, 71 - 100 m", 2,
+                    ifelse(grouping_desc == "HBLL IN South, 71 - 100 m", 2,
+                      NA
+                    )
+                  )
+                )
+              )
+            )
+          )
         )
       )
     )
-  )))))))
+  ))
 
 # check
 sets |>
   filter(grouping_desc == "SoG Dogfish Site") # none, fixed now
-
-# # still NAs - WHY
-# sets |>
-#   filter(is.na(grouping_desc) == TRUE) # comment says missing depth in
-# sets <- filter(sets, is.na(grouping_desc) != TRUE)
 
 # still NAs - WHY
 sets |>
@@ -167,14 +166,6 @@ glimpse(sets$time_end_deployment)
 
 d <- sets |>
   mutate(
-    # deployhr = lubridate::hour(fe_end_deployment_time),
-    # deploymin = lubridate::minute(fe_end_deployment_time),
-    # retrieve = as.Date(fe_begin_retrieval_time, format = "%Y-%m-%d h:m:s"),
-    # month = lubridate::month(retrieve),
-    # retrievehr = lubridate::hour(fe_begin_retrieval_time),
-    # retrievemin = lubridate::minute(fe_begin_retrieval_time),
-    # deployhr = lubridate::hour(fe_end_deployment_time),
-    # deploymin = lubridate::minute(fe_end_deployment_time),
     deployhr = lubridate::hour(time_end_deployment),
     deploymin = lubridate::minute(time_end_deployment),
     retrieve = as.Date(time_begin_retrieval, format = "%Y-%m-%d h:m:s"),
@@ -201,23 +192,6 @@ d |>
 
 # MERGE cleaned sets and count data ---------------------------------------------
 
-# regsurveys <- d |>
-#   filter(survey_series_id %in% c(93, 92)) |>
-#   left_join(count)
-#
-# compsurveys <- d |>
-#   filter(survey_series_id == 48 & year %in% c(2004, 2022, 2023)) |>
-#   left_join(count, by = c("fishing_event_id" = "fe_parent_event_id", "fe_sub_level_id" = "fe_sub_level_id")) |>
-#   select(-fishing_event_id.y)
-#
-# compsurveys2019 <- d |>
-#   filter(survey_series_id == 48 & year == 2019) |>
-#   left_join(count)
-#
-# final <- rbind(regsurveys, compsurveys, compsurveys2019) |>
- # mutate(ifelse(catch_count == TRUE, 0, catch_count))
-# unique(final$year)
-
 final <- d |>
   mutate(survey_sep = case_when(
     survey_abbrev == "HBLL INS S" ~ "HBLL INS S",
@@ -227,13 +201,13 @@ final <- d |>
     year == 2019 & survey_abbrev == "DOG" ~ "dog",
     year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" ~ "hbll comp",
     year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" ~ "dog comp",
-    #year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" ~ "dog",
+    # year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" ~ "dog",
     year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "12/0" ~ "dog-jhook",
-    #year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" ~ "hbll comp",
+    # year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" ~ "hbll comp",
     year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 9 & day >= 27 ~ "dog",
     year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 9 & day >= 27 ~ "hbll comp",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 9 & day  < 27 ~ "hbll",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 9 & day  < 27 ~ "dog comp",
+    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 9 & day < 27 ~ "hbll",
+    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 9 & day < 27 ~ "dog comp",
     year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 8 ~ "hbll",
     year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 8 ~ "dog comp",
     year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 10 ~ "hbll comp",
@@ -252,37 +226,16 @@ final <- final |>
     survey_sep == "dog" ~ "dog",
     survey_sep == "hbll comp" ~ "hbll",
     survey_sep == "dog comp" ~ "dog",
-    survey_sep == "hbll" ~ "hbll"))
-
-# final <- final |>
-#   mutate(survey2 = case_when(
-#     year %in% c(1986, 1989) ~ "dog-jhook",
-#     year %in% c(2005, 2008, 2011, 2014) ~ "dog",
-#     year == 2019 & survey_desc == "2019 Strait of Georgia Longline Dogfish Survey" ~ "dog",
-#     year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "13/0" ~ "hbll comp",
-#     year == 2019 & survey_desc == "2019 Dogfish Gear/Timing Comparison Survey" & hooksize_desc == "14/0" ~ "dog comp",
-#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "14/0" ~ "dog",
-#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "12/0" ~ "dog-jhook",
-#     year == 2023 & survey_desc == "2023 Dogfish Gear Comparison Survey" & hooksize_desc == "13/0" ~ "hbll comp",
-#     year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "14/0" ~ "dog comp",
-#     year == 2023 & survey_desc == "The 2023 Summer Dogfish gear comparison survey on the Neocaligus." & hooksize_desc == "13/0" ~ "hbll comp",
-#     year == 2022 & hooksize_desc == "13/0" ~ "hbll comp",
-#     year == 2022 & hooksize_desc == "14/0" ~ "dog comp",
-#     year == 2004 & hooksize_desc == "14/0" ~ "dog",
-#     year == 2004 & hooksize_desc == "12/0" ~ "dog-jhook"
-#   ))
-# unique(final$survey2)
+    survey_sep == "hbll" ~ "hbll"
+  ))
 
 
-#final <- final |> mutate(julian = lubridate::yday(retrieve))
 final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
-#final <- filter(final, usability_code != 0) #you lose the jhook is you do this
+# final <- filter(final, usability_code != 0) #you lose the jhook is you do this
 final <- filter(final, lglsp_hook_count != 0)
-#final <- filter(final, soak != 0) #will lose all the 2004s do this later
+# final <- filter(final, soak != 0) #will lose all the 2004s do this later
 final$offset <- log(final$lglsp_hook_count * final$soak)
 final$log_botdepth <- log(final$depth_m)
 final <- final |>
-  mutate(soak = ifelse(year %in% c(2005) & survey_abbrev == "DOG", 2, soak)) #safe to assume these ones are around 2 hours
-#hbll$survey3 <- hbll$survey2
-#saveRDS(final, "data-generated/dogfish_sets_cleaned.rds")
+  mutate(soak = ifelse(year %in% c(2005) & survey_abbrev == "DOG", 2, soak)) # safe to assume these ones are around 2 hours
 saveRDS(final, "data-generated/dogfish_sets_cleaned_getall.rds")
