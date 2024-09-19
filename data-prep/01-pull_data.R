@@ -117,7 +117,7 @@ ORDER BY YEAR, TRIP_ID, FE_MAJOR_LEVEL_ID,  FE_SUB_LEVEL_ID")
 
 #it would be helful to bring in hook desc and hook size here
 #add these SK.HOOK_DESC, SK.HOOKSIZE_DESC,
-
+#didn't I change this to account for double counting? I though I removed as ssid from this??
 dsurvey_bio <- gfdata::run_sql("GFBioSQL", "SELECT
 A.ACTIVITY_DESC,
 SURVEY_DESC,
@@ -244,7 +244,7 @@ dsurvey_bio |>
   reframe(sum = is.na(FE_PARENT_EVENT_ID)) |>
   filter(sum == FALSE)
 
-# note yelloweye rockfish not sampled, therefore not entries.
+# note yelloweye rockfish not sampled, therefore no entries.
 x <- filter(dsurvey_bio, YEAR == 1986)
 unique(x$SPECIES_COMMON_NAME)
 
