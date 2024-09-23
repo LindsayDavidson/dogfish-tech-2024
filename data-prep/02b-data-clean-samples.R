@@ -76,6 +76,7 @@ samps <- readRDS("data-raw/dogfish_samples_getall.rds")
 #     survey3 == "HBLL INS S" ~ "HBLL INS S"
 #   ))
 
+glimpse(samps)
 
 samplesf <- samps |>
   mutate(survey_sep = case_when(
@@ -116,12 +117,12 @@ samplesf <- samplesf |>
   ))
 
 
-x <- filter(samples, is.na(survey3) == TRUE)
-unique(x$survey_desc)
+x <- filter(samplesf, is.na(survey_sep) == TRUE)
+unique(x$survey_abbrev)
 unique(x$fishing_event_id) # why does this one fishing event not have a parent event id??, this is also not found in the sets dataframe
 
 # remove for now
-samples <- filter(samples, fishing_event_id != 5490376) #<- check this
+samples <- filter(samplesf, fishing_event_id != 5490376) #<- check this
 saveRDS(samples, "data-raw/dogfish_samples_cleaned.rds")
 
 # dog <- filter(samples, species_common_name == "NORTH PACIFIC SPINY DOGFISH")
