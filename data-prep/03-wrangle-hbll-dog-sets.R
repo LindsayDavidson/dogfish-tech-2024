@@ -18,7 +18,8 @@ hbll <- filter(final, survey_lumped == "hbll") |>
   filter(survey_series_og %in% c(39, 40)) # note how the boundary has been different, also this is from the *get_all* function that pulls in survey locations that are not a part of the standardized survey, remove them
 
 # #quick check of hbll gfdata pull with hbll get_all pull
-# hbllgfdata <- get_survey_sets(species = "north pacific spiny dogfish", ssid = c(39, 40))
+# hbllgfdata <- readRDS("data-raw/dogfish_sets_gfdata.rds") |> filter(survey_series_id %in% c(39, 40))
+
 #
 # hbll <- filter(hbll, fishing_event_id %in% c(hbllgfdata$fishing_event_id))
 #
@@ -92,4 +93,4 @@ d <- add_utm_columns(final,
 ) |>
   mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
 
-saveRDS(d, "data-raw/wrangled-hbll-dog-sets.rds") # no expansion set along the strait
+saveRDS(d, "data-raw/wrangled-hbll-dog-sets.rds")
