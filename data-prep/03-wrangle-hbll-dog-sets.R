@@ -13,27 +13,35 @@ library(sdmTMB)
 # load data  ---------------------------------------------------------------
 
 final <- readRDS("data-generated/dogfish_sets_cleaned_getall.rds")
-final <-
 hbll <- filter(final, survey_lumped == "hbll") |>
-  filter(usability_code == 1 ) |>
+  filter(usability_code == 1) |>
   filter(survey_series_og %in% c(39, 40)) # note how the boundary has been different, also this is from the *get_all* function that pulls in survey locations that are not a part of the standardized survey, remove them
-hbllgfdata <- get_survey_sets(species = "north pacific spiny dogfish", ssid = c(39,40))
 
-hbll <- filter(hbll, fishing_event_id %in% c(hbllgfdata$fishing_event_id))
-
-hbllgf <- hbllsets |> group_by(year) |> filter(survey_series_id %in% c(39)) |> drop_na(catch_count) |> reframe(sum = sum(catch_count))
-hbllpe <- hbll |> filter(survey_series_id %in% c(39)) |> group_by(year) |> drop_na(catch_count) |> reframe(sumpe = sum(catch_count))
-
-x <- left_join(hbllgf, hbllpe)
-x$diff <- x$sum - x$sumpe #slight discripancies between the two different data pulls.
-
-ggplot(x) +
-  geom_line(aes(year, sum), col = "red") +
-  geom_line(aes(year, sumpe)) #slight discrepancies between the two different data pulls. Could the be the points that extend around may be partially. 2007 is in the in N and there are two extra points in the get_all data pull. THey are removed now to match the gfdata pull.
+# #quick check of hbll gfdata pull with hbll get_all pull
+# hbllgfdata <- get_survey_sets(species = "north pacific spiny dogfish", ssid = c(39, 40))
+#
+# hbll <- filter(hbll, fishing_event_id %in% c(hbllgfdata$fishing_event_id))
+#
+# hbllgf <- hbllgfdata |>
+#   group_by(year) |>
+#   filter(survey_series_id %in% c(39)) |>
+#   drop_na(catch_count) |>
+#   reframe(sum = sum(catch_count))
+# hbllpe <- hbll |>
+#   filter(survey_series_id %in% c(39)) |>
+#   group_by(year) |>
+#   drop_na(catch_count) |>
+#   reframe(sumpe = sum(catch_count))
+#
+# x <- left_join(hbllgf, hbllpe)
+# x$diff <- x$sum - x$sumpe # slight discripancies between the two different data pulls.
+#
+# ggplot(x) +
+#   geom_line(aes(year, sum), col = "red") +
+#   geom_line(aes(year, sumpe)) # slight discrepancies between the two different data pulls. Could the be the points that extend around may be partially. 2007 is in the in N and there are two extra points in the get_all data pull. THey are removed now to match the gfdata pull.
 
 
 # hbll wrangle ------------------------------------------------------------
-
 final |>
   group_by(survey_lumped, year) |>
   distinct() |>
@@ -63,7 +71,7 @@ hbll <- hbll |>
 
 ggplot(hbll, aes(longitude, latitude, colour = survey_abbrev)) +
   geom_point() +
-  facet_wrap(~survey_abbrev + year)
+  facet_wrap(~ survey_abbrev + year)
 
 ggplot(hbll, aes(longitude, latitude, colour = survey_sep)) +
   geom_point() +
@@ -74,8 +82,7 @@ ggplot(hbll, aes(longitude, latitude, colour = survey_sep)) +
   facet_wrap(~year)
 
 ggplot(hbll, aes(longitude, latitude, colour = survey_lumped)) +
-  geom_point() +
-  facet_wrap(~survey_lumped)
+  geom_point()
 
 # put cleaned hbll and dog back together-------------------------------------------------------
 
@@ -91,10 +98,6 @@ final |>
 ggplot(final, aes(longitude, latitude, colour = survey_lumped)) +
   geom_point() +
   facet_wrap(~survey_lumped)
-
-ggplot(final, aes(longitude, latitude, colour = survey_sep)) +
-  geom_point() +
-  facet_wrap(~survey_sep)
 
 # convert to UTMs
 d <- add_utm_columns(final,
