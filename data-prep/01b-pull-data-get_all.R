@@ -30,8 +30,17 @@ unique(d$survey_abbrev)
 saveRDS(d, "data-raw/dogfish_sets_getall.rds")
 dim(filter(d, fishing_event_id == 5883186)) #duplicate?? should be 2 not 4
 
+hbllgfdata <- get_survey_sets(species = "north pacific spiny dogfish", ssid = c(76, 48, 39, 40))
+saveRDS(hbllgfdata, "data-raw/dogfish_sets_gfdata.rds")
+
 #pull inside samples data
 #d <- get_all_survey_samples("north pacific spiny dogfish", ssid = c(76, 48, 39, 40))
 d <- get_all_survey_samples("north pacific spiny dogfish", ssid = c(76, 48, 39, 40), include_event_info = TRUE)
 unique(d$survey_abbrev)
 saveRDS(d, "data-raw/dogfish_samples_getall.rds")
+
+d <- get_survey_samples("north pacific spiny dogfish", ssid = c(76, 48, 39, 40))
+unique(d$survey_abbrev)
+length(unique(d$fishing_event_id))
+saveRDS(d, "data-raw/dogfish_samples_gfdata.rds")
+
