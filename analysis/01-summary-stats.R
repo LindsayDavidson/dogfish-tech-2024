@@ -29,23 +29,24 @@ bc_coast <- st_crop(
 
 # load data ---------------------------------------------------------------
 
-final <- readRDS("data-generated/dogfish_sets_cleaned.rds")
-samples <- readRDS("data-raw/dogfish_samples_cleaned.rds")
-#take out the 2023 J hook sets as that was for the yelloweye comparative work, not dogfish
-jhook <- final |> filter(year == 2023 & survey2 == "dog-jhook") #should I remove this??
-final <- final |> filter(!fishing_event_id %in% (jhook$fishing_event_id))
-final <- filter(final, species_code == "044")
+samps <- readRDS("output/samps_joined.rds")
+sets <- readRDS("data-raw/wrangled-hbll-dog-sets.rds")
 
-final |> group_by(survey_series_id) |> distinct(year, .keep_all = TRUE) |>
-  reframe(count = n())
-final |> group_by(survey_series_id, year) |> distinct() |>
-  reframe()
-sort(unique(final$year))
+# #take out the 2023 J hook sets as that was for the yelloweye comparative work, not dogfish
+# jhook <- final |> filter(year == 2023 & survey2 == "dog-jhook") #should I remove this??
+# final <- final |> filter(!fishing_event_id %in% (jhook$fishing_event_id))
+# final <- filter(final, species_code == "044")
 
-# date --------------------------------------------------------------------
-
-final |> group_by(year, hook_desc, hooksize_desc, survey_desc ) |>
-  reframe(min = min(trip_start_date), max = max(trip_end_date))
+# final |> group_by(survey_series_id) |> distinct(year, .keep_all = TRUE) |>
+#   reframe(count = n())
+# final |> group_by(survey_series_id, year) |> distinct() |>
+#   reframe()
+# sort(unique(final$year))
+#
+# # date --------------------------------------------------------------------
+#
+sets |> group_by(year, hook_desc, hooksize_desc, survey_series_id ) |>
+  reframe(min = min(time_retrieved), max = max( time_retrieved))
 
 # number of sets dropped each year ----------------------------------------
 
@@ -59,52 +60,65 @@ d |>
    group_by(year, hook_desc, hooksize_desc) |>
   tally()
 
-x <- final |>
-  dplyr::select(year, survey2, lglsp_hook_count) |>
-  distinct()
+final |>
+  dplyr::select(year, survey_series_id, lglsp_hook_count) |>
+  distinct(.keep_all = TRUE) |>
+  group_by(year, survey_series_id) |>
+  reframe(min = min(lglsp_hook_count), max = max(lglsp_hook_count)) |>
+  print(n = 30)
 
-x <- final |>
-  dplyr::select(year, survey2, soak) |>
-  distinct()
+final |>
+  dplyr::select(year, survey_series_id, soak) |>
+  distinct(.keep_all = TRUE) |>
+  group_by(year, survey_series_id) |>
+  reframe(min = min(soak), max = max(soak)) |>
+  print(n = 30)
+
 
 # Fishing summaries -------------------------------------------------------
 
-d |> group_by(year, hook_desc, hooksize_desc, survey_desc ) |>
+d |> group_by(year, hook_desc, hooksize_desc, survey_series_id ) |>
   dplyr::select(year, fishing_event_id, hook_desc, hooksize_desc) |>
   distinct() |>
   tally()
 
-d |> group_by(year, hooksize_desc, survey_desc, site_shortname) |>
-  dplyr::select(year, fishing_event_id, hook_desc, hooksize_desc, site_shortname) |>
-  distinct() |>
-  tally()
+# d |> group_by(year, hooksize_desc, survey_series_id, site_shortname) |>
+#   dplyr::select(year, fishing_event_id, hook_desc, hooksize_desc, site_shortname) |>
+#   distinct() |>
+#   tally()
 
 
 # catch summaries ---------------------------------------------------------
+# final |>
+#   #filter(species_code == "044") |>
+#   #filter(is.na(grouping_depth_id) != TRUE) |>
+#   group_by( grouping_depth_id) |>
+#   reframe(sum = sum(catch_count)) |>
+#   ggplot() +
+#   geom_point(aes(grouping_depth_id, sum, group = grouping_spatial_id, colour = grouping_spatial_id)) +
+#   geom_line(aes(grouping_depth_id, sum, group = grouping_spatial_id, colour = grouping_spatial_id)) +
+#   facet_wrap(~grouping_spatial_id)
+
 final |>
-  filter(species_code == "044") |>
-  filter(is.na(grouping_depth_id) != TRUE) |>
-  group_by(grouping_spatial_id, grouping_depth_id) |>
+  group_by( grouping_depth_id) |>
   reframe(sum = sum(catch_count)) |>
   ggplot() +
-  geom_point(aes(grouping_depth_id, sum, group = grouping_spatial_id, colour = grouping_spatial_id)) +
-  geom_line(aes(grouping_depth_id, sum, group = grouping_spatial_id, colour = grouping_spatial_id)) +
-  facet_wrap(~grouping_spatial_id)
+  geom_point(aes(grouping_depth_id, sum)) +
+  geom_line(aes(grouping_depth_id, sum))
 
-final |>
-  filter(species_code == "044") |>
-  filter(is.na(grouping_depth_id) != TRUE) |>
-  group_by(grouping_spatial_id, year) |> #group by location only
-  reframe(sum = sum(catch_count)) |>
-  ggplot() +
-  geom_point(aes(year, sum, group = grouping_spatial_id, colour = grouping_spatial_id)) +
-  geom_line(aes(year, sum, group = grouping_spatial_id, colour = grouping_spatial_id)) +
-  facet_wrap(~grouping_spatial_id)
-
-
-final |>
-  filter(species_code == "044") |>
-  filter(is.na(grouping_depth_id) != TRUE) |>
-  group_by(grouping_spatial_id, grouping_depth_id, year) |>
-  reframe(yelloweye_catch_count = sum(catch_count)) |>
-  filter(grouping_depth_id == 2)
+# final |>
+#   filter(species_code == "044") |>
+#   filter(is.na(grouping_depth_id) != TRUE) |>
+#   group_by(grouping_spatial_id, year) |> #group by location only
+#   reframe(sum = sum(catch_count)) |>
+#   ggplot() +
+#   geom_point(aes(year, sum, group = grouping_spatial_id, colour = grouping_spatial_id)) +
+#   geom_line(aes(year, sum, group = grouping_spatial_id, colour = grouping_spatial_id)) +
+#   facet_wrap(~grouping_spatial_id)
+#
+# final |>
+#   filter(species_code == "044") |>
+#   filter(is.na(grouping_depth_id) != TRUE) |>
+#   group_by(grouping_spatial_id, grouping_depth_id, year) |>
+#   reframe(yelloweye_catch_count = sum(catch_count)) |>
+#   filter(grouping_depth_id == 2)
