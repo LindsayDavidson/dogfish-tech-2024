@@ -34,7 +34,7 @@ hbll <- filter(final, survey_lumped == "hbll") |>
 #   reframe(sumpe = sum(catch_count))
 #
 # x <- left_join(hbllgf, hbllpe)
-# x$diff <- x$sum - x$sumpe # slight discripancies between the two different data pulls.
+# x$diff <- x$sum - x$sumpe # slight discrepancies between the two different data pulls.
 #
 # ggplot(x) +
 #   geom_line(aes(year, sum), col = "red") +
@@ -69,21 +69,6 @@ hbll <- hbll |>
     )
   ))
 
-ggplot(hbll, aes(longitude, latitude, colour = survey_abbrev)) +
-  geom_point() +
-  facet_wrap(~ survey_abbrev + year)
-
-ggplot(hbll, aes(longitude, latitude, colour = survey_sep)) +
-  geom_point() +
-  facet_wrap(~survey_sep)
-
-ggplot(hbll, aes(longitude, latitude, colour = survey_sep)) +
-  geom_point() +
-  facet_wrap(~year)
-
-ggplot(hbll, aes(longitude, latitude, colour = survey_lumped)) +
-  geom_point()
-
 # put cleaned hbll and dog back together-------------------------------------------------------
 
 dog <- filter(final, survey_lumped != "hbll")
@@ -106,11 +91,5 @@ d <- add_utm_columns(final,
   utm_crs = bccrs
 ) |>
   mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
-
-d |>
-  group_by(survey_lumped, year) |>
-  distinct() |>
-  reframe() |>
-  print(n = 40) # looks good
 
 saveRDS(d, "data-raw/wrangled-hbll-dog-sets.rds") # no expansion set along the strait
