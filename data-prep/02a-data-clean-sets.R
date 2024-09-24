@@ -103,25 +103,18 @@ sets <- readRDS("data-raw/dogfish_sets_getall.rds") # get all function
 unique(sets$grouping_desc) # NAs and a 'SOG Dogfish Site'
 unique(sets$grouping_depth_id) # inconsistent
 
-# fix
 sets_nas <- sets |>
   filter(is.na(grouping_desc) == TRUE) |>
-  mutate(grouping_desc = ifelse(depth_m <= 55 & survey_abbrev %in% c("DOG", "OTHER"), "SoG Dogfish 0 - 55 m",
-    ifelse(depth_m > 55 & depth_m <= 110 & survey_abbrev %in% c("DOG", "OTHER"), "SoG Dogfish 56 - 110 m",
-      ifelse(depth_m > 110 & depth_m <= 165 & survey_abbrev %in% c("DOG", "OTHER"), "SoG Dogfish 111 - 165 m",
-        ifelse(depth_m > 166 & depth_m <= 220 & survey_abbrev %in% c("DOG", "OTHER"), "SoG Dogfish 166 - 220 m",
-          ifelse(depth_m > 220 & survey_abbrev %in% c("DOG", "OTHER"), "SoG Dogfish > 200 m",
-            ifelse(depth_m <= 70 & survey_abbrev == "HBLL INS N", "HBLL IN North, 40 - 70 m",
-              ifelse(depth_m > 70 & survey_abbrev == "HBLL INS N", "HBLL IN North, 71 - 100 m",
-                ifelse(depth_m <= 70 & survey_abbrev == "HBLL INS S", "HBLL IN South, 40 - 70 m",
-                  ifelse(depth_m > 70 & survey_abbrev == "HBLL INS S", "HBLL IN South, 71 - 100 m", NA)
-                )
-              )
-            )
-          )
-        )
-      )
-    )
+  mutate(grouping_desc = case_when(
+    depth_m <= 55 & survey_abbrev %in% c("DOG", "OTHER") ~ "SoG Dogfish 0 - 55 m",
+    depth_m > 55 & depth_m <= 110 & survey_abbrev %in% c("DOG", "OTHER") ~ "SoG Dogfish 56 - 110 m",
+    depth_m > 110 & depth_m <= 165 & survey_abbrev %in% c("DOG", "OTHER") ~ "SoG Dogfish 111 - 165 m",
+    depth_m > 166 & depth_m <= 220 & survey_abbrev %in% c("DOG", "OTHER") ~ "SoG Dogfish 166 - 220 m",
+    depth_m > 220 & survey_abbrev %in% c("DOG", "OTHER") ~ "SoG Dogfish > 200 m",
+    depth_m <= 70 & survey_abbrev == "HBLL INS N" ~ "HBLL IN North, 40 - 70 m",
+    depth_m > 70 & survey_abbrev == "HBLL INS N" ~ "HBLL IN North, 71 - 100 m",
+    depth_m <= 70 & survey_abbrev == "HBLL INS S" ~ "HBLL IN South, 40 - 70 m",
+    depth_m > 70 & survey_abbrev == "HBLL INS S" ~ "HBLL IN South, 71 - 100 m"
   ))
 
 sets <- bind_rows(sets_nas, filter(sets, is.na(grouping_desc) != TRUE))
@@ -129,31 +122,22 @@ sets <- bind_rows(sets_nas, filter(sets, is.na(grouping_desc) != TRUE))
 unique(sets$grouping_depth_id) # inconsistent
 
 sets <- sets |>
-  mutate(grouping_depth_id = ifelse(grouping_desc == "SoG Dogfish 0 - 55 m", 1,
-    ifelse(grouping_desc == "SoG Dogfish 56 - 110 m", 2,
-      ifelse(grouping_desc == "SoG Dogfish 111 - 165 m", 3,
-        ifelse(grouping_desc == "SoG Dogfish 166 - 220 m", 4,
-          ifelse(grouping_desc == "SoG Dogfish > 200 m", 5,
-            ifelse(grouping_desc == "SoG Dogfish > 220 m", 6,
-              ifelse(grouping_desc == "HBLL IN North, 40 - 70 m", 1,
-                ifelse(grouping_desc == "HBLL IN South, 40 - 70 m", 1,
-                  ifelse(grouping_desc == "HBLL IN North, 71 - 100 m", 2,
-                    ifelse(grouping_desc == "HBLL IN South, 71 - 100 m", 2,
-                      NA
-                    )
-                  )
-                )
-              )
-            )
-          )
-        )
-      )
-    )
-  ))
+  mutate(grouping_depth_id = case_when(
+  grouping_desc == "SoG Dogfish 0 - 55 m" ~ 1,
+  grouping_desc == "SoG Dogfish 56 - 110 m" ~ 2,
+  grouping_desc == "SoG Dogfish 111 - 165 m" ~ 3,
+  grouping_desc == "SoG Dogfish 166 - 220 m" ~ 4,
+  grouping_desc == "SoG Dogfish > 200 m" ~ 5,
+  grouping_desc == "SoG Dogfish > 220 m" ~ 6,
+  grouping_desc == "HBLL IN North, 40 - 70 m" ~ 1,
+  grouping_desc == "HBLL IN South, 40 - 70 m" ~ 1,
+  grouping_desc == "HBLL IN North, 71 - 100 m" ~ 2,
+  grouping_desc == "HBLL IN South, 71 - 100 m" ~  2))
 
 # check
 sets |>
   filter(grouping_desc == "SoG Dogfish Site") # none, fixed now
+unique(sets$grouping_depth_id) # good
 
 # still NAs - WHY
 sets |>
@@ -171,7 +155,9 @@ d <- sets |>
     retrieve = as.Date(time_begin_retrieval, format = "%Y-%m-%d h:m:s"),
     month = lubridate::month(retrieve),
     retrievehr = lubridate::hour(time_begin_retrieval),
-    retrievemin = lubridate::minute(time_begin_retrieval)
+    retrievemin = lubridate::minute(time_begin_retrieval),
+    dmy = lubridate::ymd(retrieve),
+    julian = lubridate::yday(dmy)
   ) |>
   mutate(
     hr_diff = (retrievehr - deployhr) * 60,
@@ -181,7 +167,7 @@ d <- sets |>
 
 # some soaks are NA - fix this!
 d |>
-  filter(is.na(soak) == TRUE) #mostly 2004
+  filter(is.na(soak) == TRUE) # mostly 2004
 
 d |>
   filter(is.na(soak) == TRUE) |>
@@ -193,10 +179,11 @@ d |>
   filter(is.na(soak) == TRUE) |>
   distinct(fishing_event_id, .keep_all = TRUE) |>
   group_by(year) |>
-  tally ()  #lots of 2005s missing too soak time should have been consistently 2 hours at this time, the time_end_deployment was not recorded
+  tally() # lots of 2005s missing too soak time should have been consistently 2 hours at this time, the time_end_deployment was not recorded in 2005
 
-# MERGE cleaned sets and count data ---------------------------------------------
+# Add grouping code for survey ---------------------------------------------
 
+# this is so I can look at trends through time, designed based, that don't include the comp work
 final <- d |>
   mutate(survey_sep = case_when(
     survey_abbrev == "HBLL INS S" ~ "HBLL INS S",
@@ -223,6 +210,7 @@ final <- d |>
     year == 2004 & hooksize_desc == "12/0" ~ "dog-jhook"
   ))
 
+# so I can put the different surveys into a model and account for julian date after (the seasonal component of the comparison work)
 final <- final |>
   mutate(survey_lumped = case_when(
     survey_sep == "HBLL INS S" ~ "hbll",
@@ -238,14 +226,9 @@ final <- final |>
 final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
 # final <- filter(final, usability_code != 0) #you lose the jhook is you do this
 final <- filter(final, lglsp_hook_count != 0)
-final <- final |>
-  mutate(date2 = as.Date(time_deployed, format = "%Y-%m-%d H:M:S")) %>%
-  mutate(dmy = lubridate::ymd(date2)) %>%
-  mutate(julian = lubridate::yday(dmy))
-
 # final <- filter(final, soak != 0) #will lose all the 2004s do this later
 final <- final |>
   mutate(soak = ifelse(year %in% c(2005) & survey_abbrev == "DOG", 2, soak)) # safe to assume these are ~2 hours
-final$offset <- log(final$lglsp_hook_count * final$soak) #cant bc of nas
+final$offset <- log(final$lglsp_hook_count * final$soak) # nas created, thats ok
 final$log_botdepth <- log(final$depth_m)
 saveRDS(final, "data-generated/dogfish_sets_cleaned_getall.rds")
