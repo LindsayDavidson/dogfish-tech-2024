@@ -1,7 +1,6 @@
 
 # load data ---------------------------------------------------------------
-samps <- readRDS("data-raw/samples-hbll-dog.rds")
-#hbllsamps <- readRDS("output/samples-hbll-dog.rds")
+samps <- readRDS("output/samps_joined.rds")
 
 samps <- samps %>%
   mutate(dmy = lubridate::ymd(trip_start_date)) |>
