@@ -9,9 +9,7 @@ library(sp)
 samps <- readRDS("data-raw/dogfish_samples_getall.rds")
 
 
-# get hook info into samples df -------------------------------------------
-glimpse(samps)
-
+# group by survey -------------------------------------------
 samplesf <- samps |>
   mutate(survey_sep = case_when(
     survey_abbrev == "HBLL INS S" ~ "HBLL INS S",
@@ -38,7 +36,7 @@ samplesf <- samps |>
     year == 2004 & hooksize_desc == "12/0" ~ "dog-jhook"
   ))
 
-#so I can put the different surveys into a model and account for julian date after (the seasonal component of the comparison work)
+# so I can put the different surveys into a model and account for julian date after (the seasonal component of the comparison work)
 samplesf <- samplesf |>
   mutate(survey_lumped = case_when(
     survey_sep == "HBLL INS S" ~ "hbll",
@@ -54,6 +52,14 @@ samplesf <- samplesf |>
 x <- filter(samplesf, is.na(survey_sep) == TRUE)
 unique(x$survey_abbrev)
 unique(x$fishing_event_id) # why does this one fishing event not have a parent event id??, this is also not found in the sets dataframe
+
+samplesf <-
+  samplesf |>
+  mutate(
+    date = as.Date(sample_date, format = "%Y-%m-%d"),
+    julian = lubridate::yday(date),
+    month = lubridate::month(date)
+  )
 
 # remove for now
 samples <- filter(samplesf, fishing_event_id != 5490376) #<- check this
