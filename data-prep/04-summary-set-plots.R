@@ -22,6 +22,47 @@ bc_coast <- st_crop(
 
 # summary plots -----------------------------------------------------------
 
+d$depth
+d <- d |>
+  group_by(year) |>
+  mutate(id = seq(1, n(), 1))
+
+d |>
+  drop_na(depth_m) |>
+  #filter(year == 2021) |>
+  filter(survey_abbrev %in% c("HBLL INS N", "HBLL INS S")) |>
+  ggplot(aes((id), depth_m, ymin = depth_begin, ymax = depth_end, group = year)) +
+  geom_pointrange(aes(x = (id) - 0.25), size = 0.2, pch = 5, alpha = 0.6) +
+  facet_wrap(~year, scales = "free_x")
+
+  d |>
+  drop_na(depth_m) |>
+  filter(year == 2021) |>
+  filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N")) |>
+  ggplot(aes((fishing_event_id), depth_m, ymin = depth_begin, ymax = depth_end, group = year)) +
+  geom_pointrange(aes(x = (fishing_event_id) - 0.25), size = 0.2, pch = 5, alpha = 0.6) +
+  facet_wrap(~year, scales = "free_x")
+
+d |>
+  group_by(year, survey_lumped) |>
+  drop_na(catch_count) |>
+  drop_na(offset) |>
+  summarise(catch = sum(catch_count), effort = sum(offset), na.omit = TRUE) |>
+  mutate(cpue = catch/effort) |>
+  ggplot( ) +
+  geom_point(aes(year, cpue, group = survey_lumped, colour =survey_lumped )) +
+  geom_line(aes(year, cpue, group = survey_lumped, colour = survey_lumped))
+
+d |>
+  group_by(year, survey_abbrev) |>
+  drop_na(catch_count) |>
+  drop_na(offset) |>
+  summarise(catch = sum(catch_count), effort = sum(offset), na.omit = TRUE) |>
+  mutate(cpue = catch/effort) |>
+  ggplot( ) +
+  geom_point(aes(year, cpue, group = survey_abbrev, colour =survey_abbrev)) +
+  geom_line(aes(year, cpue, group = survey_abbrev, colour = survey_abbrev))
+
 ggplot() +
   geom_point(data = d, aes(longitude, latitude, colour = survey_lumped)) +
   theme_classic() +
