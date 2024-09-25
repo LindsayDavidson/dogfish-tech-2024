@@ -4,7 +4,7 @@
 # 02a-data-clean-sets.R
 # soak2005 <- 2
 bccrs <- 32609
-latitude_cutoff <- 50.32000 #<- not sure what the "best" boundary to pick for separating n and s is
+latitude_cutoff <- 50.34056 #<- not sure what the "best" boundary to pick for separating n and s is I used the largest latitude in the hbll_ins_s grid at the line
 
 # library -----------------------------------------------------------------
 library(gfdata)
@@ -16,10 +16,6 @@ library(sf)
 library(sp)
 
 # load data ---------------------------------------------------------------
-samps <- readRDS("output/dogfish_samps.rds")
-hsamps <- readRDS("data-raw/samples-hbll-dog.rds") # just hbll samples
-names(hsamps)
-
 samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
 sampshb <- samps |> filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
 # drop the hbll samples not included in the gfdata pull.
