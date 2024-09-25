@@ -3,7 +3,7 @@
 # 02a-data-clean-sets.R
 # soak2005 <- 2
 bccrs <- 32609
-latitude_cutoff <- 50.32000 #<- not sure what the "best" boundary to pick for separating n and s is
+latitude_cutoff <- 50.34056 #<- not sure what the "best" boundary to pick for separating n and s is I used the largest latitude in the hbll_ins_s grid at the line
 
 library(sf)
 library(ggplot2)
@@ -19,15 +19,18 @@ hbll <- filter(final, survey_lumped == "hbll") |>
 
 # #quick check of hbll gfdata pull with hbll get_all pull
 # hbllgfdata <- readRDS("data-raw/dogfish_sets_gfdata.rds") |> filter(survey_series_id %in% c(39, 40))
-
 #
+# #
 # hbll <- filter(hbll, fishing_event_id %in% c(hbllgfdata$fishing_event_id))
-#
+# #
 # hbllgf <- hbllgfdata |>
 #   group_by(year) |>
-#   filter(survey_series_id %in% c(39)) |>
+#   filter(survey_series_id %in% c(40)) |>
 #   drop_na(catch_count) |>
 #   reframe(sum = sum(catch_count))
+# ggplot(hbllgf) +
+#   geom_line(aes(year, sum), col = "red") +
+#   geom_point(aes(year, sum), col = "red")
 # hbllpe <- hbll |>
 #   filter(survey_series_id %in% c(39)) |>
 #   group_by(year) |>
@@ -36,7 +39,7 @@ hbll <- filter(final, survey_lumped == "hbll") |>
 #
 # x <- left_join(hbllgf, hbllpe)
 # x$diff <- x$sum - x$sumpe # slight discrepancies between the two different data pulls.
-#
+# #
 # ggplot(x) +
 #   geom_line(aes(year, sum), col = "red") +
 #   geom_line(aes(year, sumpe)) # slight discrepancies between the two different data pulls. Could the be the points that extend around may be partially. 2007 is in the in N and there are two extra points in the get_all data pull. THey are removed now to match the gfdata pull.
