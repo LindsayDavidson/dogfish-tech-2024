@@ -1,80 +1,75 @@
 library(sdmTMB)
+library(ggplot2)
 library(tidyverse)
+library(sdmTMB)
 
+latitude_cutoff <- 50.34056
+bccrs <- 32609
+# loc = "HBLL INS N"
+# loc = "HBLL INS S"
 
-# data ---------------------------------------------------------------
-# # all without 2004 comp work ----------------------------------------------
-#
-# d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
-#   filter(year != 2004)
-# range(d$depth_m)
-# d$log_botdepth2 <- d$log_botdepth * d$log_botdepth
-# str(d$month)
-# grid <- grid <- readRDS(
-#   #"output/prediction-grid-hbll-n-s-dog-1-km.rds")
-#   "output/prediction-grid-hbll-n-s-dog-2-km.rds")# from convex hull to have deeper depths
-# grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
-# grid$area_km2 <- as.numeric(grid$area_km)
-# years <- seq(min(d$year), 2023, 1)
-# grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-# grid$survey2 <- "hbll"
-# grid$julian <- mean(d$julian)
-# grid$month <- 7
-# path <- "output/fit-tv-sog-hblldog_no2004.rds"
-# pathind <- "output/ind-tv-sog-hblldog_no2004.rds"
-# sort(unique(d$year))
-# extratime <- c(1987, 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2004, 2006, 2017, 2020)
-#
-# plot(grid$longitude, grid$latitude)
-# points(d$longitude, d$latitude, col = "red")
-#
+df <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
+  drop_na(catch_count) |>
+  drop_na(offset) |>
+  drop_na(julian)
+df$log_botdepth2 <- df$log_botdepth * df$log_botdepth
+df$julian_c <- df$julian - 172
+depth <- df |>
+  dplyr::select(depth_m, grouping_depth_id) |>
+  distinct()
+df <- df |>
+  mutate(depth_bin = case_when(
+    depth_m <= 70 ~ 1,
+    depth_m > 70 & depth_m <= 110 ~ 2,
+    depth_m > 110 & depth_m <= 165 ~ 3,
+    depth_m > 165 & depth_m <= 220  ~ 4,
+    depth_m > 220 ~ 5 ))
+
+grid <- readRDS("output/prediction-grid-hbll-n-s-dog-2-km.rds") # ("output/prediction-grid-hbll-n-s-dog-1-km.rds")
+
+grid$area_km2 <- as.numeric(grid$area_km)
+grid$depth_m <- grid$depth * -1
+grid$julian_c <- 36
+grid$survey_lumped <- "hbll"
+grid$julian <- mean(df$julian)
+grid$month <- 8
+grid <- grid |>
+  mutate(depth_bin = case_when(
+    depth_m <= 70 ~ 1,
+    depth_m > 70 & depth_m <= 110 ~ 2,
+    depth_m > 110 & depth_m <= 165 ~ 3,
+    depth_m > 165 & depth_m <= 220  ~ 4,
+    depth_m > 220 ~ 5 ))
 
 # hbll n and s only -------------------------------------------------------------
-
-d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
-  filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
-mean <- mean(d$log_botdepth)
-d$log_botdepth2 <- d$log_botdepth^2
-d$log_botdepth_cent <- d$log_botdepth - mean
-d$log_botdepth_cent2 <- d$log_botdepth_cent * d$log_botdepth_cent
+d <- df |>
+  #filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N")) |>
+  filter(survey_lumped == "hbll") |>
+  drop_na(offset) |>
+  drop_na(depth_m) |>
+  drop_na(julian) |>
+  drop_na(catch_count)
 grid <- readRDS("output/prediction-grid-hbll-n-s.rds") |>
-  filter(area %in% c("hbll_s", "hbll_n"))
-grid$log_botdepth2 <- grid$log_botdepth^2
-grid$log_botdepth_cent <- grid$log_botdepth - mean
-grid$log_botdepth_cent2 <- grid$log_botdepth_cent * grid$log_botdepth_cent
-# from gfdata HBLL n and south merged
+  filter(area %in% c("hbll_S", "hbll_n")) # from gfdata HBLL n and south merged
 years <- seq(min(d$year), 2023, 1)
 sort(unique(d$year))
+# grid <- purrr::map_dfr(unique(d$year), ~ tibble(grid, year = .x))
 grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-path <- "output/fit-tv--sog-hbll-ns.rds"
-pathind <- "output/ind-tv-sog-hbll-ns.rds"
-extratime <- c(2006,2017,2020)
+grid$survey_type <- "hbll"
+grid$julian <- mean(d$julian)
+model = "hbll-n-s"
+formula = catch_count ~ poly(log_botdepth, 2)
+formula_depthbin= catch_count ~ depth_bin * poly(julian,2)
+sort(unique(d$year))
+extratime <- c(2006, 2017, 2020)
+spatial = "on"
+
 
 
 # time varying model ------------------------------------------------------
 
 mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = 5)
 plot(mesh)
-
-ggplot() +
-  geom_point(data = d |> arrange(year), aes(UTM.lon, UTM.lat
-                                            , colour = year), size = 1,
-             # ), size = 0.25, alpha = 0.25,
-             pch = 16) +
-  inlabru::gg(mesh$mesh,
-              edge.color = "grey60",
-              edge.linewidth = 0.15,
-              # interior = TRUE,
-              # int.color = "blue",
-              int.linewidth = 0.25,
-              exterior = FALSE,
-              # ext.color = "black",
-              ext.linewidth = 0.5) +
-  scale_colour_viridis_c(direction = -1) +
-  labs(colour = "Year") +
-  xlab("UTM (km)") + ylab("UTM (km)") + coord_fixed(expand = FALSE) +
-  theme_classic() +
-  theme(legend.position = "inside", legend.position.inside = c(0.2, 0.25))
 
 fittv <- sdmTMB(
   formula = catch_count ~ 0 + as.factor(year),
@@ -84,17 +79,17 @@ fittv <- sdmTMB(
   #time_varying_type = "rw0",
   spatiotemporal = "AR1", #off or AR1 left over variation from the time varying process is ar1
   silent = FALSE,
-  spatial = "on",
+  spatial = "on", #or on
   family = nbinom2(),
   mesh = mesh,
   data = d,
-  do_index = FALSE
+  do_index = FALSE,
+  extra_time = c(2006, 2017, 2020)
 )
 
 sanity(fittv)
 fittv$sd_report
-
-saveRDS(fittv, path)
+saveRDS(fittv, paste0("output/fittv-", model, ".rds"))
 
 # time varying depth plot
 nd <- expand.grid(
@@ -115,7 +110,7 @@ p <- predict(fittv, newdata = nd, se_fit = TRUE, re_form = NA)
 #p$depth_m <- exp(p$log_botdepth_cent + mean) * -1
 p$depth_m <- exp(p$log_botdepth)
 p$mean_logbot_depth <- mean
-saveRDS(p, pathind)
+saveRDS(p, paste0("output/indtv-", model, ".rds"))
 
 p |>
   ggplot() +
