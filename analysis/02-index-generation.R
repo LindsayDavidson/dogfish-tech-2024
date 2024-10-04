@@ -1,6 +1,12 @@
 # notes
 # 2004 is missing deployment times and therefore I can't calculate soak time
-# soak times were between 1.5-3 hours
+# soak times were between 1.5-3 hours in 2004 so I don't know how to account for that
+
+#models are int only and include depth
+#no model includes julian date
+#hbll models don't include work done during dog survey
+#dog models don't include work done during HBLL survey
+
 
 
 # load library and params----------------------------------------------
@@ -65,11 +71,12 @@ grid <- grid |>
 # run index ---------------------------------------------------------------
 
 # params
-# model <- "hblldog_no2004"
+ model <- "hblldog_no2004"
 # model = "hbll-n-s"
 # model = "hbll-n"
 # model = "hbll-s"
-model <- "dog" #<- cannot get this model to converge
+# model <- "dog" #<- use nbinom2
+# model <- "dogcircle" #<- use nbinom2
 
 if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 2004
   d <- df #<- 2004 was removed above with the offset can't be na.
@@ -77,7 +84,6 @@ if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
   formula <- catch_count ~ 1 + as.factor(survey_lumped)
   formuladepth <- catch_count ~ log_botdepth + log_botdepth2 + as.factor(survey_lumped)
-  # spatial = "off" #doesnt coverge otherwise
 }
 
 if (model == "hbll-n-s") {
@@ -87,15 +93,6 @@ if (model == "hbll-n-s") {
     drop_na(depth_m) |>
     drop_na(julian) |>
     drop_na(catch_count)
-
-  d |>
-    filter(survey_abbrev == "HBLL INS S") |>
-    group_by(year) |>
-    summarize(sum = sum(catch_count), effort = sum(lglsp_hook_count)) |>
-    mutate(cpue = sum / effort) |>
-    ggplot() +
-    geom_point(aes(year, cpue)) +
-    geom_line(aes(year, cpue))
 
   grid <- readRDS("output/prediction-grid-hbll-n-s.rds") |>
     filter(area %in% c("hbll_s", "hbll_n")) # from gfdata HBLL n and south merged
@@ -114,22 +111,10 @@ if (model == "hbll-s") {
     drop_na(offset) |>
     drop_na(depth_m) |>
     drop_na(catch_count)
-
-  d |>
-    filter(survey_abbrev == "HBLL INS S") |>
-    group_by(year) |>
-    summarize(sum = sum(catch_count), effort = sum(lglsp_hook_count)) |>
-    mutate(cpue = sum / effort) |>
-    ggplot() +
-    geom_point(aes(year, cpue)) +
-    geom_line(aes(year, cpue))
-
   grid <- readRDS("output/prediction-grid-hbll-n-s.rds") |>
     filter(area %in% c("hbll_s")) # from gfdata HBLL n and south merged
   grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
-  ggplot(grid, aes(lon, lat, colour = area)) +
-    geom_point()
-  years <- seq(min(d$year), 2023, 1)
+  years <- seq(min(d$year), max(d$year), 1)
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
   formula <- catch_count ~ 1
   formuladepth <- catch_count ~ log_botdepth + log_botdepth2
@@ -141,16 +126,6 @@ if (model == "hbll-n") {
     drop_na(offset) |>
     drop_na(depth_m) |>
     drop_na(catch_count)
-
-  d |>
-    filter(survey_abbrev == "HBLL INS N") |>
-    group_by(year) |>
-    summarize(sum = sum(catch_count), effort = sum(lglsp_hook_count)) |>
-    mutate(cpue = sum / effort) |>
-    ggplot() +
-    geom_point(aes(year, cpue)) +
-    geom_line(aes(year, cpue))
-
   grid <- readRDS("output/prediction-grid-hbll-n-s.rds") |>
     filter(area %in% c("hbll_n")) # from gfdata HBLL n and south merged
   grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
@@ -162,12 +137,12 @@ if (model == "hbll-n") {
 
 if (model == "dog") {
   d <- df |>
-    # filter(survey_sep %in% c("dog comp", "dog")) |>
-    filter(survey_sep %in% c("dog comp", "dog", "dog-jhook")) |> #<- couldn't get to converge
+    filter(survey_sep %in% c("dog comp", "dog", "dog-jhook")) |>
     filter(month > 9) # i did this to drop the comp work that happened in summer, keep in and include julian if wanted
   years <- seq(min(d$year), max(d$year), 1)
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
   grid <- grid |> filter(latitude < max(d$latitude))
+  grid$survey_lumped <- "dog"
   formula <- catch_count ~ 1 + as.factor(survey_lumped)
   formuladepth <- catch_count ~ log_botdepth + log_botdepth2 + as.factor(survey_lumped)
 }
@@ -184,23 +159,11 @@ if (model == "dog") {
 
 # index generation--------
 # create the mesh
-if (model %in% c("hblldog_no2004", "hblldog_nojhook")) {
-  cutoff <- 3
+if (model %in% c("hblldog_no2004", "hbll-n-s", "hbll-n", "hbll-s")) {
+  cutoff <- 3 #<- does this work for the int only model? try 5 if no
 } else {
-  if (model %in% c("hbll-n-s", "hblldog_nojhook")) {
-    cutoff <- 3 #<- does this work for the int only model? try 5 if no
-  } else {
-    if (model %in% c("hbll-n")) {
-      cutoff <- 3
-    } else {
-      if (model %in% c("hbll-s")) {
-        cutoff <- 2
-      } else {
-        if (model %in% c("dog")) {
-          cutoff <- 10
-        }
-      }
-    }
+  if (model %in% c("dog")) {
+    cutoff <- 10
   }
 }
 
@@ -216,13 +179,26 @@ if (model %in% c("hbll-s", "hbll-n", "dog")) {
 }
 
 if (model %in% c("hbll-n", "hbll-s")) {
-  priors <- sdmTMBpriors(b = normal(c(NA, 0, 0), c(NA, 1, 1))) # no prior on int & survey
+  priorsint <- sdmTMBpriors(
+    b = normal(c(NA), c(NA)),
+    matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
+    matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1))
+  priors <- sdmTMBpriors(
+    b = normal(c(NA, 0, 0), c(NA, 1, 1)),
+    matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
+    matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1)
+  )
 } else {
   if (model == "dog") { #<- two surveys
-    priors <- sdmTMBpriors(b = normal(c(NA, 0, 0, NA, NA), c(NA, 1, 1, NA, NA)))
+    priorsint <- sdmTMBpriors(b = normal(c(NA, NA), c(NA, NA)))
+    priors <-  sdmTMBpriors(
+      matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
+      matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1),
+      b = normal(c(NA, 0, 0, 0), c(NA, 1, 1, 1)))
   } else {
     if (model == "hblldog_no2004") { #<- three surveys
-      priors <- sdmTMBpriors(b = normal(c(NA, 0, 0, NA, NA, NA), c(NA, 1, 1, NA, NA, NA)))
+      priorsint <- sdmTMBpriors(b = normal(c(NA, NA, NA), c(NA, NA, NA)))
+      priors <- sdmTMBpriors(b = normal(c(NA, 0, 0, NA, NA), c(NA, 1, 1, NA, NA)))
     }
   }
 }
@@ -269,14 +245,15 @@ fit <- sdmTMB(
   time = "year",
   offset = "offset",
   mesh = mesh,
-  spatial = spatial,
+  spatial = "on",
   spatiotemporal = "rw",
-  family = delta_gamma(), #<- try nbinom2 for dog
+  #family = nbinom2(), #<- for dog has a lower aic value
+  family = delta_gamma(),
   silent = TRUE,
   share_range = FALSE,
   extra_time = extratime,
   control = sdmTMBcontrol(newton_loops = 1L),
-  # priors = sdmTMBpriors(b = normal(c(0,0), c(1,1))) #<- did this for dog survey
+  priors = priorsint
   # do_index = TRUE,
   # predict_args = list(newdata = grid),
   # index_args = list(area = grid$area_km2)
@@ -287,8 +264,7 @@ sanity(fit)
 AIC(fit)
 
 # generate indices with and w/out depth
-fitdepth <- update(fit, formula = formuladepth) # why doesn't this work?
-
+# fitdepth <- update(fit, formula = formuladepth) # why doesn't this work?
 fitdepth <- sdmTMB(
   formula = formuladepth,
   data = d,
@@ -297,13 +273,15 @@ fitdepth <- sdmTMB(
   mesh = mesh,
   spatial = spatial,
   spatiotemporal = "rw",
-  family = delta_gamma(), #<- nbinom2 for dog
+  family = delta_gamma(),
+  #family = nbinom2(), #<- for dog
   silent = TRUE,
-  # priors = priors, #<- turn off for dog
+  priors = priors,
   share_range = FALSE,
   extra_time = extratime,
   control = sdmTMBcontrol(newton_loops = 1L)
 )
+
 fitdepth$sd_report
 sanity(fitdepth)
 AIC(fitdepth)
@@ -356,15 +334,7 @@ if (!ok) { # does this save it if it converged?
 # }
 # AIC(fit)
 # AIC(fitnb)
-
-# I want this to check the AIC values between delta gamma and nbinom
-# if (!exists(fitnb)) {
-#     fitnb <- NULL
-#   }
-#   saveRDS(fitnb, file = paste0("output/fit-sog-intonly-nb", model, ".rds"))
-# } else {
-#   fitnb <- fit
-# }
+# AIC(fitdepth)
 
 # get index
 if (!is.null(fit)) { #<- #if fit is null ignore this
@@ -399,26 +369,3 @@ if (!is.null(fitdepth)) {
 #   saveRDS(index, file = paste0("output/ind-sog-depth-", model, "-highres.rds"))
 # }
 
-# ggplot
-if (exists("index")) {
-  yearlabs <- as.list(index |> filter(model == "yrs_surved") |> reframe(year = year))
-  yearlabs <- yearlabs$year
-
-  # ggplot(index, aes(year, (est))) +
-  #     geom_line(col = "#8D9999") +
-  #     geom_point(col = "#8D9999") +
-  #     geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4, fill = "#8D9999") +
-  #     theme_classic() +
-  #     scale_x_continuous(breaks = c(years))
-
-  ggplot(index, aes(year, (est), ymin = (lwr), ymax = (upr))) +
-    geom_pointrange(data = filter(index, model == "yrs_surved"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, colour = "red", alpha = 0.6) +
-    theme_classic()
-
-  # ggplot(index, aes(year, log(est), ymin = log(lwr), ymax = log(upr))) +
-  #     # geom_pointrange(data = filter(index, model == "yrs_interp"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, colour = "grey40", alpha = 0.6) +
-  #     geom_pointrange(data = filter(index, model == "yrs_surved"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, colour = "red", alpha = 0.6) +
-  #     theme_classic() +
-  #     scale_x_continuous(breaks = c(yearlabs)) +
-  #     theme(axis.text.x = element_text(angle = 45, hjust = 1))
-}
