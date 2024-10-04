@@ -7,7 +7,7 @@ library(sdmTMB)
 
 bccrs = 32609
 buffersize = 8
-gridsize = 1000 #0.25 km2 grid cell, was 2000 m before, too big bc of depth centroid issues
+gridsize = 500 #0.25 km2 grid cell, was 2000 m before, too big bc of depth centroid issues
 path_extent <- "output/PredictionGridExtent.shp"
 path_center <- "output/PredictionGridCentres.shp"
 path_final <- paste0("output/prediction-grid-hbll-n-s-dog-", gridsize/1000, "-km.rds")
@@ -48,6 +48,9 @@ hbll_ins <- rbind(hbll_ins_n$grid, hbll_ins_s$grid)
 # needs depth
 range(hbll_ins$X)
 range(hbll_ins$Y)
+range(hbll_ins_n$grid$Y)
+range(hbll_ins_s$grid$Y)
+
 hbll_ins <- hbll_ins[!duplicated(hbll_ins), ] # just checking
 ggplot(hbll_ins, aes(Y, X)) + geom_point() +
   geom_point(data = )
@@ -71,7 +74,7 @@ ggplot(grid, aes(lon, lat, colour = bot_depth)) + geom_point()
 grid |> filter(bot_depth > 120) |> tally()
 grid |> filter(bot_depth < 10) |> tally()
 
-grid <- filter(grid, bot_depth  < 120)
+#grid <- filter(grid, bot_depth  < 120)
 grid <- filter(grid, bot_depth > 10)
 
 grid <- add_utm_columns(grid,
@@ -85,6 +88,7 @@ grid <- add_utm_columns(grid,
 range(grid$depth)
 range(grid$bot_depth)
 range(grid$log_botdepth)
+range(grid$area)
 
 saveRDS(grid, 'output/prediction-grid-hbll-n-s.rds')
 
