@@ -1,5 +1,69 @@
 cols <- c("#d7191c", "#fdae61", "#2c6184", "#2c7bb6")
 
+#int and depth comp models
+indint <- readRDS(file = paste0("output/ind-sog-intonly", "hblldog_no2004", ".rds"))
+indint$type = "int"
+index <- readRDS(file = paste0("output/ind-sog-depth", "hblldog_no2004", ".rds"))
+index$type <- "depth"
+ind <- bind_rows(index, indint)
+
+#all int models
+index <- readRDS(file = paste0("output/ind-sog-intonly", "hblldog_no2004", ".rds"))
+index1 <- readRDS(file = paste0("output/ind-sog-intonly", "hbll-n-s", ".rds"))
+index2 <- readRDS(file = paste0("output/ind-sog-intonly", "hbll-n", ".rds"))
+index3 <- readRDS(file = paste0("output/ind-sog-intonly", "hbll-s", ".rds"))
+index4 <- readRDS(file = paste0("output/ind-sog-intonly", "dog", ".rds"))
+ind <- bind_rows(index, index1, index2, index3)
+ind$group <- paste0(ind$modelloc, ind$type)
+ggplot(ind, aes(year, log(est), ymin = log(lwr), ymax = log(upr), group = group, colour = group)) +
+  geom_pointrange(data = filter(ind, model == "yrs_surved"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6, position = position_dodge(width = 0.5)) +
+  theme_classic()
+
+#all depth models
+index <- readRDS(file = paste0("output/ind-sog-depth", "hblldog_no2004", ".rds"))
+index1 <- readRDS(file = paste0("output/ind-sog-depth", "hbll-n-s", ".rds"))
+index2 <- readRDS(file = paste0("output/ind-sog-depth", "hbll-n", ".rds"))
+index3 <- readRDS(file = paste0("output/ind-sog-depth", "hbll-s", ".rds"))
+index4 <- readRDS(file = paste0("output/ind-sog-depth", "dog", ".rds"))
+ind <- bind_rows(index, index1, index2, index3, index4)
+ind$group <- paste0(ind$modelloc, ind$type)
+ggplot(ind, aes(year, log(est), ymin = log(lwr), ymax = log(upr), group = group, colour = group)) +
+  geom_pointrange(data = filter(ind, model == "yrs_surved"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6, position = position_dodge(width = 0.5)) +
+  theme_classic()
+
+
+
+
+
+
+
+#all int models
+indint <- readRDS(file = paste0("output/ind-sog-intonly", "hbll-n-s", ".rds"))
+index <- readRDS(file = paste0("output/ind-sog-depth", "hbll-n-s", ".rds"))
+#indexhr <- readRDS(file = paste0("output/ind-sog-depth-", "hbll-n-s", "-highres.rds"))
+#indexhr$type <- "depth-hr" #does the high res make better predictions?
+ind <- bind_rows(index, indint)
+ggplot(ind, aes(year, (est), ymin = (lwr), ymax = (upr), group = type, colour = type)) +
+  geom_pointrange(data = filter(ind, model == "yrs_surved"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6, position = position_dodge(width = 0.5)) +
+  theme_classic()
+ggplot(ind, aes(year, log(est), group = type, colour = type)) + geom_point()
+
+indint <- readRDS(file = paste0("output/ind-sog-intonly", "hbll-n", ".rds"))
+index <- readRDS(file = paste0("output/ind-sog-depth", "hbll-n", ".rds"))
+ind <- bind_rows(index, indint)
+ggplot(ind, aes(year, (est), ymin = (lwr), ymax = (upr), group = type, colour = type)) +
+  geom_pointrange(data = filter(ind, model == "yrs_surved"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6, position = position_dodge(width = 0.1)) +
+  theme_classic()
+ggplot(ind, aes(year, (est), group = type, colour = type)) + geom_point()
+
+indint <- readRDS(file = paste0("output/ind-sog-intonly", "hbll-s", ".rds"))
+index <- readRDS(file = paste0("output/ind-sog-depth", "hbll-s", ".rds"))
+ind <- bind_rows(index, indint)
+ggplot(ind, aes(year, (est), ymin = (lwr), ymax = (upr), group = type, colour = type)) +
+  geom_pointrange(data = filter(ind, model == "yrs_surved"), mapping = aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6, position = position_dodge(width = 0.1)) +
+  theme_classic()
+
+
 
 i_hblldog <- readRDS(file = "output/ind-sog-hblldog_no2004.rds") |> mutate(type = "all_no2004")
 i_hbllns <- readRDS("output/ind-sog-hbll-n-s.rds") |> mutate(type = "hbll-n-s")
@@ -11,24 +75,35 @@ i_hblldogjul_int <- readRDS(file = "output/ind-sog-hblldog_no2004-depthbin-julia
 #i_hblldogjul <- readRDS(file = "output/ind-sog-hblldog_no2004-julian.rds") |> mutate(type = "all_no2004_julian")
 i_hblldogmonth_int <- readRDS(file = "output/ind-sog-hblldog_no2004-month-interaction.rds") |> mutate(type = "all_no2004_month_int")
 
-index <- bind_rows(i_hblldog, i_hblldogjul_int, i_hblldogmonth_int)
+index <- bind_rows(i_hblldog, i_hblldogjul_int, i_hblldogmonth_int, i_hbllns)
 
-index <- bind_rows(i_hblldog, i_hbllns, i_hbllsdog)
+#index <- bind_rows(i_hblldog, i_hbllns, i_hbllsdog)
 
 index <- index |>
   group_by(type) |>
-  mutate(geomean = mean(est)) |>
+  mutate(geomean = est) |>
   mutate(
-    estc = est- geomean,
-    lwrc = lwr-geomean,
-    uprc = upr-geomean
+    estc = est,
+    lwrc = lwr,
+    uprc = upr
   )
 
+# index <- index |>
+#   group_by(type) |>
+#   mutate(geomean = mean(est)) |>
+#   mutate(
+#     estc = est- geomean,
+#     lwrc = lwr-geomean,
+#     uprc = upr-geomean
+#   )
+
 # figure code -------------------------------------------------------------
-ggplot(data = filter(index, type == "hbll-n-s"), aes(year, est)) +
+ggplot(data = filter(index, type == "hbll-n-s"),
+aes(year, est, ymin = (lwr), ymax = (upr))) +
+#ggplot(data = filter(index, type == "hbll-n-s"), aes(year, est)) +
   geom_point(aes(colour = model)) +
   geom_line() +
-  #geom_pointrange(aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6) +
+  geom_pointrange(aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6) +
   theme_classic() +
   scale_x_continuous(breaks = c(years)) +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5)) +
@@ -45,10 +120,22 @@ ggplot(data = filter(index, model == "yrs_surved"), aes(year, (est), colour = ty
 ggsave("Figures/index_withyrsinterpreted.jpg", width = 5, height = 4)
 
 ggplot(data =
+         filter(index, model == "yrs_surved" & type %in% c("all_no2004", "hbll-n-s")),
+       #index,
+       aes(year, log(est), ymin = log(lwr), ymax = log(upr), colour = type, fill = model)) +
+  geom_pointrange(aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6,
+                  position = position_dodge(width = 1), size=1.5) +
+  #geom_ribbon(aes(ymin = log(lwr), ymax = log(upr)), alpha = 0.4) +
+  theme_classic() +
+  scale_x_continuous(breaks = c(years)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5))
+
+ggplot(data =
        filter(index, model == "yrs_surved"),
        #index,
        aes(year, (est), ymin = (lwr), ymax = (upr), colour = type, fill = model)) +
-  geom_pointrange(aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6) +
+  geom_pointrange(aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6,
+                  position = position_dodge(width = 1), size=1.5) +
   #geom_ribbon(aes(ymin = log(lwr), ymax = log(upr)), alpha = 0.4) +
   theme_classic() +
   scale_x_continuous(breaks = c(years)) +
