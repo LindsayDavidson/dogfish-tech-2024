@@ -5,8 +5,6 @@ library(sdmTMB)
 
 latitude_cutoff <- 50.34056
 bccrs <- 32609
-# loc = "HBLL INS N"
-# loc = "HBLL INS S"
 
 df <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
   drop_na(catch_count) |>
@@ -33,13 +31,6 @@ grid$julian_c <- 36
 grid$survey_lumped <- "hbll"
 grid$julian <- mean(df$julian)
 grid$month <- 8
-grid <- grid |>
-  mutate(depth_bin = case_when(
-    depth_m <= 70 ~ 1,
-    depth_m > 70 & depth_m <= 110 ~ 2,
-    depth_m > 110 & depth_m <= 165 ~ 3,
-    depth_m > 165 & depth_m <= 220  ~ 4,
-    depth_m > 220 ~ 5 ))
 
 # hbll n and s only -------------------------------------------------------------
 d <- df |>
@@ -51,15 +42,14 @@ d <- df |>
   drop_na(catch_count)
 grid <- readRDS("output/prediction-grid-hbll-n-s.rds") |>
   filter(area %in% c("hbll_S", "hbll_n")) # from gfdata HBLL n and south merged
-years <- seq(min(d$year), 2023, 1)
+years <- seq(min(d$year), max(d$year), 1)
 sort(unique(d$year))
 # grid <- purrr::map_dfr(unique(d$year), ~ tibble(grid, year = .x))
 grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-grid$survey_type <- "hbll"
 grid$julian <- mean(d$julian)
 model = "hbll-n-s"
 formula = catch_count ~ poly(log_botdepth, 2)
-formula_depthbin= catch_count ~ depth_bin * poly(julian,2)
+#formula_depthbin= catch_count ~ depth_bin * poly(julian,2)
 sort(unique(d$year))
 extratime <- c(2006, 2017, 2020)
 spatial = "on"
@@ -68,23 +58,42 @@ spatial = "on"
 
 # time varying model ------------------------------------------------------
 
-mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = 5)
+mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = 15)
 plot(mesh)
 
+d$year_factor <- as.factor(d$year)
+mean <- mean(d$log_botdepth)
+d$log_botdepth_c <- d$log_botdepth - mean
+d$log_botdepth_c2 <- d$log_botdepth_c * d$log_botdepth_c
+
 fittv <- sdmTMB(
-  formula = catch_count ~ 0 + as.factor(year),
+  formula = catch_count ~ 0 + year_factor, #year here to soak up the year to year variation otherwise it all goes into the depth relationship
   offset = "offset",
   time = "year",
-  time_varying = ~ 0 + log_botdepth + log_botdepth2,
-  #time_varying_type = "rw0",
+  time_varying = ~ 1 + log_botdepth_c + log_botdepth_c2, #should this be one to have a time varying intercept for each year not much difference when 0 or 1
+  time_varying_type = "rw0",
   spatiotemporal = "AR1", #off or AR1 left over variation from the time varying process is ar1
   silent = FALSE,
-  spatial = "on", #or on
-  family = nbinom2(),
+  spatial = "on",
+  family = nbinom2(), #<- couldnt get delta_gamma to converge for now
   mesh = mesh,
   data = d,
   do_index = FALSE,
-  extra_time = c(2006, 2017, 2020)
+  extra_time = c(2006, 2017, 2020),
+  priors = sdmTMBpriors(
+  b = normal(c(0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
+    c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)),
+  matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
+  matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1))
+  # control = sdmTMBcontrol(
+  #   start = list(
+  #   ln_tau_V = matrix(log(0.1), 2, 2)
+  #   ),
+  #   map = list(
+  #     ln_tau_V = factor(as.vector(matrix(c(1, NA, NA, 2, NA, NA), 2, 2)))
+  #   ),
+  #   newton_loops = 1L
+  # )
 )
 
 sanity(fittv)
@@ -106,11 +115,26 @@ nd <- purrr::map_dfr(year, function(.x) {
   dplyr::mutate(nd, year = .x)
 })
 
+
+nd$year_factor <- as.factor(nd$year)
+nd$log_botdepth_c <- nd$log_botdepth - mean
+nd$log_botdepth_c2 <- nd$log_botdepth_c * nd$log_botdepth_c
+
 p <- predict(fittv, newdata = nd, se_fit = TRUE, re_form = NA)
 #p$depth_m <- exp(p$log_botdepth_cent + mean) * -1
 p$depth_m <- exp(p$log_botdepth)
-p$mean_logbot_depth <- mean
+#p$mean_logbot_depth <- mean
 saveRDS(p, paste0("output/indtv-", model, ".rds"))
+
+p |>
+  #group_by(year) |>
+  #mutate(est2 = est - est[depth_m == min(depth_m)]) |>
+  mutate(est2 = est - mean(est)) |>
+  ggplot() +
+  geom_line(aes((depth_m ), (est2), group = as.factor(year), colour = year)) +
+  scale_colour_viridis_c() +
+  theme_classic()
+ggsave("Figures/fit-tv-predicteddepth_centre.jpg", width = 4, height = 3)
 
 p |>
   ggplot() +
@@ -137,6 +161,7 @@ ggplot(p, aes(depth_m, exp(est),
   geom_ribbon(aes(fill = year), alpha = 0.1) +
   scale_colour_viridis_c() +
   scale_fill_viridis_c() +
-  scale_x_continuous(labels = function(x) round(exp(x * pcod$depth_sd[1] + pcod$depth_mean[1]))) +
   coord_cartesian(expand = F) +
-  labs(x = "Depth (m)", y = "Biomass density (kg/km2)")
+  labs(x = "Depth (m)", y = "Density (number/km2)") +
+  theme_classic()
+ggsave("Figures/fit-tv-predicteddepth_CIs.jpg", width = 4, height = 3)
