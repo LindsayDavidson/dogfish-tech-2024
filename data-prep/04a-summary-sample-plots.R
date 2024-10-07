@@ -1,26 +1,19 @@
 
 # load data ---------------------------------------------------------------
-samps <- readRDS("output/samps_joined.rds")
-
-samps <- samps %>%
-  mutate(dmy = lubridate::ymd(trip_start_date)) |>
-  mutate(julian = lubridate::yday(dmy))
+samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
 
 # filter data  -----------------------------------------------------------
-# samps <- samps |> mutate(name = ifelse(year %in% c(1986, 1989), "DOGJhooks", survey_abbrev))
-# samps <- samps %>%
-#   mutate(dmy = lubridate::ymd(trip_start_date)) |>
-#   mutate(julian = lubridate::yday(dmy))
-
 ggplot(samps, aes(year, julian, group = survey_abbrev, colour = survey_abbrev)) +
-  geom_point() +
-  geom_line() +
+  geom_jitter() +
   theme_classic()
 
-samps %>%
-  filter(survey_abbrev == "HBLL INS N") %>%
-  mutate(max = max(julian)) |>
-  select(year, julian) |> distinct()
+ggplot(samps, aes(year, length, group = survey_abbrev, colour = survey_abbrev)) +
+  geom_jitter() +
+  theme_classic()
+
+ggplot(samps, aes(year, length, group = survey_sep, colour = survey_sep)) +
+  geom_jitter() +
+  theme_classic()
 
 # id date
 samps <- filter(samps, sex %in% c(1, 2))
@@ -31,9 +24,6 @@ samps |>
   filter(length < 25) |>
   tally()
 
-samps <- filter(samps, length > 25)
-sort(unique(samps$year))
-sort(unique(samps$sex)) # 1 male, 2 female, 3 unknown?
 
 # density plots -----------------------------------------------------------
 ggplot() +
@@ -52,13 +42,14 @@ ggplot() +
   ylab(label = "Density") +
   xlab(label = "Length")
 
-unique(samps$survey_abbrev)
-
-ggplot() +
+samps |>
+  filter(year %in% c(1986, 1989, 2005, 2008, 2011, 2014, 2019, 2023)) |>
+  filter(!survey_abbrev %in% c("HBLL INS S", "HBLL INS N")) |>
+  ggplot() +
   geom_density(
-    data = filter(samps, survey_abbrev == "DOG"), aes(length,
-                                                   group = as.factor(year),
-                                                   fill = as.factor(year)
+    aes(length,
+    group = as.factor(year),
+    fill = as.factor(year)
     ),
     alpha = 0.35, size = 1, colour = "black"
   ) +
@@ -68,6 +59,25 @@ ggplot() +
   # scale_fill_viridis_d() +
   ylab(label = "Density") +
   xlab(label = "Length")
+
+samps |>
+  filter(year %in% c(1986, 1989, 2005, 2008, 2011, 2014, 2019, 2023)) |>
+  filter(!survey_abbrev %in% c("HBLL INS S", "HBLL INS N")) |>
+  #filter(sex == 2) |>
+  ggplot() +
+  geom_density(
+    aes(length,
+        group = as.factor(year),
+        fill = as.factor(year)
+    ),
+    alpha = 0.35, size = 0.5, colour = "black"
+  ) +
+  facet_wrap(~sex) +
+  theme_classic() +
+  #scale_fill_manual(values = c("lightblue", "yellow", "orange")) +
+  # scale_fill_viridis_d() +
+  ylab(label = "Density") +
+  xlab(label = "Length") + facet_wrap(~year + sex, ncol = 2)
 
 ggplot() +
   geom_density(
@@ -129,13 +139,13 @@ ggplot() +
   ylab(label = "Length") +
   xlab(label = "Year")
 
-x <- filter(samps, name %in% c("HBLL INS S", "DOG"))
+x <- filter(samps, survey_abbrev %in% c("HBLL INS S", "DOG"))
 ggplot() +
   # geom_jitter(data = samps, aes(year, length,
   #            colour = as.factor(survey_series_desc), alpha = 0.15)) +
   geom_boxplot(
     data = filter(x, sex %in% c(1, 2)), aes(as.factor(year), length,
-                                            fill = as.factor(name)
+                                            fill = as.factor(survey_abbrev)
     ),
     alpha = 0.35, size = 1, colour = "black"
   ) +
