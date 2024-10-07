@@ -8,8 +8,6 @@ library(sp)
 
 samps <- readRDS("data-raw/dogfish_samples_getall.rds")
 
-
-# group by survey -------------------------------------------
 samplesf <- samps |>
   mutate(survey_sep = case_when(
     survey_abbrev == "HBLL INS S" ~ "HBLL INS S",
