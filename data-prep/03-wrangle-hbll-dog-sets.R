@@ -13,9 +13,10 @@ library(sdmTMB)
 # load data  ---------------------------------------------------------------
 
 final <- readRDS("data-generated/dogfish_sets_cleaned_getall.rds")
-hbll <- filter(final, survey_lumped == "hbll") |>
+hbll <- filter(final, survey_lumped == "hbll" & survey_sep != "hbll comp") |>
   filter(usability_code == 1) |>
   filter(survey_series_og %in% c(39, 40)) # note how the boundary has been different, also this is from the *get_all* function that pulls in survey locations that are not a part of the standardized survey, remove them
+dog <- filter(final, !fishing_event_id %in% c(hbll$fishing_event_id))
 
 # #quick check of hbll gfdata pull with hbll get_all pull
 # hbllgfdata <- readRDS("data-raw/dogfish_sets_gfdata.rds") |> filter(survey_series_id %in% c(39, 40))
@@ -75,7 +76,6 @@ hbll <- hbll |>
 
 # put cleaned hbll and dog back together-------------------------------------------------------
 
-dog <- filter(final, survey_lumped != "hbll")
 final <- bind_rows(dog, hbll)
 
 final |>
@@ -87,6 +87,10 @@ final |>
 ggplot(final, aes(longitude, latitude, colour = survey_lumped)) +
   geom_point() +
   facet_wrap(~survey_lumped)
+
+ggplot(final, aes(longitude, latitude, colour = survey_lumped)) +
+  geom_point() +
+  facet_wrap(~survey_sep)
 
 # convert to UTMs
 d <- add_utm_columns(final,
