@@ -31,6 +31,15 @@ grid$julian_c <- 36
 grid$survey_lumped <- "hbll"
 grid$julian <- mean(df$julian)
 grid$month <- 8
+grid <- grid |>
+  mutate(depth_bin = case_when(
+    depth_m <= 70 ~ 1,
+    depth_m > 70 & depth_m <= 110 ~ 2,
+    depth_m > 110 & depth_m <= 165 ~ 3,
+    depth_m > 165 & depth_m <= 220  ~ 4,
+    depth_m > 220 ~ 5 ))
+
+
 
 # hbll n and s only -------------------------------------------------------------
 d <- df |>
@@ -40,6 +49,11 @@ d <- df |>
   drop_na(depth_m) |>
   drop_na(julian) |>
   drop_na(catch_count)
+range(d$depth_m)
+df <- df |> #4 points are deeper than 110, instead of dropping ill change the categorizations
+  mutate(depth_bin = case_when(
+    depth_m <= 70 ~ 1,
+    depth_m > 70 & depth_m <= 150 ~ 2))
 grid <- readRDS("output/prediction-grid-hbll-n-s.rds") |>
   filter(area %in% c("hbll_S", "hbll_n")) # from gfdata HBLL n and south merged
 years <- seq(min(d$year), max(d$year), 1)
@@ -53,8 +67,124 @@ formula = catch_count ~ poly(log_botdepth, 2)
 sort(unique(d$year))
 extratime <- c(2006, 2017, 2020)
 spatial = "on"
+range(grid$bot_depth)
+grid <- grid |>
+  mutate(depth_bin = case_when(
+    bot_depth <= 70 ~ 1,
+    bot_depth > 70 & bot_depth <= 110 ~ 2,
+    bot_depth > 110 & bot_depth <= 165 ~ 3,
+    bot_depth > 165 & bot_depth <= 220  ~ 4,
+    bot_depth > 220 ~ 5 ))
+# grid <- filter(grid, bot_depth %in% 10:150)
+# grid <- grid |> #4 points are deeper than 110, instead of dropping ill change the categorizations
+#   mutate(depth_bin = case_when(
+#     depth_m <= 70 ~ 1,
+#     depth_m > 70 & depth_m <= 150 ~ 2))
 
 
+
+# shallow deep hbll block model ------------------------------------------------------
+d$year_factor <- as.factor(d$year)
+mean <- mean(d$log_botdepth)
+d$log_botdepth_c <- d$log_botdepth - mean
+d$log_botdepth_c2 <- d$log_botdepth_c * d$log_botdepth_c
+unique(d$depth_bin)
+
+dsh <- filter(d, depth_bin == 1)
+gridshallow <- filter(grid, depth_bin == 1)
+meshsh <- make_mesh(dsh, c("UTM.lon", "UTM.lat"), cutoff = 15)
+plot(meshsh)
+
+ddp <- filter(d, depth_bin == 2)
+griddeep <- filter(grid, depth_bin == 2)
+meshdp <- make_mesh(ddp, c("UTM.lon", "UTM.lat"), cutoff = 15)
+plot(meshdp)
+
+ms <- sdmTMB(
+  formula = catch_count ~ 1,
+  offset = "offset",
+  time = "year",
+  spatiotemporal = "rw",
+  silent = FALSE,
+  spatial = "on",
+  family = delta_lognormal(),
+  mesh = meshsh,
+  data = dsh,
+  do_index = FALSE,
+  extra_time = c(2006, 2017, 2020)
+)
+
+md <- sdmTMB(
+  formula = catch_count ~ 1,
+  offset = "offset",
+  time = "year",
+  spatiotemporal = "rw",
+  silent = FALSE,
+  spatial = "off",
+  family = delta_gamma(),
+  mesh = meshdp,
+  data = ddp,
+  do_index = FALSE,
+  extra_time = c(2006, 2017, 2020)
+)
+
+sanity(ms)
+sanity(md)
+ms$sd_report
+md$sd_report
+
+#saveRDS(fitcat, paste0("output/fit-depth-bins-", model, ".rds"))
+
+psh <- predict(ms, newdata = gridshallow, se_fit = TRUE, re_form = NA, return_tmb_object = TRUE)
+index <- get_index(psh, bias_correct = TRUE)
+index$loc <- "shallow"
+saveRDS(psh, paste0("output/ind-depth-bin-shallow", model, ".rds"))
+
+pdeep <- predict(md, newdata = griddeep, response = TRUE, return_tmb_object = TRUE)
+index_d <- get_index(pdeep, bias_correct = TRUE)
+index_d$loc <- "deep"
+saveRDS(index_d, paste0("output/ind-depth-bin-deep", model, ".rds"))
+
+index <- bind_rows(index, index_d)
+index |>
+  #group_by(year) |>
+  #mutate(est2 = est - est[depth_m == min(depth_m)]) |>
+  mutate(est2 = est - mean(est)) |>
+  ggplot() +
+  geom_line(aes(year, (est), group = loc, colour = loc)) +
+  scale_colour_viridis_d() +
+  theme_classic()
+#ggsave("Figures/fit-tv-predicteddepth_centre.jpg", width = 4, height = 3)
+
+ggplot(index, aes(year, (est), ymin = (lwr), ymax = (upr), group = loc, colour = loc)) +
+  geom_pointrange(data = index, mapping = aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6, position = position_dodge(width = 0.5)) +
+  theme_classic() +
+  coord_cartesian(ylim = c(0, 30)) +
+  scale_colour_manual(values = c("grey", "black"))
+ggsave("Figures/ind_deep_shallow.jpg", width = 4, height = 3)
+
+p %>%
+  group_by(year) %>%
+  summarize(max_est = max(est), xint = (depth_m[est == max_est])) |>
+  # filter(year > 2003) |>
+  ggplot() +
+  theme_classic() +
+  geom_line(aes(year, xint, colour = year, group = year)) +
+  geom_point(aes(year, xint, colour = year, group = year))
+
+ggplot(p, aes(depth_m, exp(est),
+              ymin = exp(est - 1.96 * est_se),
+              ymax = exp(est + 1.96 * est_se),
+              group = as.factor(year)
+)) +
+  geom_line(aes(colour = year), lwd = 1) +
+  geom_ribbon(aes(fill = year), alpha = 0.1) +
+  scale_colour_viridis_c() +
+  scale_fill_viridis_c() +
+  coord_cartesian(expand = F) +
+  labs(x = "Depth (m)", y = "Density (number/km2)") +
+  theme_classic()
+ggsave("Figures/fit-tv-predicteddepth_CIs.jpg", width = 4, height = 3)
 
 # time varying model ------------------------------------------------------
 
@@ -121,6 +251,7 @@ nd$log_botdepth_c <- nd$log_botdepth - mean
 nd$log_botdepth_c2 <- nd$log_botdepth_c * nd$log_botdepth_c
 
 p <- predict(fittv, newdata = nd, se_fit = TRUE, re_form = NA)
+
 #p$depth_m <- exp(p$log_botdepth_cent + mean) * -1
 p$depth_m <- exp(p$log_botdepth)
 #p$mean_logbot_depth <- mean
