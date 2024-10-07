@@ -213,3 +213,12 @@ indexfunc <- function(d) {
 # run functions -----------------------------------------------------------
 
 indexfunc(d)
+
+
+i_hblldog <- readRDS(file = "output/ind-sog-hblldog_no2004.rds") |> mutate(type = "all_no2004")
+i_hblldogjul_int <- readRDS(file = "output/ind-sog-hblldog_no2004-depthbin-julian-int.rds") |> mutate(type = "all_no2004_julian_int")
+#i_hblldogjul <- readRDS(file = "output/ind-sog-hblldog_no2004-julian.rds") |> mutate(type = "all_no2004_julian")
+i_hblldogmonth_int <- readRDS(file = "output/ind-sog-hblldog_no2004-month-interaction.rds") |> mutate(type = "all_no2004_month_int")
+
+index <- bind_rows(i_hblldog, i_hblldogjul_int, i_hblldogmonth_int, i_hbllns)
+
