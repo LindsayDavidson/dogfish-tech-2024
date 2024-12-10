@@ -1,16 +1,5 @@
-#index files for data-prep
-999-pull_data-sql-code.R
-01-pull-data-get_all.R
-02a-data-clean-sets.R
-02b-data-clean-samples
-03-wrangel-hbll-dog-sets.R
-03a-wrange-hbll-dog-samples
-
-
-
 #index file for analysis
-
-01-prediction-grid-generation.R
+999-prediction-grid-generation.R
 
 01-summary-stats.R # i think this is in data-prep now, remove?
 
