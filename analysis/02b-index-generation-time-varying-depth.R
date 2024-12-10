@@ -113,6 +113,8 @@ ms <- sdmTMB(
   do_index = FALSE,
   extra_time = c(2006, 2017, 2020)
 )
+saveRDS(ms, "output/fit-depth-bins-shallow.rds")
+ms <- readRDS("output/fit-depth-bins-shallow.rds")
 
 md <- sdmTMB(
   formula = catch_count ~ 1,
@@ -127,13 +129,14 @@ md <- sdmTMB(
   do_index = FALSE,
   extra_time = c(2006, 2017, 2020)
 )
+saveRDS(md, "output/fit-depth-bins-deep.rds")
+md <- readRDS("output/fit-depth-bins-deep.rds")
 
 sanity(ms)
 sanity(md)
 ms$sd_report
 md$sd_report
 
-#saveRDS(fitcat, paste0("output/fit-depth-bins-", model, ".rds"))
 
 psh <- predict(ms, newdata = gridshallow, se_fit = TRUE, re_form = NA, return_tmb_object = TRUE)
 index <- get_index(psh, bias_correct = TRUE)
@@ -152,9 +155,18 @@ index |>
   mutate(est2 = est - mean(est)) |>
   ggplot() +
   geom_line(aes(year, (est), group = loc, colour = loc)) +
+  #geom_pointrange(mapping = aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6, position = position_dodge(width = 0.5)) +
   scale_colour_viridis_d() +
   theme_classic()
-#ggsave("Figures/fit-tv-predicteddepth_centre.jpg", width = 4, height = 3)
+
+ggplot(index, aes(year, (est), ymin = (lwr), ymax = (upr), group = loc, colour = loc)) +
+  geom_pointrange(mapping = aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6, position = position_dodge(width = 0.5)) +
+  scale_colour_manual(values = c("#d8b365", "#5ab4ac")) +
+  theme_classic() +
+  ylab("Abundance estimate") +
+  xlab("Year")  +
+  coord_cartesian(ylim = c(0,50))
+ggsave("Figures/depth-bin-figure.jpg", width = 4, height = 3)
 
 ggplot(index, aes(year, (est), ymin = (lwr), ymax = (upr), group = loc, colour = loc)) +
   geom_pointrange(data = index, mapping = aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6, position = position_dodge(width = 0.5)) +
