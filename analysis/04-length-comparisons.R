@@ -11,8 +11,46 @@ library(sp)
 
 
 # load data ---------------------------------------------------------------
-samps <- readRDS("output/samps_joined.rds")
+#samps <- readRDS("output/samps_joined.rds")
+samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
 
+
+
+# ggplot ------------------------------------------------------------------
+samples |>
+  filter(sex %in% c(1,2)) |>
+  filter(survey_sep %in% ("dog")) |>
+  ggplot() +
+  geom_histogram(aes(total_length, fill = as.factor(sex)), binwidth = 5) +
+  scale_fill_manual(values = c("red", "grey"), labels=c('Males', 'Females')) +
+  scale_colour_manual(values = c("red", "grey")) +
+  facet_wrap(~year + sex, ncol=2) + theme_classic() +
+  theme(strip.text = element_blank()) +
+  labs(legend = "Sex")
+
+samples |>
+  filter(sex %in% c(1,2)) |>
+  group_by(year, sex, survey_lumped) |>
+  #reframe(count = n()) |>
+  ggplot() +
+  geom_histogram(aes(length, colour = as.factor(sex),
+                     fill = as.factor(sex))) +
+  facet_wrap(~year + sex, ncol=2) + theme_bw() +
+  theme(strip.text = element_blank())
+
+# length comps of comparative work ------------------------------------------
+samples |>
+  filter(year %in% c(2022, 2023)) |>
+  group_by(year, survey_lumped) |>
+  filter(sex %in% c(1,2)) |>
+  ggplot() +
+  #geom_histogram(aes(total_length, fill = as.factor(specimen_sex_code)), binwidth = 5) +
+  geom_density(aes(total_length, fill = as.factor(sex)), binwidth = 5) +
+  scale_fill_manual(values = c("red", "grey"), labels=c('Males', 'Females')) +
+  scale_colour_manual(values = c("red", "grey")) +
+  facet_wrap(~survey_lumped + year + sex, ncol=2) + theme_classic() +
+  #theme(strip.text = element_blank()) +
+  labs(legend = "Sex")
 
 
 # length comp between geartype figure for each survey --------------------------------------
