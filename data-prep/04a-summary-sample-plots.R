@@ -1,6 +1,10 @@
+library(ggplot2)
+library(dplyr)
 
 # load data ---------------------------------------------------------------
-samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
+#samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
+samps <- readRDS("output/samps_joined.rds")
+unique(samps$survey_lumped)
 
 # filter data  -----------------------------------------------------------
 ggplot(samps, aes(year, julian, group = survey_abbrev, colour = survey_abbrev)) +
@@ -42,14 +46,15 @@ ggplot() +
   ylab(label = "Density") +
   xlab(label = "Length")
 
+glimpse(samps)
 samps |>
-  filter(year %in% c(1986, 1989, 2005, 2008, 2011, 2014, 2019, 2023)) |>
+  filter(trip_year  %in% c(1986, 1989, 2005, 2008, 2011, 2014, 2019, 2023)) |>
   filter(!survey_abbrev %in% c("HBLL INS S", "HBLL INS N")) |>
   ggplot() +
   geom_density(
     aes(length,
-    group = as.factor(year),
-    fill = as.factor(year)
+    group = as.factor(trip_year ),
+    fill = as.factor(trip_year )
     ),
     alpha = 0.35, size = 1, colour = "black"
   ) +
