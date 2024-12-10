@@ -1,3 +1,9 @@
+library(dplyr)
+library(ggplot2)
+library(sf)
+library(tidyr)
+sf::sf_use_s2(FALSE)
+
 # params
 cols <- c("#e69b99", "#24492e", "#015b58", "#2c6184", "#89689d")
 cols <- c("#d7191c", "#fdae61", "#2c6184", "#2c7bb6")
@@ -12,8 +18,6 @@ d <- filter(d, soak >= 0)
 d <- filter(d, is.na(soak) != TRUE) # get rid of 2004 that has no soak time
 
 # load map ----------------------------------------------------------------
-library(sf)
-sf::sf_use_s2(FALSE)
 map_data <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
 bc_coast <- st_crop(
   map_data,
@@ -22,12 +26,12 @@ bc_coast <- st_crop(
 
 # summary plots -----------------------------------------------------------
 
-d$depth
+d$depth_m
 d <- d |>
   group_by(year) |>
   mutate(id = seq(1, n(), 1))
 
-d |>
+d |> #<- variability in depth for hbll surveys? no
   drop_na(depth_m) |>
   # filter(year == 2021) |>
   filter(survey_abbrev %in% c("HBLL INS N", "HBLL INS S")) |>
@@ -35,7 +39,7 @@ d |>
   geom_pointrange(aes(x = (id) - 0.25), size = 0.2, pch = 5, alpha = 0.6) +
   facet_wrap(~year, scales = "free_x")
 
-d |>
+d |> #design based cpue trends acros survey types
   group_by(year, survey_lumped) |>
   drop_na(catch_count) |>
   drop_na(offset) |>
@@ -76,18 +80,6 @@ d |>
   print(n = 40) # looks good
 
 d |>
-  filter(survey_sep != "dog comp") |>
-  ggplot() +
-  geom_point(aes(longitude, latitude, colour = survey_sep)) +
-  theme_classic() +
-  geom_sf(data = bc_coast, fill = "grey90", colour = "grey70") +
-  facet_wrap(~survey_sep) +
-  guides(colour = guide_legend(title = "Survey")) +
-  scale_colour_viridis_d()
-ggsave("Figures/summary_locations.png", width = 10, height = 8)
-
-
-d |>
   filter(survey_sep == "HBLL INS S") |>
   ggplot() +
   geom_point(aes(longitude, latitude, colour = catch_count), size = 1) +
@@ -97,9 +89,6 @@ d |>
   guides(colour = guide_legend(title = "Catch count")) +
   scale_colour_viridis_c() +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5))
-
-ggsave("Figures/summary_locations_hbllinss.png", width = 10, height = 8)
-
 
 d |>
   #filter(survey_sep == "HBLL INS N") |>
@@ -112,9 +101,6 @@ d |>
   guides(colour = guide_legend(title = "Catch count")) +
   scale_colour_viridis_c() +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5))
-ggsave("Figures/summary_locations_hbllinsn_raw.png", width = 10, height = 8)
-#ggsave("Figures/summary_locations_hbllinsn.png", width = 10, height = 8)
-
 
 d |>
   filter(survey_sep %in% c("dog")) |>
@@ -126,7 +112,6 @@ d |>
   guides(colour = guide_legend(title = "Catch count")) +
   scale_colour_viridis_c() +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5))
-ggsave("Figures/summary_locations_dog.png", width = 10, height = 8)
 
 d |>
   filter(survey_lumped == "dog-jhook") |>
@@ -138,7 +123,6 @@ d |>
   guides(colour = guide_legend(title = "Catch count")) +
   scale_colour_viridis_c() +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5))
-ggsave("Figures/summary_locations_dogjhook.png", width = 5, height = 4)
 
 
 d |>
@@ -159,7 +143,6 @@ d |>
   # scale_color_manual(values = cols) +
   guides(colour = guide_legend(title = "Survey")) +
   scale_colour_viridis_d()
-# ggsave("Figures/summary_cpuetrends.png", width = 5, height = 4)
 
 d |>
   filter(survey_sep != "hbll comp") |>
@@ -179,7 +162,6 @@ d |>
   # scale_color_manual(values = cols) +
   guides(colour = guide_legend(title = "Survey")) +
   scale_colour_viridis_d()
-ggsave("Figures/summary_cpuetrends.png", width = 5, height = 4)
 
 d |>
   filter(survey_sep != "hbll comp") |>
@@ -192,8 +174,6 @@ d |>
   theme_classic() +
   facet_wrap(~survey_abbrev, ) +
   scale_colour_viridis_c()
-# geom_line(aes(year, catch_count, colour = survey_abbrev))
-ggsave("Figures/summary_julian.png", width = 10, height = 4)
 
 d |>
   ggplot() +
@@ -203,7 +183,6 @@ d |>
   # scale_color_manual(values = cols) +
   guides(colour = guide_legend(title = "Survey")) +
   geom_sf(data = bc_coast, fill = "grey90", colour = "grey70")
-#ggsave("Figures/summary_surveylocations.png", width = 10, height = 10)
 
 d |>
   ggplot() +
@@ -213,7 +192,6 @@ d |>
   scale_fill_viridis_c(trans = "sqrt") +
   theme_classic() +
   geom_sf(data = bc_coast, fill = "grey90", colour = "grey70")
-#ggsave("Figures/summary_surveylocationscatches.png", width = 10, height = 10)
 
 d |>
   ggplot() +
@@ -222,8 +200,6 @@ d |>
   scale_colour_viridis_c(trans = "sqrt") +
   scale_fill_viridis_c(trans = "sqrt") +
   theme_classic()
-# geom_sf(data = bc_coast, fill = "grey90", colour = "grey70")
-#ggsave("Figures/summary_surveylocationscatches_nomap.png", width = 10, height = 10)
 
 d |>
   ggplot() +
@@ -232,7 +208,6 @@ d |>
   scale_colour_viridis_c(trans = "sqrt") +
   theme_classic() +
   geom_sf(data = bc_coast, fill = "grey90", colour = "grey70")
-#ggsave("Figures/summary_surveylocationscatches_yronly.png", width = 8, height = 6)
 
 d |>
   group_by(survey_abbrev, year) |>
@@ -241,7 +216,6 @@ d |>
   theme_classic() +
   # scale_color_manual(values = cols) +
   facet_wrap(~survey_abbrev)
-#ggsave("Figures/summary_catches.png", width = 6, height = 5)
 
 
 d |>
@@ -249,7 +223,6 @@ d |>
   ggplot() +
   geom_jitter(aes(year, lglsp_hook_count, colour = survey_abbrev), alpha = 0.5) +
   theme_classic()
-#ggsave("Figures/summary_hookscounts.png", width = 5, height = 4)
 
 
 d |>
@@ -260,8 +233,6 @@ d |>
   guides(size = "none") +
   # scale_color_manual(values = cols) +
   guides(colour = guide_legend(title = "Survey"))
-# facet_wrap(~survey_abbrev, scales = "free")
-#ggsave("Figures/summary_julian.png", width = 5, height = 4)
 
 
 d |>
@@ -269,8 +240,6 @@ d |>
   ggplot() +
   geom_jitter(aes(year, soak, colour = survey_abbrev), alpha = 0.5) +
   theme_classic()
-# scale_color_manual(values = cols)
-#ggsave("Figures/summary_soak.png", width = 5, height = 5)
 
 
 d |>
@@ -292,5 +261,4 @@ d |>
   geom_jitter(aes(log_botdepth, log(catch_count), colour = survey_abbrev), alpha = 0.5) +
   facet_wrap(~year) +
   theme_classic()
-# scale_color_manual(values = cols)
-#ggsave("Figures/summary_depth.png", width = 6, height = 5)
+
