@@ -1,5 +1,4 @@
-# params
-# daniel looking into this, 2004 and some 2005 are missing deployment times
+# note 2004 and some 2005 are missing deployment times
 # 02a-data-clean-sets.R
 # soak2005 <- 2
 bccrs <- 32609
@@ -11,11 +10,10 @@ library(tidyverse)
 library(sdmTMB)
 
 # load data  ---------------------------------------------------------------
-
 final <- readRDS("data-generated/dogfish_sets_cleaned_getall.rds")
 hbll <- filter(final, survey_lumped == "hbll" & survey_sep != "hbll comp") |>
   filter(usability_code == 1) |>
-  filter(survey_series_og %in% c(39, 40)) # note how the boundary has been different, also this is from the *get_all* function that pulls in survey locations that are not a part of the standardized survey, remove them
+  filter(survey_series_og %in% c(39, 40)) # note how the boundary has been different, also this is from the *get_all* function pulls survey locations that are not a part of the HBLL standardized survey, remove them
 dog <- filter(final, !fishing_event_id %in% c(hbll$fishing_event_id))
 
 # #quick check of hbll gfdata pull with hbll get_all pull
