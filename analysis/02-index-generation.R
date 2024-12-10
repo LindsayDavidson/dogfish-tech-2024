@@ -71,8 +71,8 @@ grid <- grid |>
 # run index ---------------------------------------------------------------
 
 # params
- model <- "hblldog_no2004"
-# model = "hbll-n-s"
+# model <- "hblldog_no2004"
+ model = "hbll-n-s"
 # model = "hbll-n"
 # model = "hbll-s"
 # model <- "dog" #<- use nbinom2
