@@ -1,11 +1,5 @@
-# params
-cols <- c("#e69b99", "#24492e", "#015b58", "#2c6184", "#89689d")
-cols <- c("#d7191c", "#fdae61", "#2c6184", "#2c7bb6")
 
 d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") # no west coast VI expansion set
-# d <- readRDS("data-raw/wrangled-hbll-dog-sets-hblls.rds") #no expansion set, no hbll north except for the 2008 year, note 2004 got dropped when we dropped NAs in soak time
-#d <- filter(d, soak >= 0)
-#d <- filter(d, is.na(soak) != TRUE) # get rid of 2004 that has no soak time
 
 #2019 survey
 d19 <- filter(final, year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" )
@@ -16,6 +10,12 @@ d19 |> filter(hooksize_desc == "13/0") |>
   reframe(print(unique(grouping_desc_original)))
 d19 |> filter(hooksize_desc == "14/0") |>
   reframe(print(unique(grouping_desc_original)))
+
+d19 |>
+  group_by(hooksize_desc) |>
+  reframe(sum = sum(catch_count)) |>
+  print()
+
 d19 |> group_by(hooksize_desc, hook_desc) |>
   reframe(sum = sum(lglsp_hook_count))
 d19 |> group_by(hooksize_desc, hook_desc) |>
