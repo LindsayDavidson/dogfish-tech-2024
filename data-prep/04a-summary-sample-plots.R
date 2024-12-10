@@ -2,7 +2,7 @@ library(ggplot2)
 library(dplyr)
 
 # load data ---------------------------------------------------------------
-#samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
+# samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
 samps <- readRDS("output/samps_joined.rds")
 unique(samps$survey_lumped)
 
@@ -33,8 +33,8 @@ samps |>
 ggplot() +
   geom_density(
     data = samps, aes(length,
-                      group = as.factor(survey_abbrev),
-                      fill = as.factor(survey_abbrev)
+      group = as.factor(survey_abbrev),
+      fill = as.factor(survey_abbrev)
     ),
     alpha = 0.35, size = 1, colour = "black"
   ) +
@@ -48,19 +48,19 @@ ggplot() +
 
 glimpse(samps)
 samps |>
-  filter(trip_year  %in% c(1986, 1989, 2005, 2008, 2011, 2014, 2019, 2023)) |>
+  filter(trip_year %in% c(1986, 1989, 2005, 2008, 2011, 2014, 2019, 2023)) |>
   filter(!survey_abbrev %in% c("HBLL INS S", "HBLL INS N")) |>
   ggplot() +
   geom_density(
     aes(length,
-    group = as.factor(trip_year ),
-    fill = as.factor(trip_year )
+      group = as.factor(trip_year),
+      fill = as.factor(trip_year)
     ),
     alpha = 0.35, size = 1, colour = "black"
   ) +
   facet_wrap(~sex) +
   theme_classic() +
-  #scale_fill_manual(values = c("lightblue", "yellow", "orange")) +
+  # scale_fill_manual(values = c("lightblue", "yellow", "orange")) +
   # scale_fill_viridis_d() +
   ylab(label = "Density") +
   xlab(label = "Length")
@@ -68,27 +68,28 @@ samps |>
 samps |>
   filter(year %in% c(1986, 1989, 2005, 2008, 2011, 2014, 2019, 2023)) |>
   filter(!survey_abbrev %in% c("HBLL INS S", "HBLL INS N")) |>
-  #filter(sex == 2) |>
+  # filter(sex == 2) |>
   ggplot() +
   geom_density(
     aes(length,
-        group = as.factor(year),
-        fill = as.factor(year)
+      group = as.factor(year),
+      fill = as.factor(year)
     ),
     alpha = 0.35, size = 0.5, colour = "black"
   ) +
   facet_wrap(~sex) +
   theme_classic() +
-  #scale_fill_manual(values = c("lightblue", "yellow", "orange")) +
+  # scale_fill_manual(values = c("lightblue", "yellow", "orange")) +
   # scale_fill_viridis_d() +
   ylab(label = "Density") +
-  xlab(label = "Length") + facet_wrap(~year + sex, ncol = 2)
+  xlab(label = "Length") +
+  facet_wrap(~ year + sex, ncol = 2)
 
 ggplot() +
   geom_density(
     data = filter(samps, name %in% c("DOG", "HBLL INS S")), aes(length,
-                                                                group = as.factor(name),
-                                                                fill = as.factor(name)
+      group = as.factor(name),
+      fill = as.factor(name)
     ),
     alpha = 0.35, size = 1, colour = "black"
   ) +
@@ -130,7 +131,7 @@ ggplot() +
   #            colour = as.factor(survey_series_desc), alpha = 0.15)) +
   geom_boxplot(
     data = filter(samps, sex %in% c(1, 2)), aes(as.factor(year), length,
-                                                fill = as.factor(name)
+      fill = as.factor(name)
     ),
     alpha = 0.35, size = 1, colour = "black"
   ) +
@@ -150,12 +151,12 @@ ggplot() +
   #            colour = as.factor(survey_series_desc), alpha = 0.15)) +
   geom_boxplot(
     data = filter(x, sex %in% c(1, 2)), aes(as.factor(year), length,
-                                            fill = as.factor(survey_abbrev)
+      fill = as.factor(survey_abbrev)
     ),
     alpha = 0.35, size = 1, colour = "black"
   ) +
   # facet_wrap(~survey_series_desc)
-  facet_grid(~ sex) +
+  facet_grid(~sex) +
   theme_classic() +
   scale_x_discrete(breaks = c(2003, 2009, 2015, 2022)) +
   # geom_rug(data = samps, aes(length)) +
@@ -163,4 +164,3 @@ ggplot() +
   # scale_fill_viridis_d() +
   ylab(label = "Length") +
   xlab(label = "Year")
-
