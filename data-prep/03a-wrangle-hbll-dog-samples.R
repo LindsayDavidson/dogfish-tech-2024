@@ -1,24 +1,20 @@
 # Length and catch composition differences between the DOG and HBLL surveys
-# params
-# daniel looking into this, 2004 and some 2005 are missing deployment times
-# 02a-data-clean-sets.R
+# 2004 and some 2005 are missing deployment times
 # soak2005 <- 2
 bccrs <- 32609
 latitude_cutoff <- 50.34056 #<- not sure what the "best" boundary to pick for separating n and s is I used the largest latitude in the hbll_ins_s grid at the line
 
-# library -----------------------------------------------------------------
-library(gfdata)
-library(gfplot)
+#library(gfdata)
+library(ggplot2)
 library(tidyverse)
 library(here)
-library(sdmTMB)
-library(sf)
-library(sp)
+#library(sdmTMB)
+#library(sf)
+#library(sp)
 
 # load data ---------------------------------------------------------------
 samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
-sampshb <- samps |> filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
-# drop the hbll samples not included in the gfdata pull.
+sampshb <- samps |> filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N")) # drop hbll samps not included in the gfdata pull.
 sampsgf <- readRDS("data-raw/dogfish_samples_gfdata.rds") |>
   filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
 
@@ -26,6 +22,7 @@ sampshb <- sampshb |>
   filter(fishing_event_id %in% c(sampsgf$fishing_event_id)) |>
   drop_na(total_length) |>
   filter(total_length > 10) # i suspect these smaller ones are pups that were measured
+
 ggplot(sampshb, aes(longitude, latitude, colour = total_length)) +
   geom_point()
 
@@ -52,6 +49,7 @@ hbllrm <- bind_rows(hbll1, hbll2)
 unique(hbllrm$fishing_event_id) # rm these
 
 test <- filter(sampshb, survey_abbrev == "HBLL INS S")
+
 x <- ggplot(test) +
   geom_point(aes(longitude, latitude))
 x + geom_point(data = hbllrm, aes(longitude, latitude), col = "red")
