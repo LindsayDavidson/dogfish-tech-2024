@@ -19,7 +19,8 @@ library(sp)
 samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
 sampshb <- samps |> filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
 # drop the hbll samples not included in the gfdata pull.
-sampsgf <- readRDS("data-raw/dogfish_samples_gfdata.rds") |> filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
+sampsgf <- readRDS("data-raw/dogfish_samples_gfdata.rds") |>
+  filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
 
 sampshb <- sampshb |>
   filter(fishing_event_id %in% c(sampsgf$fishing_event_id)) |>
@@ -57,10 +58,13 @@ x + geom_point(data = hbllrm, aes(longitude, latitude), col = "red")
 
 
 # wrangle -----------------------------------------------------------------
+sampsdog <- readRDS("data-raw/dogfish_samples_cleaned.rds") |>
+  filter(!survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
 
 hsamps <- sampshb |>
   filter(!fishing_event_id %in% c(hbllrm$fishing_event_id))
 
+samps <- bind_rows(sampsdog, hsamps)
 saveRDS(samps, "output/samps_joined.rds")
 
 
