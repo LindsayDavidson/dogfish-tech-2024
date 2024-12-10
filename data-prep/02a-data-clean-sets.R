@@ -51,7 +51,7 @@ sets <- readRDS("data-raw/dogfish_sets_getall.rds") # get all function
 # #that NA is fine, its outside of any dogfish survey site
 #
 #
-# # polygon and set point overlay - didnt use -------------------------------------------
+# # polygon and set point overlay - didn't use -------------------------------------------
 #
 #
 # #leaving this here to show how I checked the spatial location.
@@ -95,9 +95,9 @@ sets <- readRDS("data-raw/dogfish_sets_getall.rds") # get all function
 # # test <- ptsint |> filter(site_shortname != grouping_spatial_id) #these are dropped
 #
 
-# QA/QC dates and depth - did use--------------------------------
+# QA/QC dates and depth--------------------------------
 # create a consistent grouping depth id
-# keep this - although we can use the depth_m column in the model it may be useful to have a consistent grouping depth id if we change the grid prediction cells to shallow or deep
+# can use the depth_m column in the model however, may be useful to have a consistent grouping depth id if we change the grid prediction cells to shallow or deep
 
 # check depths
 unique(sets$grouping_desc) # NAs and a 'SOG Dogfish Site'
@@ -144,9 +144,7 @@ sets |>
   filter(is.na(grouping_desc) == TRUE) # all depths are in there
 
 
-# QA/QC soak time - did use -----------------------------------------------------
-# keep this, need to account for soak time in the offset
-glimpse(sets$time_end_deployment)
+# QA/QC soak time  -----------------------------------------------------
 
 d <- sets |>
   mutate(
