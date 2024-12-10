@@ -20,14 +20,14 @@ theme_set(ggsidekick::theme_sleek())
 
 # Samps ----------------------------------------------------
 
-samps <- readRDS("output/samps_joined.rds") |>
-  filter(species_common_name %in% c("NORTH PACIFIC SPINY DOGFISH", "north pacific spiny dogfish"))
-glimpse(samps)
-unique(samps$survey_abbrev)
-unique(samps$survey2)
+samps <- readRDS("data-raw/dogfish_samples_cleaned.rds") #this is from the get all function
+#needs age, trip_start_date
+#this is a hack for now
+samps$trip_start_date <-samps$time_begin_retrieval
+samps$age <-NA #age column is empty and therefore dropped. add back in with NAs
 
-ggplot(samps, aes(year, length, col = survey_abbrev)) +
-  geom_jitter() + facet_wrap(~survey2)
+# samps <- readRDS("output/samps_joined.rds") |>
+#   filter(species_common_name %in% c("NORTH PACIFIC SPINY DOGFISH", "north pacific spiny dogfish"))
 
 # maturity information
 library(gfplot)
@@ -52,47 +52,32 @@ sort(unique(sampsm$maturity_code))
 
 
 # all without 2004 comp work ----------------------------------------------
-#
-d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
-  filter(year != 2004)
+
+d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds")
+rm <- d |>
+  filter(year == 2004 & survey_abbrev == "dog-jhook")
+d <- filter(d, !fishing_event_id %in% c(rm$fishing_event_id))
 
 test <- d |>
-  mutate(toohigh = ifelse(catch_count > hook_count, "morecatch", "lesscatch")) |>
+  mutate(toohigh = ifelse(catch_count > lglsp_hook_count, "morecatch", "lesscatch")) |>
   filter(toohigh == "morecatch")
 
 ggplot() +
-  geom_point(data = d, aes(hook_count, catch_count, colour = survey_abbrev)) + facet_wrap(~year) +
-  geom_point(data = test, aes(hook_count, catch_count), colour = 'red') + facet_wrap(~year)
-
-# range(d$depth_m)# range(d$depth_m)year()
-# d$log_botdepth2 <- d$log_botdepth * d$log_botdepth
-# str(d$month)
-# grid <- grid <- readRDS("output/prediction-grid-hbll-n-s-dog-2-km.rds")
-# grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
-# grid$area_km2 <- as.numeric(grid$area_km)
-# years <- seq(min(d$year), 2023, 1)
-# grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-# grid$survey2 <- "hbll"
-# grid$julian <- mean(d$julian)
-# grid$month <- 8
-# # path <- "output/fit-sog-hblldog_no2004.rds"
-# # pathind <- "output/ind-sog-hblldog_no2004.rds"
-# sort(unique(d$year))
-# extratime <- c(1987, 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2004, 2006, 2017, 2020)
-
-
-
+  geom_point(data = d, aes(lglsp_hook_count, catch_count, colour = survey_abbrev)) + facet_wrap(~year) +
+  geom_point(data = test, aes(lglsp_hook_count, catch_count), colour = 'red') + facet_wrap(~year)
 
 # maturity cutoffs ----------------------------------------------------
 
 samps_86 <- filter(sampsm, year %in% c(1986, 1989))
+
 m86 <- gfplot::fit_mat_ogive(samps_86,
   type = "length",
   sample_id_re = TRUE,
   custom_maturity_at = c(NA, 55)
 )
 m86$mat_perc$f.p0.95
-gfplot::plot_mat_ogive(m86)
+x <- gfplot::plot_mat_ogive(m86)
+x <- figure(m86)
 mat <- m86$pred_data |> mutate(year = 1986)
 
 samps_08 <- filter(sampsm, year == 2008)
@@ -102,7 +87,7 @@ m08 <- gfplot::fit_mat_ogive(samps_08,
   custom_maturity_at = c(NA, 55)
 )
 m08$mat_perc$f.p0.95
-gfplot::plot_mat_ogive(m08)
+y <- gfplot::plot_mat_ogive(m08)
 mat2 <- m08$pred_data |> mutate(year = 2008)
 
 samps_23 <- filter(sampsm, year %in% c(2023))
@@ -112,16 +97,19 @@ m23 <- gfplot::fit_mat_ogive(samps_23,
   custom_maturity_at = c(NA, 55)
 )
 m23$mat_perc$f.p0.95
-gfplot::plot_mat_ogive(m23)
+z <- gfplot::plot_mat_ogive(m23)
 mat3 <- m23$pred_data |> mutate(year = 2023)
+
+cowplot::plot_grid(x, y, z, labels = c('A. 1986', 'B. 2008', "C. 2023"), label_size = 12, ncol = 1)
+ggsave("Figures/maturity-ogives-sog-temporal.jpg", width = 7, height = 15)
 
 mat <- rbind(mat, mat2, mat3)
 p <- ggplot(mat, aes(age_or_length, glmm_fe, group = year, colour = as.factor(year))) +
   geom_line(size = 0.5) +
   facet_wrap(~female) +
-  scale_colour_viridis_d()
+  scale_colour_viridis_d() + theme_classic()
 p
-p + geom_line(data = mat, aes(age_or_length, glmm_re, group = year, colour = as.factor(year), alpha = 0.2))
+#p + geom_line(data = mat, aes(age_or_length, glmm_re, group = year, colour = as.factor(year), alpha = 0.2))
 ggsave("Figures/maturity_curves_temporal.jpg", width = 5, height = 2.5)
 
 m <- gfplot::fit_mat_ogive(samps,
