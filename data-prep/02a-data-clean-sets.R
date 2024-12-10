@@ -123,16 +123,17 @@ unique(sets$grouping_depth_id) # inconsistent
 
 sets <- sets |>
   mutate(grouping_depth_id = case_when(
-  grouping_desc == "SoG Dogfish 0 - 55 m" ~ 1,
-  grouping_desc == "SoG Dogfish 56 - 110 m" ~ 2,
-  grouping_desc == "SoG Dogfish 111 - 165 m" ~ 3,
-  grouping_desc == "SoG Dogfish 166 - 220 m" ~ 4,
-  grouping_desc == "SoG Dogfish > 200 m" ~ 5,
-  grouping_desc == "SoG Dogfish > 220 m" ~ 6,
-  grouping_desc == "HBLL IN North, 40 - 70 m" ~ 1,
-  grouping_desc == "HBLL IN South, 40 - 70 m" ~ 1,
-  grouping_desc == "HBLL IN North, 71 - 100 m" ~ 2,
-  grouping_desc == "HBLL IN South, 71 - 100 m" ~  2))
+    grouping_desc == "SoG Dogfish 0 - 55 m" ~ 1,
+    grouping_desc == "SoG Dogfish 56 - 110 m" ~ 2,
+    grouping_desc == "SoG Dogfish 111 - 165 m" ~ 3,
+    grouping_desc == "SoG Dogfish 166 - 220 m" ~ 4,
+    grouping_desc == "SoG Dogfish > 200 m" ~ 5,
+    grouping_desc == "SoG Dogfish > 220 m" ~ 6,
+    grouping_desc == "HBLL IN North, 40 - 70 m" ~ 1,
+    grouping_desc == "HBLL IN South, 40 - 70 m" ~ 1,
+    grouping_desc == "HBLL IN North, 71 - 100 m" ~ 2,
+    grouping_desc == "HBLL IN South, 71 - 100 m" ~ 2
+  ))
 
 # check
 sets |>
