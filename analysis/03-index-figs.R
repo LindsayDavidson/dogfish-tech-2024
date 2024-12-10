@@ -55,6 +55,25 @@ ggplot(ind, aes(year, log(est), ymin = log(lwr), ymax = log(upr), group = type, 
 # all int models
 index <- readRDS(file = paste0("output/ind-sog-intonly", "hblldog_no2004", ".rds"))
 index1 <- readRDS(file = paste0("output/ind-sog-intonly", "hbll-n-s", ".rds"))
+
+ggplot(index1, aes(year, (est), ymin = (lwr), ymax = (upr))) +
+  geom_pointrange(mapping = aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6, position = position_dodge(width = 0.5)) +
+  scale_colour_manual(values = c("#d8b365", "#5ab4ac")) +
+  theme_classic() +
+  ylab("Abundance estimate") +
+  xlab("Year") +
+  coord_cartesian(ylim = c(0,375))
+
+ggplot(index1, aes(year, (est), ymin = (lwr), ymax = (upr),colour = model)) +
+  geom_pointrange(data = index1, mapping = aes(x = year - 0.25), size = 0.2, pch = 5, alpha = 0.6, position = position_dodge(width = 0.5)) +
+  theme_classic() +
+  scale_colour_manual(values = c("grey50", "black")) +
+  coord_cartesian(ylim = c(0,375)) +
+  ylab("Abundance estimate") +
+  xlab("Year")
+ggsave("Figures/hbll-ins-n-s-figure.jpg", width = 4, height = 3)
+
+
 index2 <- readRDS(file = paste0("output/ind-sog-intonly", "hbll-n", ".rds"))
 index3 <- readRDS(file = paste0("output/ind-sog-intonly", "hbll-s", ".rds"))
 index4 <- readRDS(file = paste0("output/ind-sog-intonly", "dog", ".rds"))
