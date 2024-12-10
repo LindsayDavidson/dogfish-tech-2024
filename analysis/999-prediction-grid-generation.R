@@ -1,16 +1,20 @@
 library(tidyverse)
+# devtools::install_github("pbs-software/pbs-data/PBSdata")
 library(PBSdata)
 library(sdmTMB)
+# options(download.file.method = "wininet")
+# remotes::install_github("pbs-assess/gfplot")
+library(gfplot)
 
-#for now make one grid but need to make a grid for north, south, and then dogfish areas (? or would the south grid work?)
-#params
+# for now make one grid but need to make a grid for north, south, and then dogfish areas (? or would the south grid work?)
+# params
 
-bccrs = 32609
-buffersize = 8
-gridsize = 500 #0.25 km2 grid cell, was 2000 m before, too big bc of depth centroid issues
+bccrs <- 32609
+buffersize <- 8
+gridsize <- 500 # 0.25 km2 grid cell, was 2000 m before, too big bc of depth centroid issues
 path_extent <- "output/PredictionGridExtent.shp"
 path_center <- "output/PredictionGridCentres.shp"
-path_final <- paste0("output/prediction-grid-hbll-n-s-dog-", gridsize/1000, "-km.rds")
+path_final <- paste0("output/prediction-grid-hbll-n-s-dog-", gridsize / 1000, "-km.rds")
 mindepth <- 5
 maxdepth <- 350
 
@@ -52,35 +56,41 @@ range(hbll_ins_n$grid$Y)
 range(hbll_ins_s$grid$Y)
 
 hbll_ins <- hbll_ins[!duplicated(hbll_ins), ] # just checking
-ggplot(hbll_ins, aes(Y, X)) + geom_point() +
+ggplot(hbll_ins, aes(Y, X)) +
+  geom_point() +
   geom_point(data = )
 
 b <- marmap::getNOAA.bathy(lon1 = -128, lon2 = -122, lat1 = 47, lat2 = 51, resolution = 1)
 
 bdepths <- marmap::get.depth(b, hbll_ins[, c("X", "Y")], locator = FALSE) |>
   mutate(bot_depth = (depth * -1)) |>
-  #filter(bot_depth  < 120) |>
-  #filter(bot_depth > 10) |>
-# rename(longitude = lon, latitude = lat) |>
-# filter(bot_depth > 25) |>
-# mutate(logbot_depth = log(bot_depth)) |>
-  inner_join(hbll_ins, by = c("lon" = "X" ,"lat" =  "Y"))
+  # filter(bot_depth  < 120) |>
+  # filter(bot_depth > 10) |>
+  # rename(longitude = lon, latitude = lat) |>
+  # filter(bot_depth > 25) |>
+  # mutate(logbot_depth = log(bot_depth)) |>
+  inner_join(hbll_ins, by = c("lon" = "X", "lat" = "Y"))
 
 bdepths[duplicated(bdepths), ] # just checking
 grid <- filter(bdepths, depth < 0)
 range(grid$bot_depth)
 
-ggplot(grid, aes(lon, lat, colour = bot_depth)) + geom_point()
-grid |> filter(bot_depth > 120) |> tally()
-grid |> filter(bot_depth < 10) |> tally()
+ggplot(grid, aes(lon, lat, colour = bot_depth)) +
+  geom_point()
+grid |>
+  filter(bot_depth > 120) |>
+  tally()
+grid |>
+  filter(bot_depth < 10) |>
+  tally()
 
-#grid <- filter(grid, bot_depth  < 120)
+# grid <- filter(grid, bot_depth  < 120)
 grid <- filter(grid, bot_depth > 10)
 
 grid <- add_utm_columns(grid,
-                        ll_names = c("lon", "lat"),
-                        utm_names = c("UTM.lon", "UTM.lat"),
-                        utm_crs = bccrs
+  ll_names = c("lon", "lat"),
+  utm_names = c("UTM.lon", "UTM.lat"),
+  utm_crs = bccrs
 ) |>
   mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000) |>
   mutate(log_botdepth = log(bot_depth))
@@ -90,7 +100,7 @@ range(grid$bot_depth)
 range(grid$log_botdepth)
 range(grid$area)
 
-saveRDS(grid, 'output/prediction-grid-hbll-n-s.rds')
+saveRDS(grid, "output/prediction-grid-hbll-n-s.rds")
 
 
 # prediction grid for HBLL north and south and DOG Strait of Georgia ----------------------------
@@ -150,16 +160,16 @@ gridfunc <- function(d) {
   df_depths[duplicated(df_depths), ] # just checking
 
   grid1 <- add_utm_columns(df_depths,
-                           ll_names = c("longitude", "latitude"),
-                           utm_names = c("UTM.lon", "UTM.lat"),
-                           utm_crs = bccrs
+    ll_names = c("longitude", "latitude"),
+    utm_names = c("UTM.lon", "UTM.lat"),
+    utm_crs = bccrs
   ) %>%
     mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
 
   # join the points back to the grid so I can predict on the grid
   grid2 <- st_join(grid_extent,
-                   st_as_sf(grid1, coords = c("UTM.lon.m", "UTM.lat.m"), crs = bccrs),
-                   join = st_contains
+    st_as_sf(grid1, coords = c("UTM.lon.m", "UTM.lat.m"), crs = bccrs),
+    join = st_contains
   ) %>%
     drop_na(depth) %>%
     st_drop_geometry()
@@ -175,4 +185,3 @@ gridfunc <- function(d) {
 
 # run the grid function
 gridfunc(d)
-
