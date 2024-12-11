@@ -44,4 +44,5 @@ catch <- full_join(catch_h, catch_d)
 catch <- catch |>
   drop_na(count_d) |>
   mutate(diff = count_d - count_h)
+catch #<- thoe one that is positive is the sixgill sharks
 
