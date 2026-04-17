@@ -4,96 +4,16 @@ library(ggplot2)
 library(tidyverse)
 library(sp)
 
+spring <- seq(12, 25, 1)
+summer <- seq(26, 38, 1)
+winter <- c(seq(1, 11, 1), 52)
+fall <- seq(39, 51, 1)
+
 # load data ---------------------------------------------------------------
 
 sets <- readRDS("data-raw/dogfish_sets_getall.rds") # get all function
 
 
-# # QA/QC location names - didn't use with the get_all function as no locations names are in the db -------------------------------------------------------------
-#
-# unique(sets$grouping_spatial_id) #NAs
-#
-# sets <- sets |>
-#   mutate(grouping_spatial_id =
-#     case_when(str_detect(fe_fishing_ground_comment, "French") ~ "FC",
-#               str_detect(fe_fishing_ground_comment, "Hornby") ~ "HI",
-#     str_detect(fe_fishing_ground_comment, "Galiano") ~ "GI",
-#     str_detect(fe_fishing_ground_comment, "Gabriola") ~ "EI",
-#     str_detect(fe_fishing_ground_comment, "Entrance") ~ "EI",
-#     str_detect(fe_fishing_ground_comment, "Epso") ~ "EP",
-#     str_detect(fe_fishing_ground_comment, "Espo") ~ "EP", #sp mistake in df
-#     str_detect(fe_fishing_ground_comment, "Salamanca") ~ "AP",
-#     str_detect(fe_fishing_ground_comment, "Active") ~ "AP",
-#     str_detect(fe_fishing_ground_comment, "Porlier") ~ "PP",
-#     str_detect(fe_fishing_ground_comment, "Polier") ~ "PP", #sp mistake in df
-#     str_detect(fe_fishing_ground_comment, "Sturgeon") ~ "SB",
-#     str_detect(fe_fishing_ground_comment, "White") ~ "HB",
-#     str_detect(fe_fishing_ground_comment, "Halibut") ~ "HB",
-#     str_detect(fe_fishing_ground_comment, "Ajax") ~ "AE",
-#     str_detect(fe_fishing_ground_comment, "Lazo") ~ "CL",
-#     str_detect(fe_fishing_ground_comment, "Mudge") ~ "CM",
-#     str_detect(fe_fishing_ground_comment, "Oyster") ~ "OR",
-#     str_detect(fe_fishing_ground_comment, "Sinclair") ~ "SB",
-#     str_detect(fe_fishing_ground_comment, "Grant") ~ "GR",
-#     str_detect(fe_fishing_ground_comment, "Stillwater") ~ "SB", #I overlaid a map and these points to derive this, see below
-#     str_detect(fe_fishing_ground_comment, "North East Pont") ~ "SB", #see overlay
-#     str_detect(fe_fishing_ground_comment, "Mid Straits") ~ "CL", #see overlay
-#     is.na(fe_fishing_ground_comment) ~ NA
-#   ))
-#
-# #some points have the name galiano but should be active pass based on location
-# #based on overlay below I am changing them here
-# sets <- sets |>
-#   mutate(grouping_spatial_id = ifelse(fishing_event_id %in% c(3369551,3369551,3369552,3369552,336955, 3369553), "AP", grouping_spatial_id))
-#
-# ggplot() +
-#   geom_point(data = sets, aes(longitude, latitude, colour = as.factor(grouping_spatial_id)))
-# #that NA is fine, its outside of any dogfish survey site
-#
-#
-# # polygon and set point overlay - didn't use -------------------------------------------
-#
-#
-# #leaving this here to show how I checked the spatial location.
-# # # overlay data locations with polygons
-# # sites <- st_read("data-raw", "dogfish_polygons_noproj2")
-# # plot(st_geometry(sites), col = "red")
-# # site_name <- unique(sites$site_name)
-# # df <- data.frame(cbind(site_name, site_gis = c(
-# #   "Ajax Exeter", "Active Pass", "Grants Reef", "Halibut Bank", "Sturgeon Bank",
-# #   "Oyster River", "Epsom Point", "Sinclair Bank", "Porlier Pass", "Cape Mudge", "French Creek",
-# #   "Cape Lazo", "Entrance Island", "Hornby Island"
-# # ), site_shortname = c(
-# #   "AE", "AP", "GR", "HB", "SB", "OR", "EP", "SB", "PP", "CM", "FC",
-# #   "CL", "EI", "HI"
-# # )))
-# #
-# # p1 <- ggplot(sites) +
-# #   geom_sf(aes(colour = site_name), fill = NA)
-# # p2 <- p1 + geom_point(data = sets, aes(longitude, latitude, colour = as.factor(grouping_spatial_id)))
-# # p2
-# #
-# # sites <- left_join(sites, df)
-# # finalsp <- sets
-# # coordinates(finalsp) <- c("longitude", "latitude")
-# # proj4string(finalsp) <- CRS("+proj=longlat + datum=WGS84")
-# # finalsp <- st_as_sf(finalsp)
-# # finalsp2 <- finalsp %>%
-# #   mutate(
-# #     latitude = unlist(purrr::map(finalsp$geometry, 2)),
-# #     longitude = unlist(purrr::map(finalsp$geometry, 1))
-# #   )
-# # ptsint <- st_join(sites, finalsp2) # lose the points that dont intersect
-# # ptsint
-# #
-# # #based on this,
-# # #if a point has a name now but was NA before keep new name
-# # #if point is now NA but has name before keep old name
-# # #if point name doesn't match old point name, keep new name
-# # test <- ptsint |> filter(is.na(grouping_spatial_id) == TRUE) #these are dropped
-# # test <- ptsint |> filter(is.na(site_gis) == TRUE) #these are dropped
-# # test <- ptsint |> filter(site_shortname != grouping_spatial_id) #these are dropped
-#
 
 # QA/QC dates and depth--------------------------------
 # create a consistent grouping depth id
@@ -152,17 +72,25 @@ d <- sets |>
     deployhr = lubridate::hour(time_end_deployment),
     deploymin = lubridate::minute(time_end_deployment),
     retrieve = as.Date(time_begin_retrieval, format = "%Y-%m-%d h:m:s"),
+    deployed = as.Date(time_deployed, format = "%Y-%m-%d h:m:s"),
     month = lubridate::month(retrieve),
-    retrievehr = lubridate::hour(time_begin_retrieval),
-    retrievemin = lubridate::minute(time_begin_retrieval),
+    retrievehr = lubridate::hour(retrieve),
+    retrievemin = lubridate::minute(retrieve),
     dmy = lubridate::ymd(retrieve),
-    julian = lubridate::yday(dmy)
+    julian = lubridate::yday(retrieve),
+    week = lubridate::week(retrieve)
   ) |>
   mutate(
     hr_diff = (retrievehr - deployhr) * 60,
     min_diff = abs(retrievemin - deploymin),
     soak = (hr_diff + min_diff) / 60
   )
+
+d |> filter(is.na(week)== TRUE) |> tally() #some dates are NAs
+d <- d |>
+  mutate(week = ifelse(is.na(week) == TRUE, lubridate::week(deployed), week))
+d |> filter(is.na(week)== TRUE) |> tally() #fixed
+
 
 # some soaks are NA - fix this!
 d |>
@@ -209,40 +137,17 @@ final <- d |>
     year == 2004 & hooksize_desc == "12/0" & survey_abbrev == "OTHER" ~ "dog-jhook"
   ))
 
-final <- final |>
-  mutate(survey_timing = case_when(
-    survey_abbrev == "HBLL INS S" ~ "summer",
-    survey_abbrev == "HBLL INS N" ~ "summer",
-    year %in% c(1986, 1989) ~ "fall",
-    year %in% c(2005, 2008, 2011, 2014) & survey_abbrev == "DOG" ~ "fall",
-    year == 2019 & survey_abbrev == "DOG" ~ "fall",
-    year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" ~ "summer",
-    year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" ~ "summer",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "12/0" ~ "fall",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 9 & day >= 27 ~ "fall",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 9 & day >= 27 ~ "fall",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 9 & day < 27 ~ "summer",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 9 & day < 27 ~ "summer",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 8 ~ "summer",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 8 ~ "summer",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 10 ~ "fall",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 10 ~ "fall",
-    year == 2022 & hooksize_desc == "13/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" ~ "summer",
-    year == 2022 & hooksize_desc == "14/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" ~ "summer",
-    year == 2004 & hooksize_desc == "14/0" & survey_abbrev == "OTHER" ~ "fall",
-    year == 2004 & hooksize_desc == "12/0" & survey_abbrev == "OTHER" ~ "fall"
-  ))
 
-# so I can put the different surveys into a model and account for julian date after (the seasonal component of the comparison work)
+#add season based on week of survey and definitions above
+final <- final |>
+  mutate(season = ifelse(week %in% spring, "2", ifelse(week %in% summer, "3", ifelse(week %in% fall, "4", "1"))))
+
+# Put the different surveys into a model and account for julian date after (the seasonal component of the comparison work)
 final <- final |>
   mutate(survey_lumped = case_when(
-    survey_sep == "HBLL INS S" ~ "hbll",
-    survey_sep == "HBLL INS N" ~ "hbll",
+    survey_sep %in% c("HBLL INS S", "HBLL INS N", "hbll", "hbll comp") ~ "hbll",
     survey_sep == "dog-jhook" ~ "dog-jhook",
-    survey_sep == "dog" ~ "dog",
-    survey_sep == "hbll comp" ~ "hbll",
-    survey_sep == "dog comp" ~ "dog",
-    survey_sep == "hbll" ~ "hbll"
+    survey_sep %in% c("dog", "dog comp") ~ "dog"
   ))
 
 
@@ -255,3 +160,4 @@ final <- final |>
 final$offset <- log(final$lglsp_hook_count * final$soak) # nas created, thats ok
 final$log_botdepth <- log(final$depth_m)
 saveRDS(final, "data-generated/dogfish_sets_cleaned_getall.rds")
+
