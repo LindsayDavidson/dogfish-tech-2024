@@ -69,22 +69,27 @@ sets |>
 
 d <- sets |>
   mutate(
-    deployhr = lubridate::hour(time_end_deployment),
-    deploymin = lubridate::minute(time_end_deployment),
+    #deployhr = lubridate::hour(time_end_deployment),
+    #deploymin = lubridate::minute(time_end_deployment),
     retrieve = as.Date(time_begin_retrieval, format = "%Y-%m-%d h:m:s"),
     deployed = as.Date(time_deployed, format = "%Y-%m-%d h:m:s"),
     month = lubridate::month(retrieve),
-    retrievehr = lubridate::hour(retrieve),
-    retrievemin = lubridate::minute(retrieve),
+    #retrievehr = lubridate::hour(time_begin_retrieval),
+    #retrievemin = lubridate::minute(time_begin_retrieval),
     dmy = lubridate::ymd(retrieve),
     julian = lubridate::yday(retrieve),
     week = lubridate::week(retrieve)
   ) |>
   mutate(
-    hr_diff = (retrievehr - deployhr) * 60,
-    min_diff = abs(retrievemin - deploymin),
-    soak = (hr_diff + min_diff) / 60
+    soak = as.numeric(difftime(time_begin_retrieval, time_deployed,  units = "hours"))
+    #hr_diff = (retrievehr - deployhr) * 60,
+    #min_diff = abs(retrievemin - deploymin),
+    #soak = (hr_diff + min_diff) / 60
   )
+
+range(d$soak, na.rm = TRUE)
+
+d <- d |> filter(soak < 5 & soak > 1)
 
 d |> filter(is.na(week)== TRUE) |> tally() #some dates are NAs
 d <- d |>
