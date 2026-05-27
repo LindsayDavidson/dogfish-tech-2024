@@ -166,3 +166,8 @@ final$offset <- log(final$lglsp_hook_count * final$soak) # nas created, thats ok
 final$log_botdepth <- log(final$depth_m)
 saveRDS(final, "data-generated/dogfish_sets_cleaned_getall.rds")
 
+
+final <- readRDS("data-generated/dogfish_sets_cleaned_getall.rds")
+xx <- filter(final, year == 2022)
+unique(xx$survey_series_desc)
+

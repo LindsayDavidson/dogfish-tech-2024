@@ -8,11 +8,12 @@
 03-wrangle-hbll-dog-sets.R
 03a-wrangle-hbll-dog-samples.R
 
-05-comparative-wrk-summaries.R
+05-comparative-work-summaries.R
 05a-comparative-work-sample-summaries.R
 
-04-summary-set-plots.R
-04a-summary-samples-plots.R
+04-exploratory-set-plots.R #<- nothing for manuscript just looking at data
+04a-summary-plots-som.R #<- summary plots for som
+04a-summary-samples-plots.R #<-
 #not run
 01-pull_data-sql-code #<- sql code for pulling Dogfish from gfbio
 02-data-clean.R #<-erase? now in the other two cleaning files?
