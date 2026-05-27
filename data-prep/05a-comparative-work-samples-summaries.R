@@ -1,10 +1,7 @@
 # calculate samples for report
 
 samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
-final <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>  #<- no sex in the set data use sample data
- dplyr::select(fishing_event_id, lglsp_hook_count)
-glimpse(final)
-samps <-finalsamps <- left_join(samps, final)
+final <- readRDS("data-raw/wrangled-hbll-dog-sets.rds")  #<- no sex in the set data use sample data
 
 # comp work summary and figures -------------------------------------------
 comp <- samps |>
@@ -14,7 +11,104 @@ comp <- samps |>
 jhook <- filter(comp, hooksize_desc == "12/0")
 comp <- filter(comp, !fishing_event_id %in% c(jhook$fishing_event_id))
 
-# length differences
+
+final <- final |>
+  filter(fishing_event_id %in% c(comp$fishing_event_id)) |>
+  dplyr::select(fishing_event_id, lglsp_hook_count, hooksize_desc, year, survey_abbrev)
+
+final_year <- final |>
+  group_by(hooksize_desc, year) |>
+  reframe(sumhooks = sum(lglsp_hook_count))
+final_noyear <- final |>
+  group_by(hooksize_desc) |>
+  reframe(sumhooks = sum(lglsp_hook_count))
+
+
+
+#summary of lengths
+comp |>
+  filter(sex %in% c(1, 2)) |>
+  #group_by(sex, hooksize_desc) |>
+  filter(year != 2019) |>
+  reframe(sum = n())
+
+comp |>
+  filter(sex %in% c(1, 2)) |>
+  group_by(sex) |>
+  filter(year != 2019) |>
+  reframe(sum = n())
+
+comp |>
+  filter(sex %in% c(1, 2)) |>
+  group_by(sex, hooksize_desc, year, survey_timing, survey_sep) |>
+  filter(year != 2019) |>
+  reframe(sum = n())
+
+#are the length comps the same across the hooks / survey??
+comp <- comp |>
+  filter(sex %in% c(1,2) ) |>
+  mutate(id = paste0(year, survey_timing, hooksize_desc)) |>
+  mutate(label =paste(survey_timing, year, hooksize_desc))
+unique(comp$label)
+
+fig <- comp |>
+  group_by(id) |>
+  #filter(id == "hbll 2023") |>
+  ggplot(aes(length, group = as.factor(id), fill = as.factor(hooksize_desc))) +
+  geom_histogram() + facet_wrap(~survey_timing+ year+ sex, ncol = 2, scales = "free") +
+  theme_classic() +
+  theme(strip.text.x = element_blank()) +
+  scale_fill_manual(values = c("grey20", "grey80")) +
+  geom_text(
+    data = comp,
+  aes(x = 60, y = 150, label = label),
+  color = "black",
+  size = 5
+) +
+  labs(fill = "Hook size")
+ggsave(paste0("figures/length_histograms_sex_survey.png"), fig, height = 10, width = 10, dpi = 200)
+
+comp |>
+  group_by(sex, survey_timing, hooksize_desc) |>
+  drop_na(length) |>
+  reframe(min = min(length), max = max(length), mean = mean(length), median = median(length)) |>
+  filter(sex %in% c(1, 2))
+
+fig <-
+  comp |>
+  filter(year != 2019) |>
+  group_by(id) |>
+  #filter(id == "hbll 2023") |>
+  ggplot(aes(as.factor(sex), length, group = as.factor(hooksize_desc), fill = as.factor(hooksize_desc))) +
+  geom_boxplot() + facet_wrap(~survey_timing + sex, ncol = 2, scales = "free") +
+  theme_classic() +
+  #theme(strip.text.x = element_blank()) +
+  scale_fill_manual(values = c("grey30", "grey80")) +
+  # geom_text(
+  #   data = comp,
+  #   aes(x = 60, y = 150, label = label),
+  #   color = "black",
+  #   size = 5
+  # ) +
+  labs(fill = "Hook size")
+
+fig
+ggsave(paste0("figures/mean_length_boxplot.png"), fig, height = 10, width = 10, dpi = 200)
+
+
+#seasonality summary
+comp |>
+  filter(sex %in% c(1, 2)) |>
+  group_by(season, sex, hooksize_desc) |>
+  filter(year != 2019) |>
+  reframe(sum = n()) #make this wide then calculate ratios with gear but across seasons?
+
+comp <- comp |>
+  filter(sex %in% c(1,2) ) |>
+  mutate(id_season = paste0(year, hooksize_desc)) |>
+  mutate(label =paste(survey_timing, year, hooksize_desc))
+unique(comp$label)
+
 comp |>
   filter(sex %in% c(1, 2)) |>
   group_by(sex, hooksize_desc) |>
@@ -22,34 +116,171 @@ comp |>
   drop_na(length) |>
   reframe(min = min(length), max = max(length))
 
-# more males captured regardless of hooks or season
-comp |>
-  filter(sex %in% c(1, 2)) |>
-  group_by(sex, hooksize_desc) |>
-  filter(year != 2019) |>
-  reframe(sum = n(), sumhooks = sum(lglsp_hook_count)) |> #this calc isn't right, fix, double counting fishing event id????
-  mutate(cpue = sum/sumhooks)
+fig <-
+  comp |>
+  group_by(id) |>
+  #filter(id == "hbll 2023") |>
+  ggplot(aes(length, group = as.factor(season), fill = as.factor(season))) +
+  geom_histogram() + facet_wrap(~sex, ncol = 2, scales = "free") +
+  theme_classic() +
+  #theme(strip.text.x = element_blank()) +
+  scale_fill_manual(values = c("grey20", "grey80")) +
+ # geom_text(
+  #  data = comp,
+  #  aes(x = 60, y = 150, label = label),
+  #  color = "black",
+  #  size = 5
+ # ) +
+  labs(fill = "Season")
+fig
+ggsave(paste0("figures/length_histograms_season.png"), fig, height = 8, width = 10, dpi = 200)
 
-comp |> #<- more males and more females captured in the fall, otherwise very similar
-  filter(sex %in% c(1, 2)) |>
-  group_by(sex, survey_timing, hooksize_desc, year) |>
+comp |>
+  group_by(sex, season, hooksize_desc) |>
+  drop_na(length) |>
+  reframe(min = min(length), max = max(length), mean = mean(length), median = median(length)) |>
+  filter(sex %in% c(1, 2))
+
+fig <-
+comp |>
   filter(year != 2019) |>
-  reframe(sum = n(), sumhooks = sum(lglsp_hook_count)) |>
-  mutate(cpue = sum/sumhooks)
+  group_by(id) |>
+  #filter(id == "hbll 2023") |>
+  ggplot() +
+  #ggplot(aes(as.factor(sex), length, group = as.factor(season), fill = as.factor(season))) +
+  #geom_boxplot() +
+  facet_wrap(~ sex, ncol = 2, scales = "free") +
+  geom_jitter (aes(as.factor(season), length, group = as.factor(season), colour = as.factor(season),  alpha = 0.25)) +
+  geom_violin (aes(as.factor(season), length, group = as.factor(season),  fill = as.factor(season)), colour = "black") +
+  theme_classic() +
+  #theme(strip.text.x = element_blank()) +
+  scale_colour_manual(values = c("grey30", "grey80")) +
+  scale_fill_manual(values = c("grey30", "grey80")) +
+  # geom_text(
+  #   data = comp,
+  #   aes(x = 60, y = 150, label = label),
+  #   color = "black",
+  #   size = 5
+  # ) +
+  labs(fill = "Season")
+
+fig
+ggsave(paste0("figures/mean_length_season_violin.png"), fig, height = 5, width = 8, dpi = 200)
+
+df <- comp |> mutate(sex_factor = as.factor(sex), season_factor = as.factor(season))
+one_way <- aov(length ~ season *   sex_factor, data = df)
+summary(one_way)
+TukeyHSD(one_way)
+ggplot(df, aes(x = factor(season), y = length, fill = factor(season))) +
+  geom_boxplot() +
+  labs(title = "ANOVA Results", x = "Group", y = "Dependent Variable") +
+  theme_minimal()
+
+tukey.plot.test<-TukeyHSD(one_way)
+plot(tukey.plot.test, las = 1)
+
+
+
+
+#hbll two depths compared to dogfish survey
+comp <- comp |> mutate(season = ifelse(season == 3, "summer", "fall"))
+comp <- comp |> mutate(sex = ifelse(sex == 1, "male", "female"))
+comp <- comp  |>
+  mutate(season = factor(season,
+                          levels = c("summer", "fall")))
+fig <-
+  comp |>
+  ggplot(aes((grouping_depth_id), length,  group = grouping_depth_id, fill = (grouping_depth_id))) +
+  geom_jitter(aes((grouping_depth_id), length), colour = "grey80") +
+  geom_boxplot() +
+  facet_wrap(~sex + season, ncol = 2) +
+  theme_classic() +
+  #theme(strip.text.x = element_blank()) +
+  #scale_fill_manual(values = c("grey20", "grey80")) +
+  labs(fill = "Depth stata") +
+  scale_fill_viridis_d()
+fig
+ggsave(paste0("figures/length_by_depth_and_season.png"), fig, height = 8, width = 10, dpi = 200)
 
 comp |>
-  filter(sex %in% c(1, 2)) |>
-  group_by(sex, survey_timing) |>
+  group_by(sex, season, hooksize_desc) |>
+  drop_na(length) |>
+  reframe(min = min(length), max = max(length), mean = mean(length), median = median(length)) |>
+  filter(sex %in% c(1, 2))
+
+fig <-
+  comp |>
   filter(year != 2019) |>
-  reframe(sum = n(), sumhooks = sum(lglsp_hook_count)) |>
-  mutate(cpue = sum/sumhooks)
+  group_by(id) |>
+  #filter(id == "hbll 2023") |>
+  ggplot() +
+  #ggplot(aes(as.factor(sex), length, group = as.factor(season), fill = as.factor(season))) +
+  #geom_boxplot() +
+  facet_wrap(~ sex, ncol = 2) +
+  geom_jitter (aes(as.factor(season), length, group = as.factor(season), colour = as.factor(season),  alpha = 0.25)) +
+  geom_violin (aes(as.factor(season), length, group = as.factor(season),  fill = as.factor(season)), colour = "black") +
+  theme_classic() +
+  #theme(strip.text.x = element_blank()) +
+  scale_colour_manual(values = c("grey30", "grey80")) +
+  scale_fill_manual(values = c("grey30", "grey80")) +
+  # geom_text(
+  #   data = comp,
+  #   aes(x = 60, y = 150, label = label),
+  #   color = "black",
+  #   size = 5
+  # ) +
+  labs(fill = "Season")
+
+fig
+ggsave(paste0("figures/mean_length_season_violin.png"), fig, height = 5, width = 8, dpi = 200)
+
+df <- comp |> mutate(sex_factor = as.factor(sex), season_factor = as.factor(season))
+one_way <- aov(length ~ season *   sex_factor, data = df)
+summary(one_way)
+TukeyHSD(one_way)
+ggplot(df, aes(x = factor(season), y = length, fill = factor(season))) +
+  geom_boxplot() +
+  labs(title = "ANOVA Results", x = "Group", y = "Dependent Variable") +
+  theme_minimal()
+
+tukey.plot.test<-TukeyHSD(one_way)
+plot(tukey.plot.test, las = 1)
+
+
+
+
+
 
 comp |>
   filter(sex %in% c(1, 2)) |>
   group_by(sex) |>
   filter(year != 2019) |>
-  reframe(sum = n(), sumhooks = sum(lglsp_hook_count)) |>
-  mutate(cpue = sum/sumhooks)
+  reframe(sum = n())
+
+comp |>
+  filter(sex %in% c(1, 2)) |>
+  group_by(sex, hooksize_desc, year, survey_timing, survey_sep) |>
+  filter(year != 2019) |>
+  reframe(sum = n())
+
+
+
+
+comp |> #<- more males and more females captured in the fall, otherwise very similar
+  filter(sex %in% c(1, 2)) |>
+  group_by(sex, survey_timing, hooksize_desc, year) |>
+  filter(year != 2019) |>
+  reframe(sum = n()) |>
+  left_join(final_year) |>
+  mutate(cpue = sum/sumhooks) |
+
+# length differences
+comp |>
+  filter(sex %in% c(1, 2)) |>
+  group_by(sex, hooksize_desc) |>
+  filter(year != 2019) |>
+  drop_na(length) |>
+  reframe(min = min(length), max = max(length))
 
 # gear related differences in catch comp
 comp |> # hbll pot. catching more females on hbll hooks
