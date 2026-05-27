@@ -12,7 +12,7 @@ library(ggplot2)
 library(tidyverse)
 library(sdmTMB)
 
-latitude_cutoff <- 50.34056
+#latitude_cutoff <- 50.34056
 bccrs <- 32609
 # loc = "HBLL INS N"
 # loc = "HBLL INS S"
@@ -46,26 +46,29 @@ df <- df |>
     depth_m > 220 ~ 5
   ))
 
-source("999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
+rm(grid)
+source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
 
 
 
 # run index ---------------------------------------------------------------
 
+#curious is inlet waters have an increase versus non-inet survey regions
+#something to add here??
+
 # params
-# model <- "hblldog_no2004"
- model = "hbll-n-s"
-# model = "hbll-n"
-# model = "hbll-s"
-# model <- "dog" #<- use nbinom2
-# model <- "dogcircle" #<- use nbinom2
+# model <- "hblldog_no2004" #<- yes
+# model = "hbll-n-s" #<- yes
+# model <- "dog" #<- yes
+# model <- "dogcircle" #<- probably no? I don't think it converges anyways
 
 if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 2004
   d <- df #<- 2004 was removed above with the offset can't be na.
   years <- seq(min(d$year), 2023, 1)
-  family = delta_gamma()
+  family = betabinomial(link = "cloglog")
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-  formula <- catch_count ~ 1 + as.factor(survey_lumped)
+  weights <- log(hook count * soak)
+  formula <- catch_count ~ 1 + as.factor(survey_lumped) #<- survey_lumped should just be dog, dogjhook, and hbll
   formuladepth <- catch_count ~ log_botdepth + log_botdepth2 + as.factor(survey_lumped)
 }
 
@@ -86,39 +89,7 @@ if (model == "hbll-n-s") {
   grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
   formula <- catch_count ~ 1
   formuladepth <- catch_count ~ log_botdepth + log_botdepth2
-  family = delta_gamma()
-}
-
-if (model == "hbll-s") {
-  d <- df |>
-    filter(survey_sep %in% c("HBLL INS S")) |> # should survey_abbrev != other?
-    drop_na(offset) |>
-    drop_na(depth_m) |>
-    drop_na(catch_count)
-  grid <- readRDS("output/prediction-grid-hbll-n-s.rds") |>
-    filter(area %in% c("hbll_s")) # from gfdata HBLL n and south merged
-  grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
-  years <- seq(min(d$year), max(d$year), 1)
-  grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-  formula <- catch_count ~ 1
-  formuladepth <- catch_count ~ log_botdepth + log_botdepth2
-  family = delta_gamma()
-}
-
-if (model == "hbll-n") {
-  d <- df |>
-    filter(survey_sep %in% c("HBLL INS N")) |> # should survey_abbrev != other?
-    drop_na(offset) |>
-    drop_na(depth_m) |>
-    drop_na(catch_count)
-  grid <- readRDS("output/prediction-grid-hbll-n-s.rds") |>
-    filter(area %in% c("hbll_n")) # from gfdata HBLL n and south merged
-  grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
-  years <- seq(min(d$year), 2023, 1)
-  grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-  formula <- catch_count ~ 1
-  formuladepth <- catch_count ~ log_botdepth + log_botdepth2
-  family = delta_gamma()
+  family = betabinomial(link = "cloglog")
 }
 
 if (model == "dog") {
@@ -131,7 +102,7 @@ if (model == "dog") {
   grid$survey_lumped <- "dog"
   formula <- catch_count ~ 1 + as.factor(survey_lumped)
   formuladepth <- catch_count ~ log_botdepth + log_botdepth2 + as.factor(survey_lumped)
-  family = nbinom2()
+  family = betabinomial(link = "cloglog")
 }
 
 # if (model == "hblldog_nojhook") {
@@ -142,15 +113,18 @@ if (model == "dog") {
 #   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
 #   formula <- catch_count ~ 1 + as.factor(survey_lumped)
 #   # formula = catch_count ~ poly(log_botdepth, 2) + as.factor(survey_lumped)
+# family = nbinom2
 # }
 
 # index generation--------
 # create the mesh
 if (model %in% c("hblldog_no2004", "hbll-n-s", "hbll-n", "hbll-s")) {
   cutoff <- 3 #<- does this work for the int only model? try 5 if no
+  survey <- "hbll"
 } else {
   if (model %in% c("dog")) {
     cutoff <- 10
+  survey <- "dog"
   }
 }
 
@@ -159,13 +133,19 @@ plot(mesh)
 mesh$mesh$n
 
 #<- should hbll-n be on?
-if (model %in% c("hbll-s", "hbll-n", "dog")) {
+if (model %in% c( "dog", "hbll-n-s")) { #<- maybe hbll-n-s should be have spatial off since sanity fit returns sigma_o is smaller than 0.01
   spatial <- "off"
 } else {
   spatial <- "on"
 }
 
-if (model %in% c("hbll-n", "hbll-s", "hbll-n-s")) {
+if (model %in% c("dog")) {
+  spatialint <- "off"
+} else {
+  spatialint <- "on"
+}
+
+if (model %in% c("hbll-n-s")) {
   priorsint <- sdmTMBpriors(
     b = normal(c(NA), c(NA)),
     matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
@@ -216,7 +196,7 @@ ggplot() +
   theme(legend.position = "inside", legend.position.inside = c(0.2, 0.25))
 ggsave(paste0("Figures/sog-model-mesh-", model, ".pdf"), width = 6, height = 6)
 
-# get the extra time paramater
+# get the extra time parameter
 year_range <- range(d$year)
 all_years <- data.frame(year = year_range[1]:year_range[2])
 missing_years <- anti_join(all_years, d, by = "year") %>%
@@ -230,9 +210,9 @@ fit <- sdmTMB(
   formula = formula,
   data = d,
   time = "year",
-  offset = "offset",
+  offset = "offset", #<- but should include hook competition
   mesh = mesh,
-  spatial = "on",
+  spatial = spatialint,
   spatiotemporal = "rw",
   family = family,
   silent = TRUE,
@@ -257,7 +237,7 @@ fitdepth <- sdmTMB(
   time = "year",
   offset = "offset",
   mesh = mesh,
-  spatial = spatial,
+  spatial = spatial, #<- try off for dog and hbll no 2004 to see if that fits
   spatiotemporal = "rw",
   family = family,
   silent = TRUE,
@@ -271,6 +251,10 @@ fitdepth$sd_report
 sanity(fitdepth)
 AIC(fitdepth)
 
+fit <- readRDS(paste0("output/fit-sog-intonly", "hblldog_no2004", ".rds"))
+fit$model
+
+
 if (AIC(fit) < AIC(fitdepth)) {
   print("intercept model has lower AIC")
   print(paste0(AIC(fit), " ", AIC(fitdepth)))
@@ -282,7 +266,7 @@ if (AIC(fit) < AIC(fitdepth)) {
 }
 
 ok <- all(unlist(sanity(fit)))
-if (!ok) { # does this save it if it converged?
+if (!ok) {
   # if (!exists("fit")) {
   fit <- NULL
 } else {
@@ -290,7 +274,7 @@ if (!ok) { # does this save it if it converged?
 }
 
 ok <- all(unlist(sanity(fitdepth)))
-if (!ok) { # does this save it if it converged?
+if (!ok) {
   # if (!exists("fitdepth")) {
   fitdepth <- NULL
 } else {
@@ -332,7 +316,7 @@ if (!is.null(fit)) { #<- #if fit is null ignore this
 }
 
 if (!is.null(fitdepth)) {
-  grid$survey_lumped <- "dog"
+  grid$survey_lumped <- survey
   pred <- predict(fitdepth, grid, return_tmb_object = TRUE, response = TRUE)
   index <- get_index(pred, bias_correct = TRUE)
   index <- index |> mutate(model = ifelse(year %in% unique(d$year), "yrs_surved", "yrs_interp"))
