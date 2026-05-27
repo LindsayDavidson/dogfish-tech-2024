@@ -1,3 +1,5 @@
+#exploratory plots, nothing for the tech report
+
 library(ggplot2)
 library(dplyr)
 

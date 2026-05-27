@@ -1,4 +1,4 @@
-#expoloratory plots, nothing for the manuscript
+#exploratory plots, nothing for the manuscript
 
 library(dplyr)
 library(ggplot2)

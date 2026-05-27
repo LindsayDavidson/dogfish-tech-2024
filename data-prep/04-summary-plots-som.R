@@ -9,7 +9,6 @@ cols <- c("#e69b99", "#24492e", "#015b58", "#2c6184", "#89689d")
 cols <- c("#d7191c", "#fdae61", "#2c6184", "#2c7bb6")
 
 
-
 d <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") # no west coast VI expansion set
 # d <- readRDS("data-raw/wrangled-hbll-dog-sets-hblls.rds") #no expansion set, no hbll north except for the 2008 year, note 2004 got dropped when we dropped NAs in soak time
 d <- filter(d, soak >= 0)
@@ -36,13 +35,13 @@ d |> #<- bigger axes labels
   filter(survey_sep != "HBLL comp") |>
   filter(survey_sep != "DOG J-hook") |>
   ggplot() +
-  geom_point(aes(longitude, latitude), colour = "grey20") +
+  geom_point(aes(longitude, latitude, colour = survey_sep), size = 2, alpha = 0.5) +
   theme_classic() +
   geom_sf(data = bc_coast, fill = "grey90", colour = "grey70") +
-  facet_grid(rows = vars(survey_sep)) +
+  facet_grid(cols = vars(survey_sep)) +
   guides(colour = guide_legend(title = "Survey")) +
-  scale_colour_viridis_d() +
-  guides(fill = "none", colour = "none") +
+  scale_colour_viridis_d(option = "viridis", direction = -1) +
+  #guides(fill = "none", colour = "none") +
   labs(y = "Latitude", x = "Longitude") +
   theme(
     axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5),
@@ -50,11 +49,12 @@ d |> #<- bigger axes labels
     axis.text = element_text(size = 12),
     strip.text = element_text(size = 12)
   )
+
 ggsave("Figures/summary_locations.png", width = 15, height = 8)
 
 
 d |>
-  filter(survey_abbrev == "HBLL INS S") |>
+  filter(survey_abbrev %in% c("HBLL S","HBLL N")) |>
   ggplot() +
   geom_point(aes(longitude, latitude, colour = catch_count), size = 1) +
   theme_classic() +
@@ -69,26 +69,27 @@ d |>
     axis.text = element_text(size = 12),
     strip.text = element_text(size = 12)
   )
+
 ggsave("Figures/summary_locations_hbllinss.png", width = 10, height = 10)
 
 
-d |>
-  filter(survey_abbrev == "HBLL INS N") |>
-  ggplot() +
-  geom_point(aes(longitude, latitude, colour = catch_count), size = 1) +
-  theme_classic() +
-  geom_sf(data = bc_coast, fill = "grey90", colour = "grey70") +
-  facet_wrap(~year) +
-  guides(colour = guide_legend(title = "Catch count")) +
-  scale_colour_viridis_c() +
-  labs(y = "Latitude", x = "Longitude") +
-  theme(
-    axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5),
-    axis.title = element_text(size = 15),
-    axis.text = element_text(size = 12),
-    strip.text = element_text(size = 12)
-  )
-ggsave("Figures/summary_locations_hbllinsn_raw.png", width = 10, height = 10)
+# d |>
+#   filter(survey_abbrev == "HBLL INS N") |>
+#   ggplot() +
+#   geom_point(aes(longitude, latitude, colour = catch_count), size = 1) +
+#   theme_classic() +
+#   geom_sf(data = bc_coast, fill = "grey90", colour = "grey70") +
+#   facet_wrap(~year) +
+#   guides(colour = guide_legend(title = "Catch count")) +
+#   scale_colour_viridis_c() +
+#   labs(y = "Latitude", x = "Longitude") +
+#   theme(
+#     axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5),
+#     axis.title = element_text(size = 15),
+#     axis.text = element_text(size = 12),
+#     strip.text = element_text(size = 12)
+#   )
+# ggsave("Figures/summary_locations_hbllinsn_raw.png", width = 10, height = 10)
 
 
 d |>
