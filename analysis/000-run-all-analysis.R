@@ -3,10 +3,10 @@
 01-index-generation.R
 01a-index-generation-julian-date.R #<- sensitivity with julian to see how it affects index
 01b-index-generation-time-varying-depth.R #yes, hbll depth trends through time
-01c-index-generation-maturity-grouping.R #<- don't think I used this
 01d-dog-designbased-time-varying-depth #<- not used?
 
-02-catch-species-composition.R #to calc the freq of species caught on Dogfish versus HBLL
+02-catch-species-composition.R #to calc the freq of species caught on Dogfish versus HBLL, sixgill
+02b-maturity-ogives.R #<- summary of maturity through time
 
 03-index-figs.R #yes index plots
 03-survey-variability-plots.R #yes some som figures
