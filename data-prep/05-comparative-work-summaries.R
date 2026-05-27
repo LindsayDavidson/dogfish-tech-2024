@@ -23,6 +23,7 @@ d19 |>
 d19 |>
   group_by(hooksize_desc, hook_desc) |>
   reframe(sum = sum(lglsp_hook_count))
+
 d19 |>
   group_by(hooksize_desc, hook_desc) |>
   reframe(sum = sum(catch_count), sumeffort = sum(lglsp_hook_count)) |>
@@ -46,15 +47,22 @@ d22 |>
 
 # 2023 survey HBLL
 d23 <- filter(final, year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS")
+unique(d23$survey_sep)
+
+d23 <- d23 |> filter(season != 4)
 range(d23$time_deployed)
 unique(d23$survey_sep)
-d23 <- d23 |> filter(survey_timing != "fall")
+
 jhookcomp <- filter(d23, survey_sep == "dog-jhook")
 d23 <- d23 |> filter(!fishing_event_id %in% c(jhookcomp$fishing_event_id))
+range(d23$time_deployed)
+unique(d23$survey_sep)
 dim(filter(d23, hooksize_desc == "13/0"))
 dim(filter(d23, hooksize_desc == "14/0"))
+
 x <- filter(d23, hooksize_desc == "14/0")
 xx <- filter(d23, hooksize_desc == "13/0" & fishing_event_id %in% (x$fishing_event_id))
+
 d23 |>
   filter(hooksize_desc == "13/0") |>
   reframe(print(unique(grouping_desc)))
@@ -73,9 +81,12 @@ d23 |>
 d23 <- filter(final, year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS")
 range(d23$time_deployed)
 unique(d23$survey_sep)
-d23 <- d23 |> filter(survey_timing == "fall")
+
+d23 <- d23 |> filter(season == 4)
 jhookcomp <- filter(d23, survey_sep == "dog-jhook")
 d23 <- d23 |> filter(!fishing_event_id %in% c(jhookcomp$fishing_event_id))
+
+range(d23$time_deployed)
 dim(filter(d23, hooksize_desc == "13/0"))
 dim(filter(d23, hooksize_desc == "14/0"))
 x <- filter(d23, hooksize_desc == "14/0")
