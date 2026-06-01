@@ -13,10 +13,8 @@ library(tidyverse)
 remotes::install_github("pbs-assess/sdmTMB@dev", force = TRUE)
 library(sdmTMB)
 
-#latitude_cutoff <- 50.34056
+
 bccrs <- 32609
-# loc = "HBLL INS N"
-# loc = "HBLL INS S"
 
 sf::sf_use_s2(FALSE)
 map_data <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
@@ -50,19 +48,16 @@ df <- df |>
     depth_m > 220 ~ 5
   ))
 
-rm(grid)
 source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
-
-grid <- grid |> dplyr::select(-year) |> distinct()
 
 
 # run index ---------------------------------------------------------------
 
 # params
- model = "hblldog_no2004" #<- yes
-# model = "hbll-n-s" #<- yes
-# model <- "dog" #<- yes
-# model <- "dogcircle" #<- probably no? I don't think it converges anyways
+# model = "hblldog_no2004"
+# model = "hbll-n-s"
+# model = "dog"
+model = "dog-circle"
 
 if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 2004
   d <- df #<- 2004 was removed above with the offset can't be na.
@@ -84,15 +79,19 @@ if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 
 
 if (model == "hbll-n-s") {
   d <- df |>
-    filter(survey_lumped %in% c("hbll")) |> # should I removed survey_abbrev = other? yes? not fished ast hbll areas
-    filter(survey_abbrev == "OTHER") |>
+    filter(survey_lumped %in% c("hbll")) |>
+    filter(survey_abbrev != "OTHER") |> # should I removed survey_abbrev = other? yes? not fished ast hbll areas
     drop_na(offset) |>
     drop_na(depth_m) |>
     drop_na(julian) |>
     drop_na(catch_count)
 
-  weights <- (d$hook_count * d$soak)
+  # remove <- filter(d, season == 4 & survey_lumped == "hbll")
+  # remove1 <- filter(d, season == 3 & survey_lumped == "hbll" & survey_abbrev == "OTHER")
+  # d <- d |> filter(!fishing_event_id  %in% c(remove$fishing_event_id))
 
+  weights <- (d$lglsp_hook_count * d$soak)
+  rm(grid)
   grid <- readRDS("output/prediction-grid-hbll-n-s.rds") |>
     filter(area %in% c("hbll_s", "hbll_n")) # from gfdata HBLL n and south merged
   # grid <- readRDS(paste0("output/prediction-grid-hbll-n-s-dog-", "0.5", "-km.rds"))
@@ -108,83 +107,44 @@ if (model == "hbll-n-s") {
 if (model == "dog") {
   d <- df |>
     filter(survey_sep %in% c("dog comp", "dog", "dog-jhook")) |>
-    filter(month > 9) # i did this to drop the comp work that happened in summer, keep in and include julian if wanted
+    filter(month > 9) |> # i did this to drop the comp work that happened in summer, keep in and include julian if wanted
+    drop_na(offset) |>
+    drop_na(depth_m) |>
+    drop_na(julian) |>
+    drop_na(catch_count)
+
   years <- seq(min(d$year), max(d$year), 1)
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
   grid <- grid |> filter(latitude < max(d$latitude))
   grid$survey_lumped <- "dog"
 
-  weights <- (d$hook_count * d$soak)
+  weights <- (d$lglsp_hook_count * d$soak)
 
   formula <- catch_prop ~ 1 + as.factor(survey_lumped)
   formuladepth <- catch_prop ~ log_botdepth + log_botdepth2 + as.factor(survey_lumped)
   family = betabinomial(link = "cloglog")
 }
 
-# if (model == "hblldog_nojhook") {
-#   d <- df |>
-#     filter(!year %in% c(1986, 1989)) |> #<- dog comp is already rm from db
-#     filter(survey_sep != "dog-jhook") # |>
-#   years <- seq(min(d$year), 2023, 1)
-#   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-#   formula <- catch_prop ~ 1 + as.factor(survey_lumped)
-#   # formula = catch_prop ~ poly(log_botdepth, 2) + as.factor(survey_lumped)
-# family = nbinom2
-# }
+
+
+
 
 # index generation--------
-# create the mesh
-if (model %in% c("hblldog_no2004", "hbll-n-s", "hbll-n", "hbll-s")) {
-  cutoff <- 10 #<- does this work for the int only model? try 5 if no
-  survey <- "hbll"
-} else {
-  if (model %in% c("dog")) {
-  cutoff <- 15 #10 works but put 15 for time
-  survey <- "dog"
-  }
-}
 
+# create the mesh
+cutoff <- 10
 mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = cutoff)
 plot(mesh)
 mesh$mesh$n
 
-#<- should hbll-n be on?
-if (model %in% c( "dog", "hbll-n-s")) { #<- maybe hbll-n-s should be have spatial off since sanity fit returns sigma_o is smaller than 0.01
-  spatial <- "on"
-} else {
-  spatial <- "on"
-}
-
-if (model %in% c("dog")) {
-  spatial <- "off"
-} else {
-  spatial <- "on"
-}
-
-if (model %in% c("hbll-n-s")) {
-  priorsint <- sdmTMBpriors(
-    b = normal(c(NA), c(NA)),
-    matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
-    matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1))
-  priors <- sdmTMBpriors(
-    b = normal(c(NA, 0, 0), c(NA, 1, 1)),
-    matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
-    matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1)
-  )
-} else {
-  if (model == "dog") { #<- two surveys
-    priorsint <- sdmTMBpriors(b = normal(c(NA, NA), c(NA, NA)))
+if (model == "dog") { #<- two surveys
+    priorsint <- sdmTMBpriors(b = normal(c(NA, NA), c(NA, NA)),
+         matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
+         matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1))
     priors <-  sdmTMBpriors(
       matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
       matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1),
       b = normal(c(NA, 0, 0, 0), c(NA, 1, 1, 1)))
-  } else {
-    if (model == "hblldog_no2004") { #<- three surveys
-      priorsint <- sdmTMBpriors(b = normal(c(NA, NA, NA), c(NA, NA, NA)))
-      priors <- sdmTMBpriors(b = normal(c(NA, 0, 0, NA, NA), c(NA, 1, 1, NA, NA)))
-    }
-  }
-}
 
 ggplot() +
   geom_point(
@@ -252,7 +212,8 @@ ggplot() +
   facet_grid(~survey_lumped)
 
 # run model
-fit <- sdmTMB(
+if (model %in% c("hbll-n-s", "hblldog_no2004")) {
+  fit <- sdmTMB(
   formula = formula,
   data = d,
   time = "year",
@@ -264,12 +225,25 @@ fit <- sdmTMB(
   silent = TRUE,
   share_range = FALSE,
   extra_time = extratime,
-  control = sdmTMBcontrol(newton_loops = 1L),
-  priors = priorsint
-  # do_index = TRUE,
-  # predict_args = list(newdata = grid),
-  # index_args = list(area = grid$area_km2)
+  control = sdmTMBcontrol(newton_loops = 1L)
 )
+} else{
+  fit <- sdmTMB(
+    formula = formula,
+    data = d,
+    time = "year",
+    mesh = mesh,
+    spatial = "on",
+    spatiotemporal = "rw",
+    family = family,
+    weights = weights,
+    silent = TRUE,
+    share_range = FALSE,
+    extra_time = extratime,
+    control = sdmTMBcontrol(newton_loops = 1L),
+    priors = priorsint
+  )
+}
 
 fit$sd_report
 sanity(fit)
@@ -361,6 +335,9 @@ if (!is.null(fit)) { #<- #if fit is null ignore this
   index$type <- "int"
   saveRDS(index, file = paste0("output/ind-sog-intonly", model, ".rds"))
 }
+
+ggplot(index, aes(as.factor(year), (est), ymin = (lwr), ymax = (upr))) +
+  geom_pointrange(position = position_dodge(width = 0.25))
 
 # if (!is.null(fitdepth)) {
 #   grid$survey_lumped <- survey
