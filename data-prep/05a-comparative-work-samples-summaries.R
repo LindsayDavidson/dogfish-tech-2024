@@ -51,22 +51,24 @@ comp <- comp |>
   mutate(label =paste(survey_timing, year, hooksize_desc))
 unique(comp$label)
 
-fig <- comp |>
+comp <- comp |> mutate(sex_text = ifelse(sex == 1, "male", ifelse(sex == 2, "female", "NA")))
+unique(comp$id)
+comp <- comp  |>
+  mutate(survey_timing = forcats::fct_relevel(survey_timing,
+                             "hbll", 'dog'))
+fig <-
+  comp |>
   group_by(id) |>
+  filter(sex_text %in% c("male", "female")) |>
   #filter(id == "hbll 2023") |>
   ggplot(aes(length, group = as.factor(id), fill = as.factor(hooksize_desc))) +
-  geom_histogram() + facet_wrap(~survey_timing+ year+ sex, ncol = 2, scales = "free") +
+  geom_histogram() +
+  facet_grid(rows = vars(survey_timing, year), cols = vars(sex_text), scales = "free") +
   theme_classic() +
-  theme(strip.text.x = element_blank()) +
-  scale_fill_manual(values = c("grey20", "grey80")) +
-  geom_text(
-    data = comp,
-  aes(x = 60, y = 150, label = label),
-  color = "black",
-  size = 5
-) +
+  #theme(strip.text.x = element_blank()) +
+  scale_fill_manual(values = c("grey20", "grey80"), guide = NULL) +
   labs(fill = "Hook size")
-ggsave(paste0("figures/length_histograms_sex_survey.png"), fig, height = 10, width = 10, dpi = 200)
+fig
 
 comp |>
   group_by(sex, survey_timing, hooksize_desc) |>
@@ -74,26 +76,39 @@ comp |>
   reframe(min = min(length), max = max(length), mean = mean(length), median = median(length)) |>
   filter(sex %in% c(1, 2))
 
-fig <-
+fig2 <-
   comp |>
   filter(year != 2019) |>
+  filter(sex_text %in% c("male", "female")) |>
   group_by(id) |>
   #filter(id == "hbll 2023") |>
-  ggplot(aes(as.factor(sex), length, group = as.factor(hooksize_desc), fill = as.factor(hooksize_desc))) +
-  geom_boxplot() + facet_wrap(~survey_timing + sex, ncol = 2, scales = "free") +
+  ggplot(aes(as.factor(hooksize_desc), length, group = as.factor(hooksize_desc), fill = as.factor(hooksize_desc))) +
+  geom_jitter (aes(as.factor(hooksize_desc), length, group = as.factor(hooksize_desc), colour = as.factor(hooksize_desc)),  alpha = 0.25) +
+  geom_boxplot() +
+  facet_grid(rows = vars(survey_timing), cols = vars(sex_text), scales = "free") +
   theme_classic() +
-  #theme(strip.text.x = element_blank()) +
+  #theme(axis.text.x = element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank()) +
+  #theme(axis.text.x = element_blank()) +
   scale_fill_manual(values = c("grey30", "grey80")) +
-  # geom_text(
-  #   data = comp,
-  #   aes(x = 60, y = 150, label = label),
-  #   color = "black",
-  #   size = 5
-  # ) +
+  scale_colour_manual(values = c("grey30", "grey80"), guide = NULL) +
   labs(fill = "Hook size")
 
-fig
-ggsave(paste0("figures/mean_length_boxplot.png"), fig, height = 10, width = 10, dpi = 200)
+fig2
+
+
+cv <- cowplot::plot_grid(
+  fig, fig2,
+  ncol = 1,
+  nrow = 2,
+  labels = c("(a)", "(b)"),   # Labels for each plot
+  #align = "hv",
+  rel_heights = c(2,1),
+  rel_widths = rep(1)
+)
+
+cv
+
+ggsave(paste0("figures/length_boxplot.png"), cv, height = 8, width = 5, dpi = 200)
 
 
 #seasonality summary
@@ -116,56 +131,69 @@ comp |>
   drop_na(length) |>
   reframe(min = min(length), max = max(length))
 
+comp <- comp |> mutate(season_text = ifelse(season == 3, "summer (HBLL survey)", ifelse(season == 4, "fall (Dogfish survey)", "NA")))
+comp <- comp  |> mutate(season_text = forcats::fct_relevel(season_text,  "summer (HBLL survey)",  "fall (Dogfish survey)"))
+
 fig <-
   comp |>
   group_by(id) |>
+  filter(sex %in% c(1, 2)) |>
   #filter(id == "hbll 2023") |>
-  ggplot(aes(length, group = as.factor(season), fill = as.factor(season))) +
-  geom_histogram() + facet_wrap(~sex, ncol = 2, scales = "free") +
+  ggplot(aes(length, group = as.factor(season), fill = as.factor(season_text))) +
+  geom_histogram() +
+  facet_grid(cols = vars(sex_text), scales = "free") +
   theme_classic() +
   #theme(strip.text.x = element_blank()) +
   scale_fill_manual(values = c("grey20", "grey80")) +
- # geom_text(
-  #  data = comp,
-  #  aes(x = 60, y = 150, label = label),
-  #  color = "black",
-  #  size = 5
- # ) +
   labs(fill = "Season")
 fig
-ggsave(paste0("figures/length_histograms_season.png"), fig, height = 8, width = 10, dpi = 200)
 
 comp |>
-  group_by(sex, season, hooksize_desc) |>
+  group_by(sex, season_text, hooksize_desc) |>
   drop_na(length) |>
   reframe(min = min(length), max = max(length), mean = mean(length), median = median(length)) |>
   filter(sex %in% c(1, 2))
 
-fig <-
+fig2 <-
 comp |>
   filter(year != 2019) |>
   group_by(id) |>
+  filter(sex %in% c(1, 2)) |>
   #filter(id == "hbll 2023") |>
   ggplot() +
-  #ggplot(aes(as.factor(sex), length, group = as.factor(season), fill = as.factor(season))) +
-  #geom_boxplot() +
-  facet_wrap(~ sex, ncol = 2, scales = "free") +
-  geom_jitter (aes(as.factor(season), length, group = as.factor(season), colour = as.factor(season),  alpha = 0.25)) +
-  geom_violin (aes(as.factor(season), length, group = as.factor(season),  fill = as.factor(season)), colour = "black") +
+  facet_grid(cols = vars(sex_text), rows = vars(hooksize_desc),  scales = "free") +
+  geom_jitter (aes(as.factor(season_text), length, group = as.factor(season_text), colour = as.factor(season_text)),  alpha = 0.25) +
+  #geom_violin (aes(as.factor(season_text), length, group = as.factor(season_text),  fill = as.factor(season_text)), colour = "black") +
+  geom_boxplot (aes(as.factor(season_text), length, group = as.factor(season_text),  fill = as.factor(season_text)), colour = "black") +
   theme_classic() +
-  #theme(strip.text.x = element_blank()) +
-  scale_colour_manual(values = c("grey30", "grey80")) +
-  scale_fill_manual(values = c("grey30", "grey80")) +
-  # geom_text(
-  #   data = comp,
-  #   aes(x = 60, y = 150, label = label),
-  #   color = "black",
-  #   size = 5
-  # ) +
+  theme(axis.title.x = element_blank()) +
+  scale_colour_manual(values = c("grey30", "grey80"), guide = NULL) +
+  scale_fill_manual(values = c("grey30", "grey80"), guide = NULL) +
   labs(fill = "Season")
 
-fig
-ggsave(paste0("figures/mean_length_season_violin.png"), fig, height = 5, width = 8, dpi = 200)
+fig2
+
+
+cv <- cowplot::plot_grid(
+  fig, fig2,
+  ncol = 1,
+  nrow = 2,
+  labels = c("(a)", "(b)"),
+  #align = "hv",
+  rel_heights = c(2,1),
+  rel_widths = rep(1)
+)
+
+cv
+
+ggsave(paste0("figures/mean_length_season_boxplot.png"), cv, height = 12, width = 7, dpi = 200)
+
+
+
+
+
+
+
 
 df <- comp |> mutate(sex_factor = as.factor(sex), season_factor = as.factor(season))
 one_way <- aov(length ~ season *   sex_factor, data = df)
@@ -183,24 +211,18 @@ plot(tukey.plot.test, las = 1)
 
 
 #hbll two depths compared to dogfish survey
-comp <- comp |> mutate(season = ifelse(season == 3, "summer", "fall"))
-comp <- comp |> mutate(sex = ifelse(sex == 1, "male", "female"))
-comp <- comp  |>
-  mutate(season = factor(season,
-                          levels = c("summer", "fall")))
 fig <-
   comp |>
+  filter(sex %in% c(1,2)) |>
   ggplot(aes((grouping_depth_id), length,  group = grouping_depth_id, fill = (grouping_depth_id))) +
   geom_jitter(aes((grouping_depth_id), length), colour = "grey80") +
   geom_boxplot() +
-  facet_wrap(~sex + season, ncol = 2) +
+  facet_grid(rows =vars(sex), cols = vars(season)) +
   theme_classic() +
-  #theme(strip.text.x = element_blank()) +
-  #scale_fill_manual(values = c("grey20", "grey80")) +
+  labs(x = "Depth (grouped)") +
   labs(fill = "Depth stata") +
-  scale_fill_viridis_d()
+  scale_fill_grey(start = 0.2, end = 0.8)
 fig
-ggsave(paste0("figures/length_by_depth_and_season.png"), fig, height = 8, width = 10, dpi = 200)
 
 comp |>
   group_by(sex, season, hooksize_desc) |>
@@ -208,38 +230,104 @@ comp |>
   reframe(min = min(length), max = max(length), mean = mean(length), median = median(length)) |>
   filter(sex %in% c(1, 2))
 
-fig <-
+
+fig2 <-
   comp |>
   filter(year != 2019) |>
   group_by(id) |>
-  #filter(id == "hbll 2023") |>
+  filter(sex %in% c(1, 2)) |>
+  mutate(id2 = paste0(survey_lumped, hooksize_desc, season_text))  |>
+  filter(id2 %in% c("hbll13/0summer (HBLL survey)" ,  "dog14/0fall (Dogfish survey)")) |>
+  mutate(id = paste0(survey_lumped, grouping_depth_id ) )  |>
+  filter(id %in% c("dogD4" ,"dogD5",  "hbllD2", "dogD2",  "hbllD3" ,"dogD3")) |>
   ggplot() +
-  #ggplot(aes(as.factor(sex), length, group = as.factor(season), fill = as.factor(season))) +
-  #geom_boxplot() +
-  facet_wrap(~ sex, ncol = 2) +
-  geom_jitter (aes(as.factor(season), length, group = as.factor(season), colour = as.factor(season),  alpha = 0.25)) +
-  geom_violin (aes(as.factor(season), length, group = as.factor(season),  fill = as.factor(season)), colour = "black") +
+  facet_grid(cols = vars(sex_text), scales = "free") +
+  geom_jitter (aes(as.factor(season_text), length, group = as.factor(season_text), colour = as.factor(season_text)),  alpha = 0.25) +
+  #geom_violin (aes(as.factor(season_text), length, group = as.factor(season_text),  fill = as.factor(season_text)), colour = "black") +
+  geom_boxplot (aes(as.factor(season_text), length, group = as.factor(season_text),  fill = as.factor(season_text)), colour = "black") +
   theme_classic() +
-  #theme(strip.text.x = element_blank()) +
-  scale_colour_manual(values = c("grey30", "grey80")) +
-  scale_fill_manual(values = c("grey30", "grey80")) +
-  # geom_text(
-  #   data = comp,
-  #   aes(x = 60, y = 150, label = label),
-  #   color = "black",
-  #   size = 5
-  # ) +
+  scale_x_discrete(breaks = c("summer (HBLL survey)", "fall (Dogfish survey)"),
+                     labels = c("HBLL survey\n(13/0, 2 depths, summer)", "Dogfish survey\n(14/0, 4 depths, fall)")) +
+  theme(axis.title.x = element_blank()) +
+  scale_colour_manual(values = c("grey30", "grey80"), guide = NULL) +
+  scale_fill_manual(values = c("grey30", "grey80"), guide = NULL) +
   labs(fill = "Season")
 
-fig
-ggsave(paste0("figures/mean_length_season_violin.png"), fig, height = 5, width = 8, dpi = 200)
+fig2
 
-df <- comp |> mutate(sex_factor = as.factor(sex), season_factor = as.factor(season))
-one_way <- aov(length ~ season *   sex_factor, data = df)
+cv <- cowplot::plot_grid(
+  fig, fig2,
+  ncol = 1,
+  nrow = 2,
+  labels = c("(a)", "(b)"),
+  #align = "hv",
+  rel_heights = c(2,1),
+  rel_widths = rep(1)
+)
+
+cv
+
+ggsave(paste0("figures/mean_length_depth_boxplot.png"), cv, height = 12, width = 7, dpi = 200)
+
+#all depths
+df <-  comp |>
+  filter(year != 2019) |>
+  group_by(id) |>
+  filter(sex %in% c(1, 2)) |>
+  mutate(id2 = paste0(survey_lumped, hooksize_desc, season_text))  |>
+  filter(id2 %in% c("hbll13/0summer (HBLL survey)" ,  "dog14/0fall (Dogfish survey)")) |>
+  mutate(id = paste0(survey_lumped, grouping_depth_id ) )  |>
+  filter(id %in% c("dogD4" ,"dogD5",  "hbllD2", "dogD2",  "hbllD3",  "hbllD4" , "hbllD5" ,"dogD3"))
+
+#all depths
+comp |>
+  filter(year != 2019) |>
+  group_by(id) |>
+  filter(sex %in% c(1, 2)) |>
+  mutate(id2 = paste0(survey_lumped, hooksize_desc, season_text))  |>
+  filter(id2 %in% c("hbll13/0summer (HBLL survey)" ,  "dog14/0fall (Dogfish survey)")) |>
+  mutate(id = paste0(survey_lumped, grouping_depth_id ) )  |>
+  filter(id %in% c("dogD4" ,"dogD5",  "hbllD2", "dogD2",  "hbllD3",  "hbllD4" , "hbllD5" ,"dogD3")) |>
+  drop_na(length) |>
+  filter(sex == 2) |>
+  group_by(survey_lumped, sex_text ) |>
+  reframe(mean = mean(length), median = median(length), max = max(length), min = min(length), sd = sd(length))
+
+#comparable depths
+comp |>
+  filter(year != 2019) |>
+  group_by(id) |>
+  filter(sex %in% c(1, 2)) |>
+  mutate(id2 = paste0(survey_lumped, hooksize_desc, season_text))  |>
+  filter(id2 %in% c("hbll13/0summer (HBLL survey)" ,  "dog14/0fall (Dogfish survey)")) |>
+  mutate(id = paste0(survey_lumped, grouping_depth_id ) )  |>
+  filter(id %in% c("dogD4" ,"dogD5",  "hbllD2", "dogD2",  "hbllD3",  "dogD3")) |> #"hbllD4" , "hbllD5" ,
+  drop_na(length) |>
+  filter(sex == 2) |>
+  group_by(survey_lumped, sex_text ) |>
+  reframe(mean = mean(length), median = median(length), max = max(length), min = min(length), sd = sd(length))
+
+#comparable depths
+df <- comp |>
+  filter(year != 2019) |>
+  group_by(id) |>
+  filter(sex %in% c(1, 2)) |>
+  mutate(id2 = paste0(survey_lumped, hooksize_desc, season_text))  |>
+  filter(id2 %in% c("hbll13/0summer (HBLL survey)" ,  "dog14/0fall (Dogfish survey)")) |>
+  mutate(id = paste0(survey_lumped, grouping_depth_id ) )  |>
+  filter(id %in% c("dogD4" ,"dogD5",  "hbllD2", "dogD2",  "hbllD3",  "dogD3")) |> #"hbllD4" , "hbllD5" ,
+
+
+# Perform Bartlett's test
+bartlett.test(length ~ survey_lumped, data = df) #not equal variances
+
+one_way <- oneway.test(length ~ survey_lumped * sex_text, data = df, var.equal = FALSE)
+#one_way <- aov(length ~ survey_lumped, data = df)
 summary(one_way)
 TukeyHSD(one_way)
-ggplot(df, aes(x = factor(season), y = length, fill = factor(season))) +
+ggplot(df, aes(x = factor(season), y = length, fill = factor(season_text))) +
   geom_boxplot() +
+  facet_grid(col = vars(sex_text ))+
   labs(title = "ANOVA Results", x = "Group", y = "Dependent Variable") +
   theme_minimal()
 
