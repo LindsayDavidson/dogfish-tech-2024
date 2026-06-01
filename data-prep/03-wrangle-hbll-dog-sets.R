@@ -2,7 +2,7 @@
 # 02a-data-clean-sets.R
 # soak2005 <- 2
 bccrs <- 32609
-latitude_cutoff <- 50.34056 #<- not sure what the "best" boundary to pick for separating n and s is I used the largest latitude in the hbll_ins_s grid at the line
+#latitude_cutoff <- 50.34056 #<- not sure what the "best" boundary to pick for separating n and s is I used the largest latitude in the hbll_ins_s grid at the line
 
 library(sf)
 library(ggplot2)
@@ -90,4 +90,6 @@ d <- add_utm_columns(final,
   mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
 
 d <- d |> drop_na(survey_lumped)
+x <- filter(d, year == 2005)
+unique(x$survey_abbrev)
 saveRDS(d, "data-raw/wrangled-hbll-dog-sets.rds")

@@ -12,8 +12,8 @@ fall <- seq(39, 51, 1)
 # load data ---------------------------------------------------------------
 
 sets <- readRDS("data-raw/dogfish_sets_getall.rds") # get all function
-
-
+x <- filter(sets, year == 2005)
+unique(x$survey_abbrev)
 
 # QA/QC dates and depth--------------------------------
 # create a consistent grouping depth id
@@ -89,7 +89,7 @@ d <- sets |>
 
 range(d$soak, na.rm = TRUE)
 
-d <- d |> filter(soak < 5 & soak > 1)
+#d <- d |> filter(soak < 5 & soak > 1)
 
 d |> filter(is.na(week)== TRUE) |> tally() #some dates are NAs
 d <- d |>
@@ -112,6 +112,7 @@ d |>
   distinct(fishing_event_id, .keep_all = TRUE) |>
   group_by(year) |>
   tally() # lots of 2005s missing too soak time should have been consistently 2 hours at this time, the time_end_deployment was not recorded in 2005
+
 
 # Add grouping code for survey ---------------------------------------------
 
@@ -156,12 +157,15 @@ final <- final |>
   ))
 
 
+final <- final |>
+  mutate(soak = ifelse(year %in% c(2005) & survey_abbrev == "DOG", 2, soak)) # safe to assume these are ~2 hours
+range(final$soak)
+x <- filter(final, is.na(soak) == TRUE)
 final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
 # final <- filter(final, usability_code != 0) #you lose the jhook is you do this
 final <- filter(final, lglsp_hook_count != 0)
 # final <- filter(final, soak != 0) #will lose all the 2004s do this later
-final <- final |>
-  mutate(soak = ifelse(year %in% c(2005) & survey_abbrev == "DOG", 2, soak)) # safe to assume these are ~2 hours
+
 final$offset <- log(final$lglsp_hook_count * final$soak) # nas created, thats ok
 final$log_botdepth <- log(final$depth_m)
 saveRDS(final, "data-generated/dogfish_sets_cleaned_getall.rds")
