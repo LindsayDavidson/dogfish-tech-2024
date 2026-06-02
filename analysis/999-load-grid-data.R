@@ -3,7 +3,7 @@ grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
 grid$area_km2 <- as.numeric(grid$area_km)
 grid$depth_m <- grid$depth * -1
 grid$julian_c <- 36
-grid$survey_lumped <- "hbll"
+#grid$survey_lumped <- "hbll"
 grid$julian <- mean(df$julian)
 grid$month <- 8
 grid <- grid |>

@@ -3,15 +3,17 @@ library(tidyverse)
 library(PBSdata)
 library(sdmTMB)
 # options(download.file.method = "wininet")
-# remotes::install_github("pbs-assess/gfplot")
+#remotes::install_github("pbs-assess/gfplot")
 library(gfplot)
+library(gfdata)
+library(sf)
 
 # for now make one grid but need to make a grid for north, south, and then dogfish areas (? or would the south grid work?)
 # params
 
 bccrs <- 32609
 buffersize <- 8
-gridsize <- 500 # 0.25 km2 grid cell, was 2000 m before, too big bc of depth centroid issues
+gridsize <- 500 # 0.5 * 0.5 = 0.25 km2 grid cell, was 2000 m before, too big bc of depth centroid issues
 path_extent <- "output/PredictionGridExtent.shp"
 path_center <- "output/PredictionGridCentres.shp"
 path_final <- paste0("output/prediction-grid-hbll-n-s-dog-", gridsize / 1000, "-km.rds")
@@ -41,6 +43,19 @@ maxdepth <- 350
 # ggplot(z, aes(longitude, latitude, colour = depth)) + geom_point()
 # ggplot(z, aes(depth, depth_m_gis)) + geom_point()
 
+
+
+# prediction grid from gfdata ---------------------------------------------
+blocks <- gfdata::survey_blocks |> filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
+blocks <- gfdata::survey_blocks |> filter(active_block == "TRUE")
+range(blocks$depth_m, na.rm = TRUE)
+unique(blocks$active_block)
+ggplot() + geom_sf(data = blocks, aes(fill = depth_m))
+x <- ggplot() + geom_sf(data = blocks, aes(fill = depth_m))
+y <- x + geom_sf(data = filter(blocks, depth_m < 0), fill = 'red', colour = "red", lwd =2.5)
+gfdata::survey_blocks |> filter(active_block == TRUE)
+
+plotly::ggplotly(y)
 
 # prediction grid from gfplot ---------------------------------------------
 hbll_ins_s <- gfplot::hbll_inside_s_grid
