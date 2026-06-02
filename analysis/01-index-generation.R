@@ -48,20 +48,25 @@ df <- df |>
     depth_m > 220 ~ 5
   ))
 
-source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
+#load them below
+#source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
+#source("analysis/999-load-hbll-n-s-grid.R") #this is the hbll n, s grid from gfdata
+#ggplot(grid, aes(UTM.lon, UTM.lat)) + geom_point()
 
 
 # run index ---------------------------------------------------------------
 
 # params
-# model = "hblldog_no2004"
-# model = "hbll-n-s"
+cutoff <- 10
+
+ # model = "hblldog_no2004"
+ #model = "hbll-n-s"
 # model = "dog"
-model = "dog-circle"
+ model = "dog-circle"
 
 if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 2004
   d <- df #<- 2004 was removed above with the offset can't be na.
-  years <- seq(min(d$year), 2023, 1)
+  years <- seq(min(d$year), max(d$year), 1)
   #take out comparative work?? that happened in the different season??
   remove <- filter(d, season == 4 & survey_lumped == "hbll")
   remove1 <- filter(d, season == 3 & survey_lumped == "hbll" & survey_abbrev == "OTHER")
@@ -70,10 +75,14 @@ if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 
   d <- d |> filter(!fishing_event_id  %in% c(remove$fishing_event_id))
   ggplot(d, aes(year, catch_prop)) + geom_point() + facet_wrap(~survey_lumped)
   family = betabinomial(link = "cloglog")
+
+  source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
+  #source("analysis/999-load-hbll-n-s-grid.R") #this is the hbll n, s grid from gfdata
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
+
   weights <- (d$lglsp_hook_count * d$soak)
   formula <- catch_prop ~ 1 + as.factor(survey_lumped) #<- survey_lumped should just be dog, dogjhook, and hbll
-  formuladepth <- catch_prop ~ log_botdepth + log_botdepth2 + as.factor(survey_lumped)
+  formuladepth <- catch_prop ~ as.factor(depth_bin) + as.factor(survey_lumped)
   grid$survey_lumped <- "hbll"
 }
 
@@ -86,21 +95,15 @@ if (model == "hbll-n-s") {
     drop_na(julian) |>
     drop_na(catch_count)
 
-  # remove <- filter(d, season == 4 & survey_lumped == "hbll")
-  # remove1 <- filter(d, season == 3 & survey_lumped == "hbll" & survey_abbrev == "OTHER")
-  # d <- d |> filter(!fishing_event_id  %in% c(remove$fishing_event_id))
-
   weights <- (d$lglsp_hook_count * d$soak)
-  rm(grid)
-  grid <- readRDS("output/prediction-grid-hbll-n-s.rds") |>
-    filter(area %in% c("hbll_s", "hbll_n")) # from gfdata HBLL n and south merged
-  # grid <- readRDS(paste0("output/prediction-grid-hbll-n-s-dog-", "0.5", "-km.rds"))
-  # range(grid$bot_depth)  #<- does this grid (smaller grid size) reduce the error bars??
-  years <- seq(min(d$year), 2023, 1)
+
+  #source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
+  source("analysis/999-load-hbll-n-s-grid.R") #this is the hbll n, s grid from gfdata
+  years <- seq(min(d$year), max(d$year), 1)
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-  grid$log_botdepth2 <- grid$log_botdepth * grid$log_botdepth
+  grid$survey_lumped <- "hbll"
   formula <- catch_prop ~ 1
-  formuladepth <- catch_prop ~ log_botdepth + log_botdepth2
+  formuladepth <- catch_prop ~ as.factor(depth_bin)
   family = betabinomial(link = "cloglog")
 }
 
@@ -113,18 +116,50 @@ if (model == "dog") {
     drop_na(julian) |>
     drop_na(catch_count)
 
-  years <- seq(min(d$year), max(d$year), 1)
-  grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-  grid <- grid |> filter(latitude < max(d$latitude))
-  grid$survey_lumped <- "dog"
-
+  cutoff <- 5
   weights <- (d$lglsp_hook_count * d$soak)
-
+  years <- seq(min(d$year), max(d$year), 1)
+  spatial = "off"
+  source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
+  #source("analysis/999-load-hbll-n-s-grid.R") #this is the hbll n, s grid from gfdata
+  grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
+  grid$survey_lumped <- "dog"
   formula <- catch_prop ~ 1 + as.factor(survey_lumped)
-  formuladepth <- catch_prop ~ log_botdepth + log_botdepth2 + as.factor(survey_lumped)
+  formuladepth <- catch_prop ~ as.factor(depth_bin) + as.factor(survey_lumped)
   family = betabinomial(link = "cloglog")
+
+  priors = sdmTMBpriors(b = normal(c(NA, NA), c(NA, NA)),
+                        #matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
+                        matern_s = pc_matern(range_gt = cutoff * 4, sigma_lt = 2))
+
+
 }
 
+if (model == "dog-circle") {
+  d <- df |>
+    filter(survey_sep %in% c("dog")) |>
+    filter(month > 9) |> # i did this to drop the comp work that happened in summer, keep in and include julian if wanted
+    drop_na(offset) |>
+    drop_na(depth_m) |>
+    drop_na(julian) |>
+    drop_na(catch_count)
+
+  weights <- (d$lglsp_hook_count * d$soak)
+  years <- seq(min(d$year), max(d$year), 1)
+ spatial = "off"
+  source("analysis/999-load-hbll-n-s-grid.R") #this is the hbll n, s grid from gfdata
+  years <- seq(min(d$year), max(d$year), 1)
+  grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
+  grid$survey_lumped <- "dog"
+
+  formula <- catch_prop ~ 1
+  formuladepth <- catch_prop ~ as.factor(depth_bin)
+  family = betabinomial(link = "cloglog")
+
+  priorsint <- sdmTMBpriors(b = normal(c(NA), c(NA)),
+                            matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2))
+
+}
 
 
 
@@ -132,12 +167,13 @@ if (model == "dog") {
 # index generation--------
 
 # create the mesh
-cutoff <- 10
 mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = cutoff)
 plot(mesh)
 mesh$mesh$n
 
-if (model == "dog") { #<- two surveys
+
+
+if (model %in% c("dog")) { #<- two surveys
     priorsint <- sdmTMBpriors(b = normal(c(NA, NA), c(NA, NA)),
          matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
          matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1))
@@ -145,6 +181,7 @@ if (model == "dog") { #<- two surveys
       matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
       matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1),
       b = normal(c(NA, 0, 0, 0), c(NA, 1, 1, 1)))
+}
 
 ggplot() +
   geom_point(
@@ -233,7 +270,7 @@ if (model %in% c("hbll-n-s", "hblldog_no2004")) {
     data = d,
     time = "year",
     mesh = mesh,
-    spatial = "on",
+    spatial = spatial,
     spatiotemporal = "rw",
     family = family,
     weights = weights,
@@ -249,44 +286,8 @@ fit$sd_report
 sanity(fit)
 AIC(fit)
 
-# # generate indices with and w/out depth
-# # fitdepth <- update(fit, formula = formuladepth) # why doesn't this work?
-# fitdepth <- sdmTMB(
-#   formula = formuladepth,
-#   data = d,
-#   time = "year",
-#   weights = weights,
-#   mesh = mesh,
-#   spatial = "on", #<- try off for dog and hbll no 2004 to see if that fits
-#   spatiotemporal = "rw",
-#   family = family,
-#   silent = TRUE,
-#   #priors = priors,
-#   share_range = FALSE,
-#   extra_time = extratime,
-#   control = sdmTMBcontrol(newton_loops = 1L)
-# )
-#
-# fitdepth$sd_report
-# sanity(fitdepth)
-# AIC(fitdepth)
-#
-#
-# #fit <- readRDS(paste0("output/fit-sog-intonly", "hblldog_no2004", ".rds"))
-# #fit$model
-#
-#
-# if (AIC(fit) < AIC(fitdepth)) {
-#   print("intercept model has lower AIC")
-#   print(paste0(AIC(fit), " ", AIC(fitdepth)))
-# } else {
-#   if (AIC(fit) > AIC(fitdepth)) {
-#     print("depth model has lower AIC")
-#   }
-#   print(paste0(AIC(fit), " ", AIC(fitdepth)))
-# }
-
 ok <- all(unlist(sanity(fit)))
+
 if (!ok) {
   # if (!exists("fit")) {
   fit <- NULL
@@ -294,42 +295,10 @@ if (!ok) {
   saveRDS(fit, file = paste0("output/fit-sog-intonly", model, ".rds"))
 }
 
-# ok <- all(unlist(sanity(fitdepth)))
-# if (!ok) {
-#   # if (!exists("fitdepth")) {
-#   fitdepth <- NULL
-# } else {
-#   saveRDS(fitdepth, file = paste0("output/fit-sog-depth", model, ".rds"))
-# }
-
-# check if NB mdoel fit is better
-# ok <- all(unlist(sanity(fit)))
-# if (!ok) {
-#   try({
-# fitnb <- sdmTMB(
-#   formula = formula,
-#   data = d,
-#   time = "year",
-#   offset = "offset",
-#   mesh = mesh,
-#   spatial = "off",
-#   spatiotemporal = "rw",
-#   family = nbinom2(),
-#   silent = TRUE,
-#   share_range = FALSE,
-#   extra_time = extratime,
-#   control = sdmTMBcontrol(newton_loops = 1L)
-# )
-#   })
-# }
-# AIC(fit)
-# AIC(fitnb)
-# AIC(fitdepth)
-
 # get index
 if (!is.null(fit)) { #<- #if fit is null ignore this
   pred <- predict(fit, grid, return_tmb_object = TRUE, response = TRUE)
-  index <- get_index(pred, area = 100, bias_correct = TRUE)
+  index <- get_index(pred, area = 1, bias_correct = TRUE)
   index <- index |> mutate(model = ifelse(year %in% unique(d$year), "yrs_surved", "yrs_interp"))
   index$modelloc <- model
   index$type <- "int"
@@ -338,27 +307,4 @@ if (!is.null(fit)) { #<- #if fit is null ignore this
 
 ggplot(index, aes(as.factor(year), (est), ymin = (lwr), ymax = (upr))) +
   geom_pointrange(position = position_dodge(width = 0.25))
-
-# if (!is.null(fitdepth)) {
-#   grid$survey_lumped <- survey
-#   pred <- predict(fitdepth, grid, return_tmb_object = TRUE, response = TRUE)
-#   index <- get_index(pred, bias_correct = TRUE)
-#   index <- index |> mutate(model = ifelse(year %in% unique(d$year), "yrs_surved", "yrs_interp"))
-#   index$modelloc <- model
-#   index$type <- "depth"
-#   saveRDS(index, file = paste0("output/ind-sog-depth", model, ".rds"))
-# }
-
-# high res grid, runs out of memory so chunked it up
-# if (!is.null(fitdepth)){
-#   pred <- predict(fitdepth, filter(grid, year %in% c(2003:2013)), return_tmb_object = TRUE, response = TRUE)
-#   index <- get_index(pred, bias_correct = TRUE)
-#   pred2 <- predict(fitdepth, filter(grid, year %in% c(2014:2023)), return_tmb_object = TRUE, response = TRUE)
-#   index2 <- get_index(pred2, bias_correct = TRUE)
-#   index <- bind_rows(index, index2)
-#   index <- index |> mutate(model = ifelse(year %in% unique(d$year), "yrs_surved", "yrs_interp"))
-#   index$modelloc <- model
-#   index$type <- "depth-highres"
-#   saveRDS(index, file = paste0("output/ind-sog-depth-", model, "-highres.rds"))
-# }
 
