@@ -61,8 +61,8 @@ cutoff <- 10
 
  # model = "hblldog_no2004"
  #model = "hbll-n-s"
-# model = "dog"
- model = "dog-circle"
+ model = "dog"
+# model = "dog-predict"
 
 if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 2004
   d <- df #<- 2004 was removed above with the offset can't be na.
@@ -110,17 +110,30 @@ if (model == "hbll-n-s") {
 if (model == "dog") {
   d <- df |>
     filter(survey_sep %in% c("dog comp", "dog", "dog-jhook")) |>
-    filter(month > 9) |> # i did this to drop the comp work that happened in summer, keep in and include julian if wanted
+    mutate(HBLLcomp = ifelse(activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & month == 9 & day < 27, "erase", "keep")) |>
+    filter(HBLLcomp == "keep") |>
+    filter(year != 2022) |>
     drop_na(offset) |>
     drop_na(depth_m) |>
     drop_na(julian) |>
     drop_na(catch_count)
 
-  cutoff <- 5
+  grid <- readRDS("data-raw/dogfish_sets.rds") |>
+    filter(YEAR %in% 1986) |>
+    dplyr::select(LATITUDE, LONGITUDE, FE_FISHING_GROUND_COMMENT, GROUPING_DESC) |>
+    filter(GROUPING_DESC != 	"SoG Dogfish 0 - 55 m") |>
+    distinct(.keep_all = TRUE) |>
+    add_utm_columns(ll_names = c("LONGITUDE", "LATITUDE"),
+                    utm_names = c("UTM.lon", "UTM.lat"),
+                    utm_crs = 32609
+    ) |>
+    mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
+
+  cutoff <- 2
   weights <- (d$lglsp_hook_count * d$soak)
   years <- seq(min(d$year), max(d$year), 1)
   spatial = "off"
-  source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
+  #source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
   #source("analysis/999-load-hbll-n-s-grid.R") #this is the hbll n, s grid from gfdata
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
   grid$survey_lumped <- "dog"
@@ -135,19 +148,34 @@ if (model == "dog") {
 
 }
 
-if (model == "dog-circle") {
+if (model == "dog-predict") {
   d <- df |>
-    filter(survey_sep %in% c("dog")) |>
-    filter(month > 9) |> # i did this to drop the comp work that happened in summer, keep in and include julian if wanted
+    #filter(survey_abbrev %in% c("DOG", "OTHER")) |>
+    filter(survey_sep %in% c("dog", "dog comp")) |>
+    filter(year %in% c(2005, 2008, 2011, 2019, 2023)) |>
+    mutate(HBLLcomp = ifelse(month == 9 & day < 27, "erase", "keep")) |>
+    filter(HBLLcomp == "keep") |>
+   # filter(month > 9) |> # i did this to drop the comp work that happened in summer, keep in and include julian if wanted
     drop_na(offset) |>
     drop_na(depth_m) |>
     drop_na(julian) |>
     drop_na(catch_count)
 
+  grid <- readRDS("data-raw/dogfish_sets.rds") |>
+    filter(YEAR %in% 1986) |>
+    dplyr::select(LATITUDE, LONGITUDE, FE_FISHING_GROUND_COMMENT, GROUPING_DESC) |>
+    filter(GROUPING_DESC != 	"SoG Dogfish 0 - 55 m") |>
+    distinct(.keep_all = TRUE) |>
+    add_utm_columns(ll_names = c("LONGITUDE", "LATITUDE"),
+                         utm_names = c("UTM.lon", "UTM.lat"),
+                         utm_crs = 32609
+    ) |>
+    mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
+
   weights <- (d$lglsp_hook_count * d$soak)
   years <- seq(min(d$year), max(d$year), 1)
- spatial = "off"
-  source("analysis/999-load-hbll-n-s-grid.R") #this is the hbll n, s grid from gfdata
+  spatial = "off"
+
   years <- seq(min(d$year), max(d$year), 1)
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
   grid$survey_lumped <- "dog"
@@ -156,6 +184,7 @@ if (model == "dog-circle") {
   formuladepth <- catch_prop ~ as.factor(depth_bin)
   family = betabinomial(link = "cloglog")
 
+  cutoff = 2
   priorsint <- sdmTMBpriors(b = normal(c(NA), c(NA)),
                             matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2))
 
@@ -247,6 +276,17 @@ ggplot() +
   ) +
   scale_colour_viridis_c(direction = -1) +
   facet_grid(~survey_lumped)
+
+ggplot() +
+  geom_point(
+    data = d |> arrange(year), aes(month, catch_prop),
+    size = 1,
+    # ), size = 0.25, alpha = 0.25,
+    pch = 16
+  ) +
+  scale_colour_viridis_c(direction = -1) +
+  facet_grid(~survey_lumped)
+
 
 # run model
 if (model %in% c("hbll-n-s", "hblldog_no2004")) {
