@@ -60,9 +60,9 @@ df <- df |>
 cutoff <- 10
 
  # model = "hblldog_no2004"
- #model = "hbll-n-s"
- model = "dog"
-# model = "dog-predict"
+ # model = "hbll-n-s"
+ # model = "dog"
+  model = "dog-predict"
 
 if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 2004
   d <- df #<- 2004 was removed above with the offset can't be na.
@@ -141,9 +141,9 @@ if (model == "dog") {
   formuladepth <- catch_prop ~ as.factor(depth_bin) + as.factor(survey_lumped)
   family = betabinomial(link = "cloglog")
 
-  priors = sdmTMBpriors(b = normal(c(NA, NA), c(NA, NA)),
-                        #matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
-                        matern_s = pc_matern(range_gt = cutoff * 4, sigma_lt = 2))
+  # priors = sdmTMBpriors(b = normal(c(NA, NA), c(NA, NA)),
+  #                       #matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
+  #                       matern_s = pc_matern(range_gt = cutoff * 4, sigma_lt = 2))
 
 
 }
@@ -152,7 +152,7 @@ if (model == "dog-predict") {
   d <- df |>
     #filter(survey_abbrev %in% c("DOG", "OTHER")) |>
     filter(survey_sep %in% c("dog", "dog comp")) |>
-    filter(year %in% c(2005, 2008, 2011, 2019, 2023)) |>
+    filter(year %in% c(2005, 2008, 2011, 2014, 2019, 2023)) |>
     mutate(HBLLcomp = ifelse(month == 9 & day < 27, "erase", "keep")) |>
     filter(HBLLcomp == "keep") |>
    # filter(month > 9) |> # i did this to drop the comp work that happened in summer, keep in and include julian if wanted
