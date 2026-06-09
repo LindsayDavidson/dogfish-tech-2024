@@ -56,19 +56,32 @@ unique(comp$id)
 comp <- comp  |>
   mutate(survey_timing = forcats::fct_relevel(survey_timing,
                              "hbll", 'dog'))
+
+
+comp <- comp |>
+  mutate(surveytimingyear = paste(survey_timing, year))
+
+unique(comp$surveytimingyear)
+
+comp$surveytimingyear  <- factor(comp$surveytimingyear, levels = c("hbll 2019", "hbll 2022", "hbll 2023", "dog 2023" ))
+
 fig <-
   comp |>
+  #mutate(surveytimingyear = paste(survey_timing, year)) |>
+  #mutate(surveytimingyear = factor(surveytimingyear, levels = c("HBLL 2019", "HBLL 2022", "HBLL 2023", "Dog 2023" ))) |>
   group_by(id) |>
   filter(sex_text %in% c("male", "female")) |>
   #filter(id == "hbll 2023") |>
   ggplot(aes(length, group = as.factor(id), fill = as.factor(hooksize_desc))) +
   geom_histogram() +
-  facet_grid(rows = vars(survey_timing, year), cols = vars(sex_text), scales = "free") +
+  facet_grid(rows = vars(surveytimingyear), cols = vars(sex_text), scales = "free") +
   theme_classic() +
   #theme(strip.text.x = element_blank()) +
   scale_fill_manual(values = c("grey20", "grey80"), guide = NULL) +
-  labs(fill = "Hook size")
+  #labs(fill = "Hook size") +
+  labs(fill = "Hook size", x = "Length", y = "Count" )
 fig
+
 
 comp |>
   group_by(sex, survey_timing, hooksize_desc) |>
@@ -91,7 +104,8 @@ fig2 <-
   #theme(axis.text.x = element_blank()) +
   scale_fill_manual(values = c("grey30", "grey80")) +
   scale_colour_manual(values = c("grey30", "grey80"), guide = NULL) +
-  labs(fill = "Hook size")
+  labs(fill = "Hook size") +
+  labs(x = "Hook size", y = "Length")
 
 fig2
 
@@ -102,13 +116,13 @@ cv <- cowplot::plot_grid(
   nrow = 2,
   labels = c("(a)", "(b)"),   # Labels for each plot
   #align = "hv",
-  rel_heights = c(2,1),
-  rel_widths = rep(1)
+  rel_heights = c(1.5,1),
+  rel_widths = rep(0.75,1)
 )
 
 cv
 
-ggsave(paste0("figures/length_boxplot.png"), cv, height = 8, width = 5, dpi = 200)
+ggsave(paste0("figures/length_boxplot.png"), cv, height = 6, width = 4, dpi = 200)
 
 
 #seasonality summary
@@ -131,8 +145,8 @@ comp |>
   drop_na(length) |>
   reframe(min = min(length), max = max(length))
 
-comp <- comp |> mutate(season_text = ifelse(season == 3, "summer (HBLL survey)", ifelse(season == 4, "fall (Dogfish survey)", "NA")))
-comp <- comp  |> mutate(season_text = forcats::fct_relevel(season_text,  "summer (HBLL survey)",  "fall (Dogfish survey)"))
+comp <- comp |> mutate(season_text = ifelse(season == 3, "summer" , ifelse(season == 4, "fall", "NA")))
+comp <- comp  |> mutate(season_text = forcats::fct_relevel(season_text,  "summer",  "fall"))
 
 fig <-
   comp |>
@@ -144,7 +158,7 @@ fig <-
   facet_grid(cols = vars(sex_text), scales = "free") +
   theme_classic() +
   #theme(strip.text.x = element_blank()) +
-  scale_fill_manual(values = c("grey20", "grey80")) +
+  scale_fill_manual(values = c("grey80", "grey20")) +
   labs(fill = "Season")
 fig
 
@@ -167,8 +181,8 @@ comp |>
   geom_boxplot (aes(as.factor(season_text), length, group = as.factor(season_text),  fill = as.factor(season_text)), colour = "black") +
   theme_classic() +
   theme(axis.title.x = element_blank()) +
-  scale_colour_manual(values = c("grey30", "grey80"), guide = NULL) +
-  scale_fill_manual(values = c("grey30", "grey80"), guide = NULL) +
+  scale_colour_manual(values = c("grey80", "grey30"), guide = NULL) +
+  scale_fill_manual(values = c("grey80", "grey30" ), guide = NULL) +
   labs(fill = "Season")
 
 fig2
@@ -180,13 +194,13 @@ cv <- cowplot::plot_grid(
   nrow = 2,
   labels = c("(a)", "(b)"),
   #align = "hv",
-  rel_heights = c(2,1),
-  rel_widths = rep(1)
+  rel_heights = c(1,1),
+  rel_widths = c(1, 0.5)
 )
 
 cv
 
-ggsave(paste0("figures/mean_length_season_boxplot.png"), cv, height = 12, width = 7, dpi = 200)
+ggsave(paste0("figures/mean_length_season_boxplot.png"), cv, height = 6, width = 5, dpi = 200)
 
 
 
