@@ -17,7 +17,7 @@ d <- filter(d, is.na(soak) != TRUE) # get rid of 2004 that has no soak time
 map_data <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
 bc_coast <- st_crop(
   map_data,
-  c(xmin = -130, ymin = 48.5, xmax = -122, ymax = 51.5)
+  c(xmin = -130, ymin = 48.5, xmax = -123, ymax = 51)
 )
 
 # summary plots -----------------------------------------------------------
@@ -30,27 +30,44 @@ d <- d |>
   group_by(year) |>
   mutate(id = seq(1, n(), 1))
 
-d |> #<- bigger axes labels
+annotations <- data.frame(
+  survey_sep = c("HBLL N" ,   "HBLL S", "DOG" ),
+  label = c("HBLL N", "HBLL S", "Dogfish"),
+  x = -127,
+  y = 49
+)
+
+
+d |>
   filter(survey_sep != "DOG comp") |>
   filter(survey_sep != "HBLL comp") |>
   filter(survey_sep != "DOG J-hook") |>
   ggplot() +
-  geom_point(aes(longitude, latitude, colour = survey_sep), size = 2, alpha = 0.5) +
+  geom_point(aes(longitude, latitude), size = 0.5, alpha = 0.5, colour = "grey30") +
   theme_classic() +
   geom_sf(data = bc_coast, fill = "grey90", colour = "grey70") +
-  facet_grid(cols = vars(survey_sep)) +
-  guides(colour = guide_legend(title = "Survey")) +
-  scale_colour_viridis_d(option = "viridis", direction = -1) +
+  facet_grid(rows = vars(survey_sep)) +
+  #guides(colour = guide_legend(title = "Survey")) +
+  #scale_colour_viridis_d(option = "magma", direction = -1, guide = NULL) +
   #guides(fill = "none", colour = "none") +
   labs(y = "Latitude", x = "Longitude") +
   theme(
     axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5),
-    axis.title = element_text(size = 15),
-    axis.text = element_text(size = 12),
-    strip.text = element_text(size = 12)
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 6),
+    #strip.text = element_text(size = 12)
+    strip.text = element_blank()
+  ) +
+  geom_text(
+    data = annotations,
+    aes(x = x, y = y, label = label),
+    inherit.aes = FALSE,
+    color = "black",
+    #fontface = "bold",
+    size = 3
   )
 
-ggsave("Figures/summary_locations.png", width = 15, height = 8)
+ggsave("Figures/summary_locations.png", width = 7, height = 4)
 
 
 d |>
@@ -59,18 +76,19 @@ d |>
   geom_point(aes(longitude, latitude, colour = catch_count), size = 1) +
   theme_classic() +
   geom_sf(data = bc_coast, fill = "grey90", colour = "grey70") +
-  facet_wrap(~year) +
+  facet_wrap(~year, ncol = 4) +
   guides(colour = guide_legend(title = "Catch count")) +
   scale_colour_viridis_c() +
   labs(y = "Latitude", x = "Longitude") +
   theme(
+    legend.position = "bottom",
     axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5),
     axis.title = element_text(size = 15),
-    axis.text = element_text(size = 12),
-    strip.text = element_text(size = 12)
+    axis.text = element_text(size = 8),
+    strip.text = element_text(size = 8)
   )
 
-ggsave("Figures/summary_locations_hbllinss.png", width = 10, height = 10)
+ggsave("Figures/summary_locations_hbllinss.png", width = 5, height = 6)
 
 
 # d |>
@@ -91,9 +109,11 @@ ggsave("Figures/summary_locations_hbllinss.png", width = 10, height = 10)
 #   )
 # ggsave("Figures/summary_locations_hbllinsn_raw.png", width = 10, height = 10)
 
+unique(d$survey_sep)
 
 d |>
-  filter(survey_sep %in% c("DOG")) |>
+  filter(survey_sep %in% c("DOG", "DOG comp")) |>
+  filter(year %in% c(2005, 2008, 2011, 2014, 2019, 2023, 2004)) |>
   ggplot() +
   geom_point(aes(longitude, latitude, colour = catch_count), size = 1) +
   theme_classic() +
@@ -105,10 +125,10 @@ d |>
   theme(
     axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5),
     axis.title = element_text(size = 15),
-    axis.text = element_text(size = 12),
-    strip.text = element_text(size = 12)
+    axis.text = element_text(size = 8),
+    strip.text = element_text(size = 8)
   )
-ggsave("Figures/summary_locations_dog.png", width = 10, height = 8)
+ggsave("Figures/summary_locations_dog.png", width = 6, height = 6)
 
 d |>
   filter(survey_lumped == "dog-jhook") |>
@@ -116,16 +136,18 @@ d |>
   geom_point(aes(longitude, latitude, colour = catch_count), size = 1) +
   theme_classic() +
   geom_sf(data = bc_coast, fill = "grey90", colour = "grey70") +
-  facet_wrap(~year) +
+  facet_wrap(~year, ncol = 1) +
   guides(colour = guide_legend(title = "Catch count")) +
   scale_colour_viridis_c() +
   labs(y = "Latitude", x = "Longitude") +
   theme(
+   #legend.position = "bottom",
     axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5),
     axis.title = element_text(size = 15),
-    axis.text = element_text(size = 12),
-    strip.text = element_text(size = 12)
+    axis.text = element_text(size = 8),
+    strip.text = element_text(size = 8)
   )
+
 ggsave("Figures/summary_locations_dogjhook.png", width = 10, height = 5)
 
 
