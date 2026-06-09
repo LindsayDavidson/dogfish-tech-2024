@@ -120,4 +120,4 @@ samplesf <-
 
 # remove for now
 samples <- filter(samplesf, fishing_event_id != 5490376) #<- check this
-saveRDS(samples, "data-raw/dogfish_samples_cleaned.rds")
+saveRDS(samples, "data-generated/dogfish_samples_cleaned.rds")
