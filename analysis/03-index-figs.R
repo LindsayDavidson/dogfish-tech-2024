@@ -32,27 +32,68 @@ ind |>
 ind <- bind_rows(index2, index3, index4)
 ind$group <- paste0(ind$modelloc, ind$type)
 
-a <- ggplot(ind, aes(year, (est), ymin = (lwr), ymax = (upr))) +
-  geom_pointrange(data = ind, mapping = aes(x = year), size = 0.5, pch = 21, alpha = 0.6, position = position_dodge(width = 0.5)) +
-  geom_pointrange(data = filter(ind, model == "yrs_interp"), mapping = aes(x = year), size = 0.2, pch = 19, alpha = 0.6, position = position_dodge(width = 0.5), fill = "red", colour = "red") +
+unique(ind$modelloc)
+
+annotations <- data.frame(
+  modelloc = c("hbll-n-s" ,   "dog-predict", "dog" ),
+  label = c("HBLL", "Dog circle", "Dog circle and J-hook"),
+  x = 1995,
+  y = 4
+)
+
+unique(ind$modelloc)
+ind$modelloc = factor(ind$modelloc, levels = c("dog-predict", "dog",  "hbll-n-s"))
+
+a <-
+  ind |>
+  #filter(model == "yrs_surved") |>
+  ggplot(aes(year, (est_c), ymin = (lwr_c), ymax = (upr_c))) +
+  geom_pointrange(data = filter(ind, model == "yrs_surved"), mapping = aes(x = year, fill = modelloc, colour = modelloc), size = 0.25, pch = 21, alpha = 0.6, position = position_dodge(width = 0.5)) +
+  geom_pointrange(data = filter(ind, model == "yrs_interp"), mapping = aes(x = year), size = 0.25, pch = 21, alpha = 0.6, position = position_dodge(width = 0.5), fill = "grey80", colour = "grey80") +
+  geom_line(mapping = aes(x = year, est_c, fill = modelloc, colour = modelloc), size = 0.5, alpha = 0.6) +
+  geom_point(data = filter(ind, model == "yrs_surved"), aes(x = year, est_c, fill = modelloc, colour = modelloc), size = 1, pch = 21) +
   theme_classic() +
-  scale_colour_manual(values = c("black")) +
-  scale_fill_manual(values = c("black")) +
+  theme(strip.text = element_blank() ) +
   facet_grid(rows = vars(modelloc), scales = "free") +
-  labs(y = "Estimated abundance", x = "Year")
+  labs(y = "Estimated abundance", x = "Year") +
+  scale_colour_viridis_d(guide = NULL) +
+  scale_fill_viridis_d(guide = NULL) +
+  geom_text(
+    data = annotations,
+    aes(x = x, y = y, label = label),
+    inherit.aes = FALSE,
+    color = "black",
+    #fontface = "bold",
+    size = 3
+  )
 
-#ggsave("Figures/stitched_index.jpg", width = 4, height = 8)
+a
 
-b <- ind |>
+
+
+annotations <- data.frame(
+  modelloc = c("hbll-n-s" ,   "dog-predict" ),
+  label = c("HBLL", "Dog circle"),
+  x = 2005,
+  y = -4
+)
+
+b <-
+  ind |>
   filter(model == "yrs_surved") |>
+  filter(modelloc %in% c("hbll-n-s", "dog-predict")) |>
+  #filter(modelloc %in% c("hbll-n-s", "dog")) |>
   ggplot( ) +
-  geom_line(aes(year, est_c, colour = group, fill = group)) +
-  geom_ribbon(aes(year, est_c, ymin = lwr_c, ymax = upr_c, fill = group), alpha = 0.4) +
-  geom_point(aes(year, est_c, ymin = lwr_c, ymax = upr_c, fill = group, colour = group)) +
+  geom_line(aes(year, est_c, colour = group, fill = group), linewidth = 1, alpha = 0.4) +
+  geom_ribbon(aes(year, est_c, ymin = lwr_c, ymax = upr_c, fill = group), alpha = 0.4, guides = NULL) +
+  geom_point(aes(year, est_c, ymin = lwr_c, ymax = upr_c, colour = group), size = 1, alpha = 0.4, guides = NULL) +
   theme_classic() +
-  scale_colour_manual(values = c("black", "grey40", "grey70"), guide = NULL) +
-  scale_fill_manual(values = c("black", "grey40",  "grey70")) +
-  labs(y = "Scaled and centered estimated abundance", x = "Year", fill = "Survey", group = NULL)
+  theme(legend.position = c(0.2, 0.2),
+        legend.key = element_rect(fill = NA),
+        legend.background = element_rect(fill = NA, colour = NA)) +  # Remove legend box background) +
+  labs(y = "Estimated abundance", x = "Year", fill = "", colour = " " , group = NULL) +
+  scale_colour_viridis_d(labels = c("Dogfish circle", "HBLL")) +
+  scale_fill_viridis_d(guide = NULL)
 
 b
 
@@ -77,7 +118,7 @@ cv2 <- cowplot::plot_grid(
 )
 
 cv2
-ggsave("figures/stitched_index_combined.jpg", width = 8, height = 6)
+ggsave("figures/stitched_index_combined.jpg", width = 6, height = 6)
 
 
 #
