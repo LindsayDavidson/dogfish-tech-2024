@@ -19,6 +19,7 @@ library(ggplot2)
 library(here)
 library(sp)
 library(gfdata)
+library(tidyverse)
 #remotes::install_github("pbs-assess/gfdata", ref = "trials", force = TRUE)
 
 # pull inside sets data ------------------------------------------------
