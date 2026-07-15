@@ -7,10 +7,11 @@ glimpse(d)
 #common name, scientific name, 1,2,3,4 and then catch numbers under the set
 
 
-df |>
+d |>
   # #choose one
-  # filter(year == 2019 & survey_abbrev == "OTHER") |> #2019 dogfish comp work
-  # mutate(survey_abbrev = "HBLL INS N") |>
+
+  filter(year == 2019 & survey_abbrev == "OTHER") |> #2019 dogfish comp work
+  mutate(survey_abbrev = "HBLL INS N") |>
 
   # filter(year == 2022 & survey_abbrev == "OTHER") |> #2022 comp work
   # mutate(survey_abbrev = "HBLL INS S") |>
@@ -18,10 +19,10 @@ df |>
   #filter(year == 2023 & survey_abbrev == "OTHER" & month %in% c(8, 9) & day < 27) |> #2023 HBLL comp work
   #mutate(survey_abbrev = "HBLL INS N") |>
 
-  filter(year == 2023 & survey_abbrev == "OTHER" & month %in% c(9,10)) |>  #2023 Dogfish comp work
-  mutate(HBLLsurvey = ifelse(month == 9 & day < 27, "erase","keep")) |>
-  filter(HBLLsurvey == "keep") |>
-  mutate(survey_abbrev = "DOG") |>
+  # filter(year == 2023 & survey_abbrev == "OTHER" & month %in% c(9,10)) |>  #2023 Dogfish comp work
+  # mutate(HBLLsurvey = ifelse(month == 9 & day < 27, "erase","keep")) |>
+  # filter(HBLLsurvey == "keep") |>
+  # mutate(survey_abbrev = "DOG") |>
 
 
   mutate(latitude = round(latitude, 2), latitude_end = round(latitude_end, 2), longitude_end = round(longitude_end,1), longitude = round(longitude, 1)) |>
