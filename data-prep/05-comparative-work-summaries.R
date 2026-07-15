@@ -60,7 +60,9 @@ xx <- filter(d23, hooksize_desc == "13/0" & fishing_event_id %in% (x$fishing_eve
 
 d23 |>
   filter(hooksize_desc == "13/0") |>
-  reframe(print(unique(grouping_desc)))
+  reframe(print(unique(grouping_desc))) |>
+  print (n = 100)
+
 d23 |>
   filter(hooksize_desc == "14/0") |>
   reframe(print(unique(grouping_desc)))
@@ -124,28 +126,46 @@ comp <- samps |>
 jhook <- filter(comp, hooksize_desc == "12/0")
 comp <- filter(comp, !fishing_event_id %in% c(jhook$fishing_event_id))
 
+
+#need unique hook counts per survey and year
+hookcount <- comp |>
+  dplyr::select(lglsp_hook_count, hooksize_desc, year, survey_timing, Survey, survey_sep, fishing_event_id) |>
+  distinct() |>
+  group_by(hooksize_desc, year, Survey) |>
+  summarize(hookcount = sum(lglsp_hook_count))
+
+
 final_samps <- comp |>
   filter(sex %in% c(1, 2)) |>
+  dplyr::select(lglsp_hook_count, sex, hooksize_desc, year, survey_timing, Survey, survey_sep, fishing_event_id) |>
+  group_by(sex, hooksize_desc, year, survey_timing, Survey, survey_sep, fishing_event_id, lglsp_hook_count) |>
+  summarize(sum_sex = n()) |>
+
   group_by(sex, hooksize_desc, year, survey_timing, Survey, survey_sep) |>
-  reframe(sum_sex = n(), sumeffort_sex = sum(lglsp_hook_count)) |>
-  mutate(cpue_sex = sum_sex / sumeffort_sex) |>
+  summarize(sum_sex2 = sum(sum_sex))
+
+final_samps <- final_samps |>
+  left_join(hookcount) |>
+
+  mutate(cpue_sex = sum_sex2 / hookcount) |>
   #filter(year != 2019) |>
   rename(Year = year) |>
-  dplyr::select(-survey_timing, -survey_sep, -sumeffort_sex)
+  dplyr::select(-survey_timing, -survey_sep) |>
+  ungroup()
 
 
-count <- final_samps %>%
-  dplyr::select(-cpue_sex) |>
+count <- final_samps  |>
+  dplyr::select(-cpue_sex, -survey_timing) |>
   pivot_wider(
-    names_from = sex,  # Column whose values will become new column names
-    values_from = sum_sex      # Column whose values will fill the new columns
+    names_from = sex,
+    values_from = sum_sex2
   )
 
 cpue <- final_samps %>%
-  dplyr::select(-sum_sex) |>
+  dplyr::select(-sum_sex2) |>
   pivot_wider(
-    names_from = sex,  # Column whose values will become new column names
-    values_from = cpue_sex         # Column whose values will fill the new columns
+    names_from = sex,
+    values_from = cpue_sex
   ) |>
   rename(malecpue = `1`, femalecpue = `2`)
 
@@ -165,12 +185,12 @@ together <- together |>
 together |>
   dplyr::select(Year, Survey, Hook_type, Count_cpue, Male_cpue, Female_cpue)  |>
   arrange(Year) |>
-knitr::kable(
+  knitr::kable(
   # format = "simple",
   #"html",
   format = "latex",
   col.names = c(
-    "Survey",  "Year", "Hook type", "Count (CPUE)", "Male (CPUE)", "Female (CPUE)"),
+    "Year",  "Survey", "Hook type", "Count (CPUE)", "Male (CPUE)", "Female (CPUE)"),
   booktabs = TRUE,
   #align = "llllll",
   align = "c",
