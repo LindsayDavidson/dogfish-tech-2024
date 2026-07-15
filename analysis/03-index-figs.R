@@ -1,4 +1,4 @@
-# combined indicies and centered and scale indices figures
+# combined indicesand centered and scale indices figures
 
 
 # index1 <- readRDS(file = paste0("output/ind-sog-intonly", "hblldog_no2004", ".rds")) |>
@@ -36,7 +36,7 @@ unique(ind$modelloc)
 
 annotations <- data.frame(
   modelloc = c("hbll-n-s" ,   "dog-predict", "dog" ),
-  label = c("HBLL", "Dog circle", "Dog circle and J-hook"),
+  label = c("HBLL", "Dog circle", "Dog and HBLL"),
   x = 1995,
   y = 4
 )
@@ -50,10 +50,13 @@ a <-
   ggplot(aes(year, (est_c), ymin = (lwr_c), ymax = (upr_c))) +
   geom_pointrange(data = filter(ind, model == "yrs_surved"), mapping = aes(x = year, fill = modelloc, colour = modelloc), size = 0.25, pch = 21, alpha = 0.6, position = position_dodge(width = 0.5)) +
   geom_pointrange(data = filter(ind, model == "yrs_interp"), mapping = aes(x = year), size = 0.25, pch = 21, alpha = 0.6, position = position_dodge(width = 0.5), fill = "grey80", colour = "grey80") +
-  geom_line(mapping = aes(x = year, est_c, fill = modelloc, colour = modelloc), size = 0.5, alpha = 0.6) +
-  geom_point(data = filter(ind, model == "yrs_surved"), aes(x = year, est_c, fill = modelloc, colour = modelloc), size = 1, pch = 21) +
+  #geom_line(mapping = aes(x = year, est_c, fill = modelloc, colour = modelloc), size = 0.75, alpha = 0.6) +
+  geom_point(data = filter(ind, model == "yrs_surved"), aes(x = year, est_c, fill = modelloc, colour = modelloc), size = 1.5, pch = 21) +
   theme_classic() +
-  theme(strip.text = element_blank() ) +
+  theme(strip.text = element_blank(),
+        axis.title = element_text(size = 15),
+        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 15)) +
   facet_grid(rows = vars(modelloc), scales = "free") +
   labs(y = "Estimated abundance", x = "Year") +
   scale_colour_viridis_d(guide = NULL) +
@@ -64,17 +67,16 @@ a <-
     inherit.aes = FALSE,
     color = "black",
     #fontface = "bold",
-    size = 3
+    size = 4
   )
 
 a
 
 
-
 annotations <- data.frame(
   modelloc = c("hbll-n-s" ,   "dog-predict" ),
   label = c("HBLL", "Dog circle"),
-  x = 2005,
+  x = 2010,
   y = -4
 )
 
@@ -84,16 +86,20 @@ b <-
   filter(modelloc %in% c("hbll-n-s", "dog-predict")) |>
   #filter(modelloc %in% c("hbll-n-s", "dog")) |>
   ggplot( ) +
-  geom_line(aes(year, est_c, colour = group, fill = group), linewidth = 1, alpha = 0.4) +
+  geom_line(aes(year, est_c, colour = group, fill = group), linewidth = 1.5, alpha = 0.4) +
   geom_ribbon(aes(year, est_c, ymin = lwr_c, ymax = upr_c, fill = group), alpha = 0.4, guides = NULL) +
-  geom_point(aes(year, est_c, ymin = lwr_c, ymax = upr_c, colour = group), size = 1, alpha = 0.4, guides = NULL) +
+  geom_point(aes(year, est_c, ymin = lwr_c, ymax = upr_c, colour = group), size = 1.5, alpha = 0.4, guides = NULL) +
   theme_classic() +
   theme(legend.position = c(0.2, 0.2),
         legend.key = element_rect(fill = NA),
         legend.background = element_rect(fill = NA, colour = NA)) +  # Remove legend box background) +
   labs(y = "Estimated abundance", x = "Year", fill = "", colour = " " , group = NULL) +
   scale_colour_viridis_d(labels = c("Dogfish circle", "HBLL")) +
-  scale_fill_viridis_d(guide = NULL)
+  scale_fill_viridis_d(guide = NULL) +
+  theme(strip.text = element_blank(),
+        axis.title = element_text(size = 15),
+        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 15))
 
 b
 
