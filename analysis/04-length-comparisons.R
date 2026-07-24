@@ -17,7 +17,7 @@ samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
 
 
 # ggplot ------------------------------------------------------------------
-samples |>
+samps |>
   filter(sex %in% c(1,2)) |>
   filter(survey_sep %in% ("dog")) |>
   ggplot() +
@@ -28,7 +28,7 @@ samples |>
   theme(strip.text = element_blank()) +
   labs(legend = "Sex")
 
-samples |>
+samps |>
   filter(sex %in% c(1,2)) |>
   group_by(year, sex, survey_lumped) |>
   #reframe(count = n()) |>
@@ -39,7 +39,7 @@ samples |>
   theme(strip.text = element_blank())
 
 # length comps of comparative work ------------------------------------------
-samples |>
+samps |>
   filter(year %in% c(2022, 2023)) |>
   group_by(year, survey_lumped) |>
   filter(sex %in% c(1,2)) |>

@@ -162,8 +162,30 @@ comp <- comp  |> mutate(season_text = forcats::fct_relevel(season_text,  "summer
 
 fig <-
   comp |>
-  group_by(id) |>
+  group_by(id ) |>
   filter(sex %in% c(1, 2)) |>
+  #filter(id == "hbll 2023") |>
+  ggplot(aes(length, group = as.factor(season), fill = as.factor(season_text))) +
+  geom_histogram() +
+  labs(x = "Length (TLext, cm)")  +
+  facet_grid(cols = vars(sex_text), rows = vars(hooksize_desc), scales = "free") +
+  theme_classic() +
+  #theme(strip.text.x = element_blank()) +
+  scale_fill_manual(values = c("grey80", "grey20")) +
+  labs(fill = "Season") +
+  theme(
+    axis.text = element_text(size = 15 ),
+    axis.title = element_text(size = 15),
+    strip.text = element_text(size = 15)
+  )
+fig
+
+
+fig_comp <-
+  comp |>
+  group_by(id ) |>
+  filter(sex %in% c(1, 2)) |>
+  filter(id %in% c("2023hbll13/0", "2023dog14/0", "2022hbll13/0" , "2019hbll13/0")) |>
   #filter(id == "hbll 2023") |>
   ggplot(aes(length, group = as.factor(season), fill = as.factor(season_text))) +
   geom_histogram() +
@@ -178,7 +200,8 @@ fig <-
     axis.title = element_text(size = 15),
     strip.text = element_text(size = 15)
   )
-fig
+fig_comp
+
 
 comp |>
   group_by(sex, season_text, hooksize_desc) |>
@@ -189,11 +212,12 @@ comp |>
 fig2 <-
 comp |>
   filter(year != 2019) |>
+  filter(id %in% c("2023hbll13/0", "2023dog14/0", "2022hbll13/0" , "2019hbll13/0")) |>
   group_by(id) |>
   filter(sex %in% c(1, 2)) |>
   #filter(id == "hbll 2023") |>
   ggplot() +
-  facet_grid(cols = vars(sex_text), rows = vars(hooksize_desc),  scales = "free") +
+  facet_grid(cols = vars(sex_text),   scales = "free") +
   geom_jitter (aes(as.factor(season_text), length, group = as.factor(season_text), colour = as.factor(season_text)),  alpha = 0.25) +
   #geom_violin (aes(as.factor(season_text), length, group = as.factor(season_text),  fill = as.factor(season_text)), colour = "black") +
   geom_boxplot (aes(as.factor(season_text), length, group = as.factor(season_text),  fill = as.factor(season_text)), colour = "black") +
@@ -252,6 +276,7 @@ plot(tukey.plot.test, las = 1)
 #hbll two depths compared to dogfish survey
 
 comp$sex <- as.factor(comp$sex)
+comp <- comp |> as.factor(comp$season)
 comp$season <- as.factor(comp$season)
 levels(comp$sex) <- c("male", "female")
 levels(comp$season) <- c("summer", "fall")
@@ -275,6 +300,8 @@ fig <-
     strip.text = element_text(size = 15)
   )
 fig
+
+ggsave(paste0("figures/mean_length_depth_boxplot.png"), fig, height = 8, width = 7, dpi = 200)
 
 comp |>
   group_by(sex, season, hooksize_desc) |>

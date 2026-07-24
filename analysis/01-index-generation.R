@@ -59,20 +59,22 @@ df <- df |>
 # params
 cutoff <- 10
 
- # model = "hblldog_no2004"
+  model = "hblldog_no2004"
  # model = "hbll-n-s"
  # model = "dog"
-  model = "dog-predict"
+ # model = "dog-predict"
 
 if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 2004
   d <- df #<- 2004 was removed above with the offset can't be na.
   years <- seq(min(d$year), max(d$year), 1)
-  #take out comparative work?? that happened in the different season??
-  remove <- filter(d, season == 4 & survey_lumped == "hbll")
-  remove1 <- filter(d, season == 3 & survey_lumped == "hbll" & survey_abbrev == "OTHER")
-  remove2 <- filter(d, season == 3 & survey_lumped == "dog")
-  remove <- bind_rows(remove, remove1, remove2)
-  d <- d |> filter(!fishing_event_id  %in% c(remove$fishing_event_id))
+
+  #take out comparative work?? that happened in the different season?? or include and add a smoother for julian date
+  #remove <- filter(d, season == 4 & survey_lumped == "hbll")
+  #remove1 <- filter(d, season == 3 & survey_lumped == "hbll" & survey_abbrev == "OTHER")
+  #remove2 <- filter(d, season == 3 & survey_lumped == "dog")
+  #remove <- bind_rows(remove, remove1, remove2)
+  #d <- d |> filter(!fishing_event_id  %in% c(remove$fishing_event_id))
+
   ggplot(d, aes(year, catch_prop)) + geom_point() + facet_wrap(~survey_lumped)
   family = betabinomial(link = "cloglog")
 
@@ -81,8 +83,11 @@ if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
 
   weights <- (d$lglsp_hook_count * d$soak)
-  formula <- catch_prop ~ 1 + as.factor(survey_lumped) #<- survey_lumped should just be dog, dogjhook, and hbll
-  formuladepth <- catch_prop ~ as.factor(depth_bin) + as.factor(survey_lumped)
+
+  formula <- catch_prop ~ 1 + as.factor(survey_lumped) + poly(julian_c, 2)#<- survey_lumped should just be dog, dogjhook, and hbll
+
+  #formuladepth <- catch_prop ~ as.factor(depth_bin) + as.factor(survey_lumped)
+
   grid$survey_lumped <- "hbll"
 }
 
@@ -236,6 +241,7 @@ ggplot() +
   coord_fixed(expand = FALSE) +
   theme_classic() +
   theme(legend.position = "inside", legend.position.inside = c(0.2, 0.25))
+
 ggsave(paste0("Figures/sog-model-mesh-", model, ".pdf"), width = 6, height = 6)
 
 # get the extra time parameter
@@ -346,5 +352,5 @@ if (!is.null(fit)) { #<- #if fit is null ignore this
 }
 
 ggplot(index, aes(as.factor(year), (est), ymin = (lwr), ymax = (upr))) +
-  geom_pointrange(position = position_dodge(width = 0.25))
+  geom_pointrange(position = position_dodge(width = 0.25)) + theme_classic()
 

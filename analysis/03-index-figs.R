@@ -1,9 +1,9 @@
 # combined indicesand centered and scale indices figures
 
 
-# index1 <- readRDS(file = paste0("output/ind-sog-intonly", "hblldog_no2004", ".rds")) |>
-#   mutate(mean = mean(est), sd = sd(est)) |>
-#   mutate(est_c = (est - mean) / sd, lwr_c = (lwr - mean) / sd, upr_c = (upr - mean) / sd)
+index1 <- readRDS(file = paste0("output/ind-sog-intonly", "hblldog_no2004", ".rds")) |>
+  mutate(mean = mean(est), sd = sd(est)) |>
+  mutate(est_c = (est - mean) / sd, lwr_c = (lwr - mean) / sd, upr_c = (upr - mean) / sd)
 
 index2 <- readRDS(file = paste0("output/ind-sog-intonly", "hbll-n-s", ".rds")) |>
   mutate(mean = mean(est), sd = sd(est)) |>
@@ -14,6 +14,7 @@ index3 <- readRDS(file = paste0("output/ind-sog-intonly", "dog-predict", ".rds")
   mutate(est_c = (est - mean) / sd, lwr_c = (lwr - mean) / sd, upr_c = (upr - mean) / sd)
 
 ind <- index3 |> filter(year %in% c(2005, 2023))
+
 ind |>
   mutate(diff = (ind[2,2] - ind[1,2])/ind[1,2] * 100)
 
@@ -22,27 +23,29 @@ index4 <- readRDS(file = paste0("output/ind-sog-intonly", "dog", ".rds")) |>
   mutate(est_c = (est - mean) / sd, lwr_c = (lwr - mean) / sd, upr_c = (upr - mean) / sd)
 
 ind <- index2 |> filter(year %in% c(2005, 2023))
+
 ind |>
   mutate(diff = (ind[2,2] - ind[1,2])/ind[1,2] * 100)
 
 ind <- index2 |> filter(year %in% c(1986, 2023))
+
 ind |>
   mutate(diff = (ind[2,2] - ind[1,2])/ind[1,2] * 100)
 
-ind <- bind_rows(index2, index3, index4)
+ind <- bind_rows(index1, index2, index3, index4)
 ind$group <- paste0(ind$modelloc, ind$type)
 
 unique(ind$modelloc)
 
 annotations <- data.frame(
-  modelloc = c("hbll-n-s" ,   "dog-predict", "dog" ),
-  label = c("HBLL", "Dog circle", "Dog and HBLL"),
+  modelloc = c("hblldog_no2004", "hbll-n-s" , "dog-predict", "dog" ),
+  label = c("HBLL-Dog","HBLL", "Dog circle", "Dog (both)"),
   x = 1995,
   y = 4
 )
 
 unique(ind$modelloc)
-ind$modelloc = factor(ind$modelloc, levels = c("dog-predict", "dog",  "hbll-n-s"))
+ind$modelloc = factor(ind$modelloc, levels = c("hblldog_no2004", "dog-predict", "dog",  "hbll-n-s"))
 
 a <-
   ind |>
@@ -71,6 +74,8 @@ a <-
   )
 
 a
+
+ggsave("figures/stitched_indexes.jpg", a, width = 4, height = 10)
 
 
 annotations <- data.frame(

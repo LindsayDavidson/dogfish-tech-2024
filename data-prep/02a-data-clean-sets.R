@@ -11,9 +11,8 @@ fall <- seq(39, 51, 1)
 
 # load data ---------------------------------------------------------------
 
-sets <- readRDS("data-raw/dogfish_sets_getall.rds") # get all function
-x <- filter(sets, year == 2005)
-unique(x$survey_abbrev)
+sets <- readRDS("data-raw/dogfish_sets_getall.rds")
+
 
 # QA/QC dates and depth--------------------------------
 # create a consistent grouping depth id

@@ -2,8 +2,7 @@ library(dplyr)
 library(ggplot2)
 library(sf)
 library(tidyr)
-remotes::install_github("pbs-assess/gfdata", ref = "trials", force = TRUE)
-remotes::install_github("pbs-assess/gfplot")
+#remotes::install_github("pbs-assess/gfplot")
 library(gfdata)
 library(gfplot)
 sf::sf_use_s2(FALSE)
@@ -50,7 +49,7 @@ d <- d |>
 
 hblls <- st_crop(
   map_data,
-  c(xmin = -126, ymin = 48.4, xmax = -122.5, ymax = 50.5)
+  c(xmin = -125.5, ymin = 48.8, xmax = -123, ymax = 50.1)
 )
 
 hblln <- st_crop(
@@ -58,24 +57,22 @@ hblln <- st_crop(
   c(xmin = -128, ymin = 49, xmax = -123.6, ymax = 51.5)
 )
 
+hbllboth <- st_crop(
+  map_data,
+  c(xmin = -128, ymin = 48.4, xmax = -122.5, ymax = 51.5)
+)
 
-a <- d |>
-  filter(survey_sep != "DOG comp") |>
-  filter(survey_sep != "HBLL comp") |>
-  filter(survey_sep != "DOG J-hook") |>
-
-  filter(survey_sep %in% c("HBLL N")) |>
-
+hbllgrid <-
   ggplot() +
 
-  geom_sf(data = hblln, fill = "grey90", colour = "grey70") +
+  geom_sf(data = hbllboth, fill = "grey90", colour = "grey70") +
 
-  geom_point(aes(longitude, latitude, colour = catch_count), shape = 15) +
+  #geom_point(aes(longitude, latitude, colour = catch_count), shape = 15) +
   theme_classic() +
   geom_point(
-    data = hbll_ins_n$grid,
+    data = hbll_ins,
     aes(x = X, y = Y),
-    fill = "gray90", color = "grey50", alpha = 0.5,shape = 15, size = 1
+    fill = "gray100", color = "grey50", alpha = 0.5,shape = 15, size = 1
   )  +
   scale_colour_viridis_c(option = "magma", direction = -1, guide = NULL) +
   labs(y = "Latitude", x = "Longitude") +
@@ -87,26 +84,25 @@ a <- d |>
     axis.text = element_text(size = 10),
     panel.border = element_rect(colour = "black", fill=NA, size=0.5)
   )
+ggsave("figures/hbll_grid.png",hbllgrid, width = 12, height = 6)
+
 
 b <- d |>
-  filter(survey_sep != "DOG comp") |>
-  filter(survey_sep != "HBLL comp") |>
-  filter(survey_sep != "DOG J-hook") |>
 
-  filter(survey_sep %in% c("HBLL S")) |>
+  filter(survey_sep == "HBLL comp") |>
+  mutate(survey_abbrev = ifelse(time_deployed < "2023-09-27 08:16:43", "HBLL", "DOG")) |>
+  mutate(id = paste0(year, " ", survey_abbrev)) |>
+  mutate(depth_group = sub('.+:(.+)', '\\1', grouping_desc)) |>
 
   ggplot() +
 
   geom_sf(data = hblls, fill = "grey90", colour = "grey70") +
 
-  geom_point(aes(longitude, latitude, colour = catch_count), shape = 15) +
+  geom_point(aes(longitude, latitude, colour = as.factor(depth_group)), shape = 15, size = 4,alpha = 0.75) +
   theme_classic() +
-  geom_point(
-    data = hbll_ins_s$grid,
-    aes(x = X, y = Y),
-    fill = "gray90", color = "grey50", alpha = 0.5,shape = 15, size = 1
-  )  +
-  scale_colour_viridis_c(option = "magma", direction = -1, guide = NULL) +
+  labs(colour = "Depth sampled") +
+  facet_wrap(~id) +
+  scale_colour_viridis_d(option = "magma", direction = -1) +
   labs(y = "Latitude", x = "Longitude") +
 
   theme(
@@ -117,20 +113,9 @@ b <- d |>
     panel.border = element_rect(colour = "black", fill=NA, size=0.5)
   )
 
+b
 
-
-cv <- cowplot::plot_grid(
-  a, b,
-  ncol = 2,
-  nrow = 1,
-  labels = c("(a)", "(b)"), # Labels for each plot
-  # align = "hv",
-  rel_heights = c(1, 1),
-  rel_widths = rep(1)
-)
-
-cv
-ggsave("figures/summary_locations_hbllsn.png", width = 9, height = 4)
+ggsave("figures/summary_complocations.png", width = 12, height = 6)
 
 
 d |>
