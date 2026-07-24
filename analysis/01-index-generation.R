@@ -59,9 +59,9 @@ df <- df |>
 # params
 cutoff <- 10
 
-  model = "hblldog_no2004"
+ # model = "hblldog_no2004"
  # model = "hbll-n-s"
- # model = "dog"
+  model = "dog"
  # model = "dog-predict"
 
 if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 2004

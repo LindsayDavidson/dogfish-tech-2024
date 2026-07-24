@@ -13,7 +13,7 @@ fall <- seq(39, 51, 1)
 # load data ---------------------------------------------------------------
 
 samps <- readRDS("data-raw/dogfish_samples_getall.rds")
-sets <- readRDS("data-generated/dogfish_sets_cleaned_getall.rds") |>
+sets <- readRDS("data-generated/dogfish_sets_getall.rds") |>
   dplyr::select(year, fishing_event_id, week) |>
   distinct()
 samps <- left_join(samps, sets)

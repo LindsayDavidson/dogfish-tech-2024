@@ -1,6 +1,6 @@
 
 #catch record for each of the comparative work surveys
-survey, date,  species... total catch
+#survey, date,  species... total catch
 
 d <- readRDS("output/samps_joined.rds")
 

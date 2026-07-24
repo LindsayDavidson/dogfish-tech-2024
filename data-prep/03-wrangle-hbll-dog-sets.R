@@ -2,7 +2,7 @@
 # 02a-data-clean-sets.R
 # soak2005 <- 2
 bccrs <- 32609
-#latitude_cutoff <- 50.34056 #<- not sure what the "best" boundary to pick for separating n and s is I used the largest latitude in the hbll_ins_s grid at the line
+
 
 library(sf)
 library(ggplot2)
@@ -10,12 +10,13 @@ library(tidyverse)
 library(sdmTMB)
 
 # load data  ---------------------------------------------------------------
-#final <- readRDS("data-generated/dogfish_sets_cleaned_getall.rds") |> filter(usability_code == 1)
 
 final <- readRDS("data-generated/dogfish_sets_cleaned_getall.rds") #usability_code filters out the comparison sets
+
 hbll <- filter(final, survey_lumped == "hbll" & survey_sep != "hbll comp") |>
   filter(survey_series_og %in% c(39, 40)) |>
-  filter(usability_code  == 1) # note how the boundary has been different, also this is from the *get_all* function pulls survey locations that are not a part of the HBLL standardized survey, remove them
+  filter(usability_code  == 1)
+# note how the boundary has been different, also this is from the *get_all* function pulls survey locations that are not a part of the HBLL standardized survey, remove them
 
 dog <- filter(final, survey_series_desc %in% c("Dogfish Gear/Timing Comparison Surveys", "Strait of Georgia Dogfish Longline"))
 
@@ -28,23 +29,13 @@ final |>
   print(n = 40) # looks good
 
 # remove two survey years that extended along the west coast VI
-hbll <- filter(hbll, !(latitude < 48.5 & longitude < -123)) # only two years have the sampling around the strait
+hbll <- filter(hbll, !(latitude < 48.5 & longitude < -123))
 hbll <- filter(hbll, !(latitude < 48.75 & longitude < -124.25))
 
 ggplot(hbll) +
   geom_point(aes(longitude, latitude)) +
   facet_wrap(~survey_abbrev)
 
-# # change the name of the points that fall in the southern HBLL range to HBLL S
-# # define the HBLL INS S northern boundary based on the years between 2013 - 2022
-# hbll <- hbll |>
-#   mutate(survey_sep = ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S") & latitude <= latitude_cutoff,
-#     "HBLL INS S",
-#     ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S") & latitude > latitude_cutoff,
-#       "HBLL INS N", survey_sep
-#     )
-#   ))
-#
 ggplot(hbll) +
   geom_point(aes(longitude, latitude)) +
   facet_wrap(~survey_sep)
