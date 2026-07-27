@@ -26,7 +26,7 @@ unique(comp$offset)
 #end
 
 # Compare sets with common fishing_event_id
-comp_df <- lapply(unique(comp$fishing_event_id), function(i) {
+comp_df <- lapply(unique(comp$fishing_event_id), function(i) { #look at difference in offsets between the hbll and dog sets, puts same fishign events on the same line
   set_i <- filter(comp, fishing_event_id == i)
   df_dog <- filter(comp, fishing_event_id == i, survey_abbrev == "dog")
   df_hbll <- filter(comp, fishing_event_id == i, survey_abbrev == "hbll")
@@ -51,20 +51,20 @@ comp_df <- lapply(unique(comp$fishing_event_id), function(i) {
 #comp %>% filter(!fishing_event_id %in% comp_df$id)
 
 # Plot calibration data
-g <- comp %>%
+comp %>% #more hbll sets with higher cpue
   filter(fishing_event_id %in% comp_df$id) %>%
   ggplot(aes(x = catch_count/offset, fill = survey_abbrev)) +
   geom_density(alpha = 0.75) +
   facet_wrap(vars(year))
 
-g <- comp %>%
+comp %>%
   filter(fishing_event_id %in% comp_df$id) %>%
   ggplot(aes(x = depth_m, y = catch_count/offset, fill = survey_abbrev)) +
   geom_point(shape = 21) +
   facet_wrap(vars(year))
 
 #coast <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
-g <- comp %>%
+comp %>%
   filter(fishing_event_id %in% comp_df$id) %>%
   ggplot(aes(x = longitude, y = latitude)) +
   #geom_sf(data = coast, inherit.aes = FALSE) +
@@ -80,6 +80,7 @@ g <- comp %>%
 
 # Fixed effect only
 dummy_mesh <- sdmTMB::make_mesh(comp_df, c("UTM.lon", "UTM.lat"), n_knots = 10)
+
 m <- sdmTMB(
   cbind(catch_hbll, catch_dog) ~ 1,
   mesh = dummy_mesh,
@@ -93,27 +94,32 @@ m <- sdmTMB(
 
 # Random effect by set
 m2 <- sdmTMB(
-  cbind(catch_hbll, catch_dog) ~ 1 + (1 | id),
+  cbind(catch_hbll, catch_dog) ~ 1 + (1 | id), #random effect of fishing event
   mesh = dummy_mesh,
   spatial = "off",
   spatiotemporal = "off",
   data = comp_df,
-  offset = comp_df$offset,
+  offset = comp_df$offset, #why does he use this offset? because the binomial model is calculating the ratio and so this is the offset difference
   family = binomial(),
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 
+
+
+
 # Plot random effect (station effect)
 station_re <- as.list(m2$sd_report, what = "Estimate")$re_b_pars[, 1]
-g <- comp_df %>%
+comp_df %>%
   mutate(station_re = station_re) %>%
   ggplot(aes(x = station_re)) +
   geom_histogram() +
   facet_wrap(vars(year))
 
+
 #### Directly calibrated SoG dogfish + HBLL index, spatiotemporal model without comparative sets ----
 # Prediction grid from the HBLL stations
 log_rho_CF <- coef(m2)["(Intercept)"]
+#calibration exp(log_rho_CF) = 1.19 HBLL catches about 1.19 more than dogfish
 
 dogfish <- filter(dat, !grepl("COMPARISON", activity_desc), survey_abbrev != "dog-jhook") %>%
   mutate(offset_rho = offset - ifelse(survey_abbrev == "dog", log_rho_CF, 0),
@@ -124,15 +130,18 @@ dogfish <- filter(dat, !grepl("COMPARISON", activity_desc), survey_abbrev != "do
   select(!UTM.lon & !UTM.lat) %>%
   sdmTMB::add_utm_columns(ll_names = c("longitude", "latitude"), utm_crs = 32609, utm_names = c("UTM.lon", "UTM.lat"))
 
-g <- ggplot(dogfish, aes(longitude, latitude, fill = cpue_rho)) +
+ggplot(dogfish, aes(longitude, latitude, fill = cpue_rho)) +
   geom_point(shape = 21) +
   facet_grid(vars(year), vars(survey)) +
   scale_fill_viridis_c(trans = "sqrt")
 
-g <- ggplot(dogfish, aes(depth_m, cpue_rho)) +
+ggplot(dogfish, aes(depth_m, cpue_rho)) +
   geom_point(shape = 21) +
   facet_grid(vars(survey)) +
   scale_fill_viridis_c()
+
+
+dogfish <- dogfish |> drop_na(offset_rho)
 
 mesh <- sdmTMB::make_mesh(
   dogfish,
@@ -140,7 +149,7 @@ mesh <- sdmTMB::make_mesh(
   n_knots = 100
 )
 
-fit <- sdmTMB(
+fit <- sdmTMB( #composite index
   catch_count ~ 0 + factor(year), # + log_botdepth,
   mesh = mesh,
   data = dogfish,
