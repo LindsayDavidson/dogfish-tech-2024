@@ -1,6 +1,4 @@
-# note 2004 and some 2005 are missing deployment times
 # 02a-data-clean-sets.R
-# soak2005 <- 2
 bccrs <- 32609
 
 
@@ -84,3 +82,4 @@ d <- d |> drop_na(survey_lumped)
 x <- filter(d, year == 2005)
 unique(x$survey_abbrev)
 saveRDS(d, "data-raw/wrangled-hbll-dog-sets.rds")
+

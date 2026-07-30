@@ -14,6 +14,39 @@ fall <- seq(39, 51, 1)
 sets <- readRDS("data-raw/dogfish_sets_getall.rds")
 
 
+
+# fix 2004 soak times  --------
+#soak times are not in the this databse but are in the 2005 tech report
+
+sets1 <- sets |> mutate(erase = ifelse(year == 2004 & survey_abbrev == "OTHER", "erase", "keep")) |> filter(erase == "keep") |> dplyr::select(-erase)
+comp2004 <- sets |> filter(year == 2004 & survey_abbrev == "OTHER")
+
+test <- comp2004 |> dplyr::select(time_retrieved, grouping_desc, duration_min, latitude, longitude) |> distinct()
+test <- test |> dplyr::select(time_retrieved) |> mutate(time_retrieved = as.POSIXct(time_retrieved, format("%H:%M:%S"), tz = "UTC"))
+test <- test %>% arrange(time_retrieved)
+time <- format(test$time_retrieved, "%H:%M:%S")
+
+location <- c("Hornby Island", "Hornby Island", "Hornby Island", "Hornby Island", "Sinclair Bank", "Sinclair Bank", "Sinclair Bank", "Sinclair Bank", "Epsom Point", "Epsom Point", "Epsom Point", "Halibut Bank", "Halibut Bank", "Halibut Bank", "Halibut Bank", "Porlier Pass", "Porlier Pass", "Porlier Pass", "Porlier Pass", "Active Pass", "Active Pass", "Active Pass", "Northumberland Channel")
+depth <- c(1,2,3,4,4,3,2,1,4,2,1,3,3,4,2,4,3,1,2,5,4,5,NA)
+duration_min2 <- c(124, 144, 167, 121, 128, 178, 129, 130, 132, 179, 107, 126, 136, 132, 143, 139, 135, 131, 122, 128, 128, 96, 84)
+time = time
+# time <- as.POSIXct("09:19:00", "11:13:00" , "13:39:00" , "15:01:00" , "14:53:00",  "17:09:00",  "18:50:00" , "20:40:00",
+#                     "08:23:00",  "10:32:00",  "12:03:00" , "10:35:00", "12:03:00" ,  "15:36:00",  "16:52:00" ,
+#                    "09:57:00" ,  "11:07:00" ,  "15:02:00" ,  "16:34:00",  "09:38:00" ,  "10:58:00" , "13:48:00" , "09:28:00", format = "%H:%M:%S")
+
+comp <- data.frame(location, depth, duration_min, time)
+depthd <- data.frame(depth = c(1,2,3,4,5), depthm = c("0 - 55 m", "56 - 110 m", "111 - 165 m", "166 - 220 m", "> 220 m"))
+comp <- left_join(comp, depthd)
+comp <- comp |> mutate(grouping_desc = paste0("SoG Dogfish Site ", location, ", Depth Stratum ", depth, ": ", depthm))
+comp <- comp |> dplyr::select(grouping_desc, duration_min, time)
+
+comp2004 <- comp2004 |> mutate(time = format(time_retrieved, "%H:%M:%S") ) |> dplyr::select(-duration_min)
+comp2004 <- left_join(comp2004, comp) |>
+  dplyr::select(-time)
+
+
+sets <- rbind(sets1, comp2004)
+
 # QA/QC dates and depth--------------------------------
 # create a consistent grouping depth id
 # can use the depth_m column in the model however, may be useful to have a consistent grouping depth id if we change the grid prediction cells to shallow or deep
@@ -66,52 +99,57 @@ sets |>
 
 # QA/QC soak time  -----------------------------------------------------
 
-d <- sets |>
-  mutate(
-    #deployhr = lubridate::hour(time_end_deployment),
-    #deploymin = lubridate::minute(time_end_deployment),
-    retrieve = as.Date(time_begin_retrieval, format = "%Y-%m-%d h:m:s"),
-    deployed = as.Date(time_deployed, format = "%Y-%m-%d h:m:s"),
-    month = lubridate::month(retrieve),
-    #retrievehr = lubridate::hour(time_begin_retrieval),
-    #retrievemin = lubridate::minute(time_begin_retrieval),
-    dmy = lubridate::ymd(retrieve),
-    julian = lubridate::yday(retrieve),
-    week = lubridate::week(retrieve)
-  ) |>
-  mutate(
-    soak = as.numeric(difftime(time_begin_retrieval, time_deployed,  units = "hours"))
-    #hr_diff = (retrievehr - deployhr) * 60,
-    #min_diff = abs(retrievemin - deploymin),
-    #soak = (hr_diff + min_diff) / 60
-  )
+sets$duration_min
 
-range(d$soak, na.rm = TRUE)
-
-#d <- d |> filter(soak < 5 & soak > 1)
+# d <- sets |>
+#   mutate(
+#     #deployhr = lubridate::hour(time_end_deployment),
+#     #deploymin = lubridate::minute(time_end_deployment),
+#     retrieve = as.Date(time_begin_retrieval, format = "%Y-%m-%d h:m:s"),
+#     deployed = as.Date(time_deployed, format = "%Y-%m-%d h:m:s"),
+#     month = lubridate::month(retrieve),
+#     #retrievehr = lubridate::hour(time_begin_retrieval),
+#     #retrievemin = lubridate::minute(time_begin_retrieval),
+#     dmy = lubridate::ymd(retrieve),
+#     julian = lubridate::yday(retrieve),
+#     week = lubridate::week(retrieve)
+#   ) |>
+#   mutate(
+#     soak = as.numeric(difftime(time_begin_retrieval, time_deployed,  units = "hours"))
+#     #hr_diff = (retrievehr - deployhr) * 60,
+#     #min_diff = abs(retrievemin - deploymin),
+#     #soak = (hr_diff + min_diff) / 60
+#   ) |>
+#
+# test <- d |> dplyr::select(duration_min, soak)
+# range(d$soak, na.rm = TRUE)
+#
+# #d <- d |> filter(soak < 5 & soak > 1)
 
 d |> filter(is.na(week)== TRUE) |> tally() #some dates are NAs
+
 d <- d |>
   mutate(week = ifelse(is.na(week) == TRUE, lubridate::week(deployed), week))
 d |> filter(is.na(week)== TRUE) |> tally() #fixed
 
 
 # some soaks are NA - fix this!
-d |>
-  filter(is.na(soak) == TRUE) # mostly 2004
+ d |>
+  filter(is.na(duration_min) == TRUE) #45
 
 d |>
-  filter(is.na(soak) == TRUE) |>
+  filter(is.na(duration_min) == TRUE) |>
   distinct(fishing_event_id, .keep_all = TRUE) |>
-  tally() # 66 fishing events are missing soak times as the deployment time wasnt recorded
-# most are in 2004 when fishing times were between 1.5 - 3 hours.
+  tally() # 44 fishing events are missing soak times as the deployment time wasnt recorded
 
 d |>
-  filter(is.na(soak) == TRUE) |>
+  filter(is.na(duration_min == TRUE)) |>
   distinct(fishing_event_id, .keep_all = TRUE) |>
   group_by(year) |>
   tally() # lots of 2005s missing too soak time should have been consistently 2 hours at this time, the time_end_deployment was not recorded in 2005
 
+#2005 was two hour soak so I am going to add that in
+d <- d |> mutate(duration_min_fixed = ifelse(is.na(duration_min) == TRUE, 2, duration_min))
 
 # Add grouping code for survey ---------------------------------------------
 
@@ -165,12 +203,9 @@ final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
 final <- filter(final, lglsp_hook_count != 0)
 # final <- filter(final, soak != 0) #will lose all the 2004s do this later
 
-final$offset <- log(final$lglsp_hook_count * final$soak) # nas created, thats ok
+final$offset_hksoak <- log(final$lglsp_hook_count * final$soak) # nas created, thats ok
+final$offset <- log(final$lglsp_hook_count)
 final$log_botdepth <- log(final$depth_m)
 saveRDS(final, "data-generated/dogfish_sets_cleaned_getall.rds")
 
-
-final <- readRDS("data-generated/dogfish_sets_cleaned_getall.rds")
-xx <- filter(final, year == 2022)
-unique(xx$survey_series_desc)
 

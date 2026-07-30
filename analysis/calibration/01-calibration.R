@@ -119,7 +119,7 @@ comp_df %>%
 #### Directly calibrated SoG dogfish + HBLL index, spatiotemporal model without comparative sets ----
 # Prediction grid from the HBLL stations
 log_rho_CF <- coef(m2)["(Intercept)"]
-#calibration exp(log_rho_CF) = 1.19 HBLL catches about 1.19 more than dogfish
+#calibration exp(log_rho_CF) = 1.19 HBLL catches about 1.19 more than dogfish 19% more dogfish
 
 dogfish <- filter(dat, !grepl("COMPARISON", activity_desc), survey_abbrev != "dog-jhook") %>%
   mutate(offset_rho = offset - ifelse(survey_abbrev == "dog", log_rho_CF, 0),

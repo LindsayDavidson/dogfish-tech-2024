@@ -59,13 +59,14 @@ df <- df |>
 # params
 cutoff <- 10
 
- # model = "hblldog_no2004"
+ model = "hblldog"
  # model = "hbll-n-s"
-  model = "dog"
+ # model = "dog"
  # model = "dog-predict"
 
-if (model == "hblldog_no2004") { #<- everything except for dogfish comp work in 2004
-  d <- df #<- 2004 was removed above with the offset can't be na.
+if (model == "hblldog") {
+  d <- df #<- check if 2004 is here now as I added soak times
+  unique(d$year)
   years <- seq(min(d$year), max(d$year), 1)
 
   #take out comparative work?? that happened in the different season?? or include and add a smoother for julian date
@@ -295,7 +296,7 @@ ggplot() +
 
 
 # run model
-if (model %in% c("hbll-n-s", "hblldog_no2004")) {
+if (model %in% c("hbll-n-s", "hblldog")) {
   fit <- sdmTMB(
   formula = formula,
   data = d,
