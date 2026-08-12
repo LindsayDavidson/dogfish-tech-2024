@@ -121,12 +121,15 @@ comp_df %>%
 log_rho_CF <- coef(m2)["(Intercept)"]
 #calibration exp(log_rho_CF) = 1.19 HBLL catches about 1.19 more than dogfish 19% more dogfish
 
-dogfish <- filter(dat, !grepl("COMPARISON", activity_desc), survey_abbrev != "dog-jhook") %>%
+
+#hwat is this????
+#dogfish <- filter(dat, !grepl("COMPARISON", activity_desc), survey_abbrev != "dog-jhook") %>%
+dogfish <- filter(dat, !grepl("COMPARISON", activity_desc), survey_sep %in% c("dog", "dog comp")) %>%
   mutate(offset_rho = offset - ifelse(survey_abbrev == "dog", log_rho_CF, 0),
          cpue = catch_count/exp(offset),
          cpue_rho = catch_count/exp(offset_rho)) %>%
   arrange(year) %>%
-  mutate(survey = ifelse(survey_abbrev == "dog", "dog", "hbll")) %>%
+  mutate(survey = ifelse(survey_abbrev == "DOG", "dog", "hbll")) %>%
   select(!UTM.lon & !UTM.lat) %>%
   sdmTMB::add_utm_columns(ll_names = c("longitude", "latitude"), utm_crs = 32609, utm_names = c("UTM.lon", "UTM.lat"))
 
@@ -150,7 +153,8 @@ mesh <- sdmTMB::make_mesh(
 )
 
 fit <- sdmTMB( #composite index
-  catch_count ~ 0 + factor(year), # + log_botdepth,
+  #catch_count ~ 0 + factor(year), # + log_botdepth,
+  catch_count ~ 1, # + log_botdepth,
   mesh = mesh,
   data = dogfish,
   offset = dogfish$offset_rho,
@@ -170,7 +174,7 @@ index <- local({
   pred <- predict(fit, newdata, return_tmb_object = TRUE)
   get_index(pred, TRUE)
 })
-write_csv(index, file = "analysis/index-calibration/index/index_dogfish_hbll_calibrate.csv")
+write_csv(index, file = "data-generated/index_dogfish_hbll_calibrate.csv")
 
 # HBLL only
 hbll <- filter(dogfish, survey == "hbll")
@@ -181,7 +185,8 @@ mesh <- sdmTMB::make_mesh(
 )
 
 fit_hbll <- sdmTMB(
-  catch_count ~ 0 + factor(year), # + log_botdepth,
+  #catch_count ~ 0 + factor(year), # + log_botdepth,
+  catch_count ~ 1, # + log_botdepth,
   mesh = mesh,
   data = hbll,
   offset = hbll$offset_rho,
@@ -195,7 +200,8 @@ index_hbll <- local({
   pred <- predict(fit_hbll, newdata, return_tmb_object = TRUE)
   get_index(pred, TRUE)
 })
-write_csv(index_hbll, file = "analysis/index-calibration/index/index_hbll.csv")
+write_csv(index_hbll, file = "data-generated/index_hbll.csv")
+
 
 # Dogfish only
 dog <- filter(dogfish, survey == "dog")
@@ -206,7 +212,8 @@ mesh <- sdmTMB::make_mesh(
 )
 
 fit_dog <- sdmTMB(
-  catch_count ~ 0 + factor(year), # + log_botdepth,
+  #catch_count ~ 0 + factor(year), # + log_botdepth,
+  catch_count ~ 1, # + log_botdepth,
   mesh = mesh,
   data = dog,
   offset = dog$offset_rho,
@@ -224,15 +231,15 @@ index_dog <- local({
   pred <- predict(fit_dog, newdata, return_tmb_object = TRUE)
   get_index(pred, TRUE)
 })
-write_csv(index_dog, file = "analysis/index-calibration/index/index_dog.csv")
+write_csv(index_dog, file = "data-generated/index_dog.csv")
 
 # Compare index
 index_compare <- rbind(
-  read.csv(file = "analysis/index-calibration/index/index_dogfish_hbll_calibrate.csv") %>%
+  read.csv(file = "data-generated/index_dogfish_hbll_calibrate.csv") %>%
     mutate(Survey = "Calibrated HBLL + SoG dogfish"),
-  read.csv(file = "analysis/index-calibration/index/index_dog.csv") %>%
+  read.csv(file = "data-generated/index_dog.csv") %>%
     mutate(Survey = "SoG dogfish"),
-  read.csv(file = "analysis/index-calibration/index/index_hbll.csv") %>%
+  read.csv(file = "data-generated/index_hbll.csv") %>%
     mutate(Survey = "HBLL")
 )
 
@@ -240,13 +247,16 @@ year_dogfish <- index_compare %>%
   filter(Survey == "SoG dogfish") %>%
   pull(year)
 
-g <- index_compare %>%
+gg <- index_compare %>%
   mutate(dyear = year %in% year_dogfish) %>%
-  ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = dyear)) +
+  #ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = dyear)) +
+  ggplot(aes(year, est, ymin = lwr, ymax = upr)) +
   geom_point() +
   geom_line(aes(group = Survey), linewidth = 0.1) +
   geom_linerange() +
   facet_wrap(vars(Survey), ncol = 1, scales = "free_y") +
   expand_limits(y = 0) +
-  labs(x = "Year", y = "Index", colour = "Year with \nSoG dogfish survey?")
-ggsave("analysis/index-calibration/index/compare_index.png", g, height = 6, width = 5)
+  labs(x = "Year", y = "Index", colour = "Year with \nSoG dogfish survey?") +
+  theme_classic() +
+  scale_colour_viridis_d()
+ggsave("figures/compare_index.png", gg, height = 6, width = 5)

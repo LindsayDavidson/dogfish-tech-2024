@@ -6,6 +6,21 @@ samps <- readRDS("data-raw/comp_sets_allspecies.rds") |> filter(survey_abbrev ==
 species <- unique(samps$species_common_name)
 species <- filter(species) |> drop_na()
 
+samps |> dplyr::select(species_common_name, catch_count, year) |>
+  filter(catch_count != 0) |>
+  group_by(year) |>
+  distinct(species_common_name, .keep_all = TRUE) |>
+  drop_na(species_common_name) |>
+  tally()
+
+samps |> dplyr::select(species_common_name, catch_count, year) |>
+  filter(catch_count != 0) |>
+  #group_by(year) |>
+  distinct(species_common_name, .keep_all = TRUE) |>
+  drop_na(species_common_name) |>
+  tally()
+
+
 length(species)
 #pick aspeciestbl#pick a year
 samps <- samps |> filter(year == 2019)

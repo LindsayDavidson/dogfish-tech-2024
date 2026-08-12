@@ -59,10 +59,10 @@ df <- df |>
 # params
 cutoff <- 10
 
- model = "hblldog"
+ #model = "hblldog"
  # model = "hbll-n-s"
  # model = "dog"
- # model = "dog-predict"
+  model = "dog-predict"
 
 if (model == "hblldog") {
   d <- df #<- check if 2004 is here now as I added soak times
@@ -191,8 +191,8 @@ if (model == "dog-predict") {
   family = betabinomial(link = "cloglog")
 
   cutoff = 2
-  priorsint <- sdmTMBpriors(b = normal(c(NA), c(NA)),
-                            matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2))
+  # priorsint <- sdmTMBpriors(b = normal(c(NA), c(NA)),
+  #                           matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2))
 
 }
 

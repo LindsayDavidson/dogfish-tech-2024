@@ -14,12 +14,9 @@
 # 2023 comparison work has two gear types per set  and was completed during the HBLL and DOG survey
 
 library(tidyverse)
-library(sf)
-library(ggplot2)
 library(here)
-library(sp)
 library(gfdata)
-library(tidyverse)
+
 
 # pull inside sets data ------------------------------------------------
 
@@ -34,4 +31,6 @@ d <- get_all_survey_sets(ssid = c(48))
 saveRDS(d, "data-raw/comp_sets_allspecies.rds")
 unique(d$species_common_name)
 
+d <- get_all_survey_samples(ssid = c(48), include_event_info = TRUE)
+saveRDS(d, "data-raw/dogfish_samples_getall.rds")
 

@@ -1,4 +1,7 @@
 # calculate samples for report
+# length depth plot, and plots for SOM
+
+library(tidyverse)
 
 samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
 final <- readRDS("data-raw/wrangled-hbll-dog-sets.rds")  #<- no sex in the set data use sample data
