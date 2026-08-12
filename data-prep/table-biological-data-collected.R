@@ -18,29 +18,31 @@ d <- filter(d, !fishing_event_id %in% id_remove) %>%
 
 d <- filter(d, year %in% c(2019, 2022, 2023))
 
-sppcount <- d |> group_by(year, species_common_name) |>
+d <- d |> mutate(survey = ifelse(year == 2019, "HBLL", ifelse(year == 2022, "HBLL", ifelse(year == 2023 & sample_date < "2023-09-27", "HBLL", "SoG Dog"))))
+
+sppcount <- d |> group_by(year, survey, species_common_name) |>
   reframe(num.individuals = n())
 
-length <- d |>  group_by(year, species_common_name) |>
+length <- d |>  group_by(year, survey, species_common_name) |>
   drop_na(length) |>
   filter(length != 0) |>
   reframe(length = n())
 
-weight <- d |>  group_by(year, species_common_name) |>
+weight <- d |>  group_by(year, survey, species_common_name) |>
   drop_na(weight) |>
   filter(weight != 0) |>
   reframe(weight = n())
 
-sex <- d |>  group_by(year, species_common_name) |>
+sex <- d |>  group_by(year, survey, species_common_name) |>
   drop_na(sex) |>
   filter(sex != 0) |>
   reframe(sex = n())
 
-maturity <- d |>  group_by(year, species_common_name) |>
+maturity <- d |>  group_by(year, survey, species_common_name) |>
   drop_na(maturity_desc) |>
   reframe(maturity = n())
 
-age <- d |>  group_by(year, species_common_name) |>
+age <- d |>  group_by(year, survey, species_common_name) |>
   drop_na(age_specimen_collected) |>
   filter(age_specimen_collected == 1) |>
   reframe(age_collected = n())
@@ -61,7 +63,7 @@ knitr::kable(
   #format.args = list(big.mark = ","),
     format = "latex",
     col.names = c(
-      "Year",  "Species common name", "Total number of individuals sampled", "Weight", "Length", "Sex", "Maturity", "Age"),
+      "Year", "Survey", "Species common name", "Total number of individuals sampled", "Weight", "Length", "Sex", "Maturity", "Age"),
     booktabs = TRUE,
     #align = "llllll",
     align = "c",
