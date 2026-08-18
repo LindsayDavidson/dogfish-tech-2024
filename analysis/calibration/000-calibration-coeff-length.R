@@ -22,7 +22,7 @@ min <- min(samps$length, na.rm = TRUE)
 max <- max(samps$length, na.rm = TRUE)
 
 breaks <- c(seq(min, max, by = 10),112)
-breaks <- c(43, 54,64,74,84, 113) #change to a 80 plus length bin
+breaks <- c(min-1, 64, 84, max+1) #change to a 80 plus length bin
 
 test <- samps |>  group_by(hook_name) |> mutate(length_bin = cut(length, breaks)) |> drop_na(length) |> ungroup()
 test2 <- test |> group_by(length_bin, hook_name, fishing_event_id, year) |>
@@ -73,34 +73,81 @@ final <- add_utm_columns(
 
 
 #model run for length based calibration coefficient
-dummy_mesh <- sdmTMB::make_mesh(comp_df, c("UTM.lon", "UTM.lat"), n_knots = 10)
+dummy_mesh <- sdmTMB::make_mesh(final, c("UTM.lon", "UTM.lat"), n_knots = 10)
+
+final <- final |> mutate(cpue_hbll = catch_count_hbll/exp(offset), cpue_dog = catch_count_dog/exp(offset))
+final$cpue_dog
+final$catch_count_dog
+final <- final |> drop_na()
+weight = exp(final$offset)
+dummy_mesh <- sdmTMB::make_mesh(final, c("UTM.lon", "UTM.lat"), n_knots = 10)
 
 m2 <- sdmTMB(
-  cbind(catch_count_hbll , catch_count_dog ) ~ 0 + factor(length_bin), #length calibration coeff, then each catch should be for a length bin
+  #cbind(catch_count_hbll , catch_count_dog ) ~ 0 + factor(length_bin), #length calibration coeff, then each catch should be for a length bin
+  cbind(cpue_hbll , cpue_dog ) ~ 0 + factor(length_bin),
   mesh = dummy_mesh,
   spatial = "off",
   spatiotemporal = "off",
   data = final,
-  offset = final$offset,
-  family = binomial(),
+  #offset = final$offset,
+  #family = binomial(),
+  family = betabinomial(),
+  weights = weight,
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 
+AIC(m2)
 coef(m2)
-q1 <- coef(m2)["factor(length_bin)(43,54]"]
+q1 <- coef(m2)["factor(length_bin)(43,64]"]
 exp(q1) #1.74 for smallest length bin
-q2 <- coef(m2)["factor(length_bin)(54,64]"]
+q2 <- coef(m2)["factor(length_bin)(64,84]"]
 exp(q2)
-q3 <- coef(m2)["factor(length_bin)(64,74]"]
+q3 <- coef(m2)["factor(length_bin)(84,113]"]
 exp(q3)
-q4 <- coef(m2)["factor(length_bin)(74,84]"]
-exp(q4)
-q5 <- coef(m2)["factor(length_bin)(84,113]"]
-exp(q5)
 
-#make a table of legnth bin and q between hbll and dog by length
+all <- sdmTMB(
+  #cbind(catch_count_hbll , catch_count_dog ) ~ 1,
+  cbind(cpue_hbll , cpue_dog ) ~ 1,
+  mesh = dummy_mesh,
+  spatial = "off",
+  spatiotemporal = "off",
+  data = final,
+  #offset = final$offset,
+  #family = binomial(),
+  family = betabinomial(),
+  weights = weight,
+  control = sdmTMBcontrol(multiphase = FALSE)
+)
 
-length <- data.frame("Length (cm)" = c("43-54", "54-64", "64-74", "74-84", "84-113"))
-q <- data.frame('q ratio (HBLL/Dog' = c(1.74, 1.40, 1.21, 1.13, 1.13 ))
+coef(all)
+all2 <- tidy(all, ran.pars = TRUE)
 
+
+#log_offset = log(mean(c(exp(q1), exp(q2), exp(q3))))
+#log_offset
+#exp(log_offset) #68 percent more fish caught on HBLL
+
+length <- data.frame("Length (cm)" = c("43-64", "64-84", "84-113", "all data"))
+q <- data.frame("rho" = round(c(exp(q1), exp(q2), exp(q3), exp(all$estimate)), 2))
 table <- cbind(length, q)
+table$conf.low = c(round(exp(tidy(m2)$conf.low),2), round(exp(all2$conf.low),2))
+table$conf.high = c(round(exp(tidy(m2)$conf.high),2), round(exp(all2$conf.high),2))
+table$CI <- paste0((table$conf.low), "-", (table$conf.high))
+table <- table |> mutate(final = paste0(rho, " (", conf.low, "-", conf.high, ")"))
+table <- table |> dplyr::select("Length..cm.", final )
+rownames(table) <- NULL
+
+table |>
+  knitr::kable(
+    format = "latex",
+    col.names = c(
+      "Length bin (cm)", "rho (CI)"),
+    booktabs = TRUE,
+    align = "c",
+    caption = "rho for seasonally paired comparative sets",
+    label = "length_calibration_season"
+  ) |>
+  #kableExtra::row_spec(0, bold = TRUE, color = "white", background = "grey")  |>  # header styling
+  kableExtra::kable_styling(full_width = FALSE)
+
+
