@@ -1,3 +1,5 @@
+#paired calibration no lengths
+
 library(tidyverse)
 library(sdmTMB)
 
@@ -77,12 +79,44 @@ comp %>%
 
 #### Estimate calibration factors from comparative sets ----
 
-
 # Fixed effect only
-dummy_mesh <- sdmTMB::make_mesh(comp_df, c("UTM.lon", "UTM.lat"), n_knots = 10)
+
+comp_df <- comp_df %>% mutate(cpue_dog = catch_dog/exp(offset), cpue_hbll = catch_hbll/exp(offset))
+weight = exp(comp_df$offset)
+dummy_mesh <- sdmTMB:offsetdummy_mesh <- sdmTMB::make_mesh(comp_df, c("UTM.lon", "UTM.lat"), n_knots = 10)
 
 m <- sdmTMB(
-  cbind(catch_hbll, catch_dog) ~ 1,
+
+  #cbind(catch_hbll, catch_dog) ~ 1,
+  cbind(cpue_hbll, cpue_dog) ~ 1,
+
+  mesh = dummy_mesh,
+  spatial = "off",
+  spatiotemporal = "off",
+  data = comp_df,
+
+  #offset = comp_df$offset,
+  #family = binomial(),
+
+  weights = weight,
+  family = betabinomial(),
+
+  control = sdmTMBcontrol(multiphase = FALSE)
+)
+sanity(m)
+tidy(m)
+
+exp(0.177)
+exp(0.131)
+exp(0.222)
+
+
+# Random effect by set
+m2 <- sdmTMB(
+
+  #cbind(catch_hbll, catch_dog) ~ 1 + (1 | id), #random effect of fishing event
+  cbind(catch_hbll, catch_dog) ~ 1 + poly(depth_m, 2) + (1 | id),
+
   mesh = dummy_mesh,
   spatial = "off",
   spatiotemporal = "off",
@@ -91,21 +125,7 @@ m <- sdmTMB(
   family = binomial(),
   control = sdmTMBcontrol(multiphase = FALSE)
 )
-
-# Random effect by set
-m2 <- sdmTMB(
-  cbind(catch_hbll, catch_dog) ~ 1 + (1 | id), #random effect of fishing event
-  mesh = dummy_mesh,
-  spatial = "off",
-  spatiotemporal = "off",
-  data = comp_df,
-  offset = comp_df$offset, #why does he use this offset? because the binomial model is calculating the ratio and so this is the offset difference
-  family = binomial(),
-  control = sdmTMBcontrol(multiphase = FALSE)
-)
-
-
-
+sanity(m2)
 
 # Plot random effect (station effect)
 station_re <- as.list(m2$sd_report, what = "Estimate")$re_b_pars[, 1]
@@ -116,147 +136,8 @@ comp_df %>%
   facet_wrap(vars(year))
 
 
-#### Directly calibrated SoG dogfish + HBLL index, spatiotemporal model without comparative sets ----
-# Prediction grid from the HBLL stations
-log_rho_CF <- coef(m2)["(Intercept)"]
-#calibration exp(log_rho_CF) = 1.19 HBLL catches about 1.19 more than dogfish 19% more dogfish
 
 
-#hwat is this????
-#dogfish <- filter(dat, !grepl("COMPARISON", activity_desc), survey_abbrev != "dog-jhook") %>%
-dogfish <- filter(dat, !grepl("COMPARISON", activity_desc), survey_sep %in% c("dog", "dog comp")) %>%
-  mutate(offset_rho = offset - ifelse(survey_abbrev == "dog", log_rho_CF, 0),
-         cpue = catch_count/exp(offset),
-         cpue_rho = catch_count/exp(offset_rho)) %>%
-  arrange(year) %>%
-  mutate(survey = ifelse(survey_abbrev == "DOG", "dog", "hbll")) %>%
-  select(!UTM.lon & !UTM.lat) %>%
-  sdmTMB::add_utm_columns(ll_names = c("longitude", "latitude"), utm_crs = 32609, utm_names = c("UTM.lon", "UTM.lat"))
-
-ggplot(dogfish, aes(longitude, latitude, fill = cpue_rho)) +
-  geom_point(shape = 21) +
-  facet_grid(vars(year), vars(survey)) +
-  scale_fill_viridis_c(trans = "sqrt")
-
-ggplot(dogfish, aes(depth_m, cpue_rho)) +
-  geom_point(shape = 21) +
-  facet_grid(vars(survey)) +
-  scale_fill_viridis_c()
 
 
-dogfish <- dogfish |> drop_na(offset_rho)
 
-mesh <- sdmTMB::make_mesh(
-  dogfish,
-  c("UTM.lon", "UTM.lat"),
-  n_knots = 100
-)
-
-fit <- sdmTMB( #composite index
-  #catch_count ~ 0 + factor(year), # + log_botdepth,
-  catch_count ~ 1, # + log_botdepth,
-  mesh = mesh,
-  data = dogfish,
-  offset = dogfish$offset_rho,
-  time = "year",
-  family = nbinom2(),
-  anisotropy = TRUE
-)
-
-grid_hbll <- rbind(
-  gfplot::hbll_inside_n_grid$grid,
-  gfplot::hbll_inside_s_grid$grid
-) %>%
-  sdmTMB::add_utm_columns(ll_names = c("X", "Y"), utm_crs = 32609, utm_names = c("UTM.lon", "UTM.lat"))
-
-index <- local({
-  newdata <- replicate_df(grid_hbll, "year", unique(dogfish$year))
-  pred <- predict(fit, newdata, return_tmb_object = TRUE)
-  get_index(pred, TRUE)
-})
-write_csv(index, file = "data-generated/index_dogfish_hbll_calibrate.csv")
-
-# HBLL only
-hbll <- filter(dogfish, survey == "hbll")
-mesh <- sdmTMB::make_mesh(
-  hbll,
-  c("UTM.lon", "UTM.lat"),
-  n_knots = 100
-)
-
-fit_hbll <- sdmTMB(
-  #catch_count ~ 0 + factor(year), # + log_botdepth,
-  catch_count ~ 1, # + log_botdepth,
-  mesh = mesh,
-  data = hbll,
-  offset = hbll$offset_rho,
-  time = "year",
-  family = nbinom2(),
-  anisotropy = TRUE
-)
-
-index_hbll <- local({
-  newdata <- replicate_df(grid_hbll, "year", unique(hbll$year))
-  pred <- predict(fit_hbll, newdata, return_tmb_object = TRUE)
-  get_index(pred, TRUE)
-})
-write_csv(index_hbll, file = "data-generated/index_hbll.csv")
-
-
-# Dogfish only
-dog <- filter(dogfish, survey == "dog")
-mesh <- sdmTMB::make_mesh(
-  dog,
-  c("UTM.lon", "UTM.lat"),
-  n_knots = 20
-)
-
-fit_dog <- sdmTMB(
-  #catch_count ~ 0 + factor(year), # + log_botdepth,
-  catch_count ~ 1, # + log_botdepth,
-  mesh = mesh,
-  data = dog,
-  offset = dog$offset_rho,
-  time = "year",
-  spatiotemporal = "iid",
-  family = nbinom2(),
-  anisotropy = TRUE
-)
-
-grid_dog <- gfplot::dogfish_grid$grid %>%
-  mutate(UTM.lon = X/1e3, UTM.lat = Y/1e3)
-
-index_dog <- local({
-  newdata <- replicate_df(grid_dog, "year", unique(dog$year))
-  pred <- predict(fit_dog, newdata, return_tmb_object = TRUE)
-  get_index(pred, TRUE)
-})
-write_csv(index_dog, file = "data-generated/index_dog.csv")
-
-# Compare index
-index_compare <- rbind(
-  read.csv(file = "data-generated/index_dogfish_hbll_calibrate.csv") %>%
-    mutate(Survey = "Calibrated HBLL + SoG dogfish"),
-  read.csv(file = "data-generated/index_dog.csv") %>%
-    mutate(Survey = "SoG dogfish"),
-  read.csv(file = "data-generated/index_hbll.csv") %>%
-    mutate(Survey = "HBLL")
-)
-
-year_dogfish <- index_compare %>%
-  filter(Survey == "SoG dogfish") %>%
-  pull(year)
-
-gg <- index_compare %>%
-  mutate(dyear = year %in% year_dogfish) %>%
-  #ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = dyear)) +
-  ggplot(aes(year, est, ymin = lwr, ymax = upr)) +
-  geom_point() +
-  geom_line(aes(group = Survey), linewidth = 0.1) +
-  geom_linerange() +
-  facet_wrap(vars(Survey), ncol = 1, scales = "free_y") +
-  expand_limits(y = 0) +
-  labs(x = "Year", y = "Index", colour = "Year with \nSoG dogfish survey?") +
-  theme_classic() +
-  scale_colour_viridis_d()
-ggsave("figures/compare_index.png", gg, height = 6, width = 5)
