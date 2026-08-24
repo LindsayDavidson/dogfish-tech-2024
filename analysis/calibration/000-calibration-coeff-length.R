@@ -1,6 +1,8 @@
-#change the databse , add length groups and then have the catch count per group
-#need the samps database
-#ignore sex for now
+library(dplyr)
+library(tidyr)
+library(sdmTMB)
+library(ggplot2)
+
 samps <- readRDS("output/samps_joined.rds")
 
 samps <- samps %>%
@@ -12,11 +14,12 @@ samps <- filter(samps, !fishing_event_id %in% id_remove) %>%
   arrange(year, fishing_event_id, survey_abbrev)
 
 samps <- samps |>
-  filter(!year %in% c(2004, 2019, 2024)) |>
+  filter(year %in% c(2022, 2023)) |>
   mutate(hook_name = ifelse(hooksize_desc == "13/0", "HBLL_13/0", "Dog_14/0")) |>
   dplyr::select(hook_name, sex, fishing_event_id, year, length, time_deployed, lglsp_hook_count, latitude, longitude, depth_m)
 
 samps <- samps |> mutate(survey_abbrev = ifelse(time_deployed > "2023-09-06 09:15:21", "Dog_14/0", hook_name))
+
 
 min <- min(samps$length, na.rm = TRUE)
 max <- max(samps$length, na.rm = TRUE)
@@ -25,8 +28,9 @@ breaks <- c(seq(min, max, by = 10),112)
 breaks <- c(min-1, 64, 84, max+1) #change to a 80 plus length bin
 
 test <- samps |>  group_by(hook_name) |> mutate(length_bin = cut(length, breaks)) |> drop_na(length) |> ungroup()
+
 test2 <- test |> group_by(length_bin, hook_name, fishing_event_id, year) |>
-  reframe(catch_count = n(), offset = mean(lglsp_hook_count)) |>
+  reframe(catch_count_length = n(), offset = mean(lglsp_hook_count)) |>
   drop_na(length_bin) |>
   ungroup()
 
@@ -37,15 +41,29 @@ test3 <- test |> left_join(test2) |> dplyr::select(-length, -sex) |> distinct()
 
 test4 <- test3 |>
   #filter(hook_name == "Dog_14/0") |>
-  select(year, length_bin, fishing_event_id, latitude, longitude, depth_m, hook_name, catch_count) %>%
+  select(year, length_bin, fishing_event_id, latitude, longitude, depth_m, hook_name, catch_count_length) %>%
   distinct() |>
   group_by(fishing_event_id) |>
   pivot_wider(
     names_from = hook_name    ,
-    values_from = catch_count
+    values_from = catch_count_length
   ) |>
-  rename(catch_count_hbll = "HBLL_13/0", catch_count_dog = "Dog_14/0") |>
+  rename(catch_count_hbll_length = "HBLL_13/0", catch_count_dog_length = "Dog_14/0") |>
   ungroup()
+
+test_all <- samps |> group_by(hook_name, fishing_event_id, year) |>
+  reframe(catch_count = n(), offset = mean(lglsp_hook_count)) |>
+  ungroup() |>
+  pivot_wider(
+    names_from = hook_name    ,
+    values_from = c(catch_count, offset)
+  ) |>
+  ungroup() |>
+  arrange(year, fishing_event_id) |>
+  drop_na("offset_HBLL_13/0", "offset_Dog_14/0") |>
+  rename(offset_HBLL = "offset_HBLL_13/0" , offset_Dog = "offset_Dog_14/0") |>
+  rename(catch_count_HBLL = "catch_count_HBLL_13/0" , catch_count_Dog = "catch_count_Dog_14/0") |>
+  mutate(offset = log(offset_HBLL) - log(offset_Dog))
 
 test5 <- test3 |>
   select(year, fishing_event_id, lglsp_hook_count, hook_name) %>%
@@ -75,16 +93,14 @@ final <- add_utm_columns(
 #model run for length based calibration coefficient
 dummy_mesh <- sdmTMB::make_mesh(final, c("UTM.lon", "UTM.lat"), n_knots = 10)
 
-final <- final |> mutate(cpue_hbll = catch_count_hbll/exp(offset), cpue_dog = catch_count_dog/exp(offset))
-final$cpue_dog
-final$catch_count_dog
+#final <- final |> mutate(cpue_hbll_length = catch_count_hbll_length/exp(offset), cpue_dog_length = catch_count_dog_length/exp(offset))
 final <- final |> drop_na()
 weight = exp(final$offset)
 dummy_mesh <- sdmTMB::make_mesh(final, c("UTM.lon", "UTM.lat"), n_knots = 10)
 
 m2 <- sdmTMB(
-  #cbind(catch_count_hbll , catch_count_dog ) ~ 0 + factor(length_bin), #length calibration coeff, then each catch should be for a length bin
-  cbind(cpue_hbll , cpue_dog ) ~ 0 + factor(length_bin),
+  cbind(catch_count_hbll_length , catch_count_dog_length) ~ 0 + factor(length_bin), #length calibration coeff, then each catch should be for a length bin
+  #cbind(cpue_hbll_length , cpue_dog_length ) ~ 0 + factor(length_bin),
   mesh = dummy_mesh,
   spatial = "off",
   spatiotemporal = "off",
@@ -98,6 +114,10 @@ m2 <- sdmTMB(
 
 AIC(m2)
 coef(m2)
+exp(tidy(m2)$estimate)
+exp(tidy(m2)$conf.low)
+exp(tidy(m2)$conf.high)
+
 q1 <- coef(m2)["factor(length_bin)(43,64]"]
 exp(q1) #1.74 for smallest length bin
 q2 <- coef(m2)["factor(length_bin)(64,84]"]
@@ -105,13 +125,16 @@ exp(q2)
 q3 <- coef(m2)["factor(length_bin)(84,113]"]
 exp(q3)
 
+
+#no length
+weight = exp(test_all$offset)
+
 all <- sdmTMB(
-  #cbind(catch_count_hbll , catch_count_dog ) ~ 1,
-  cbind(cpue_hbll , cpue_dog ) ~ 1,
+  cbind(catch_count_HBLL , catch_count_Dog ) ~ 1,
   mesh = dummy_mesh,
   spatial = "off",
   spatiotemporal = "off",
-  data = final,
+  data = test_all,
   #offset = final$offset,
   #family = binomial(),
   family = betabinomial(),
@@ -121,6 +144,29 @@ all <- sdmTMB(
 
 coef(all)
 all2 <- tidy(all, ran.pars = TRUE)
+exp(all2$estimate)
+exp(all2$conf.low)
+exp(all2$conf.high)
+
+site <- sdmTMB(
+  cbind(catch_count_HBLL , catch_count_Dog ) ~ 1,
+  #cbind(cpue_hbll , cpue_dog ) ~ 1 + (1|fishing_event_id),
+  mesh = dummy_mesh,
+  spatial = "off",
+  spatiotemporal = "off",
+  data = test_all,
+  #offset = final$offset,
+  #family = binomial(),
+  family = betabinomial(),
+  weights = weight,
+  control = sdmTMBcontrol(multiphase = FALSE)
+)
+
+coef(site)
+site2 <- tidy(site, ran.pars = TRUE)
+exp(site2$estimate)
+exp(site2$conf.low)
+exp(site2$conf.high)
 
 
 #log_offset = log(mean(c(exp(q1), exp(q2), exp(q3))))
@@ -128,19 +174,20 @@ all2 <- tidy(all, ran.pars = TRUE)
 #exp(log_offset) #68 percent more fish caught on HBLL
 
 length <- data.frame("Length (cm)" = c("43-64", "64-84", "84-113", "all data"))
-q <- data.frame("rho" = round(c(exp(q1), exp(q2), exp(q3), exp(all$estimate)), 2))
-table <- cbind(length, q)
+q <- data.frame("rho" = round(c(exp(q1), exp(q2), exp(q3), exp(all2$estimate)), 2))
+Data <- data.frame(Data = "paired")
+table <- cbind(Data, length, q)
 table$conf.low = c(round(exp(tidy(m2)$conf.low),2), round(exp(all2$conf.low),2))
 table$conf.high = c(round(exp(tidy(m2)$conf.high),2), round(exp(all2$conf.high),2))
 table$CI <- paste0((table$conf.low), "-", (table$conf.high))
 table <- table |> mutate(final = paste0(rho, " (", conf.low, "-", conf.high, ")"))
-table <- table |> dplyr::select("Length..cm.", final )
+table <- table |> dplyr::select("Data", "Length..cm.", final )
 rownames(table) <- NULL
 
 table |>
   knitr::kable(
     format = "latex",
-    col.names = c(
+    col.names = c("Data",
       "Length bin (cm)", "rho (CI)"),
     booktabs = TRUE,
     align = "c",

@@ -3,8 +3,12 @@ library(tidyverse)
 
 samps <- readRDS("data-raw/comp_sets_allspecies.rds") |> filter(survey_abbrev == "OTHER") |> filter( year %in% c(2019, 2022, 2023))
 
-species <- unique(samps$species_common_name)
-species <- filter(species) |> drop_na()
+id_remove <- samps %>% filter(hooksize_desc == "12/0") %>% pull(fishing_event_id)
+samps <- filter(samps, !fishing_event_id %in% id_remove) %>%
+  arrange(year, fishing_event_id, survey_abbrev)
+
+species <- samps |> drop_na(species_common_name) |> reframe(species_common_name = unique(species_common_name))
+samps <- samps |> drop_na(species_common_name)
 
 samps |> dplyr::select(species_common_name, catch_count, year) |>
   filter(catch_count != 0) |>
@@ -21,12 +25,12 @@ samps |> dplyr::select(species_common_name, catch_count, year) |>
   tally()
 
 
-length(species)
+dim(species)
 #pick aspeciestbl#pick a year
-samps <- samps |> filter(year == 2019)
-#samps <- samps |> filter(year = 2022)
-#samps <- samps |> filter(year =2023 & time_deployed < 2023-09-27)
-#samps <- samps |> filter(year =2023 & time_deployed >= 2023-09-27)
+#samps <- samps |> filter(year == 2019)
+#samps <- samps |> filter(year == 2022)
+#samps <- samps |> filter(year == 2023 & time_deployed < "2023-09-27")
+samps <- samps |> filter(year == 2023 & time_deployed >= "2023-09-27")
 
 samps <- samps |> dplyr::select(time_deployed, hooksize_desc, species_common_name, catch_count) |> data.frame()
 
@@ -43,14 +47,22 @@ count <- count  |>
 count <- data.frame(count)
 count[is.na(count)]  <- " "
 
+
+count <- count %>% select(where(~ any(. != 0)))
+
+
 x <- colnames(count)
 x <- result <- gsub("\\.", " ", x)
 x <- str_to_title(x)
+
+length(x) - 2
 
 colnames(count) <- x
 
 # speciestbl <- count |>
 #   arrange("Time Deployed") |> distinct(.keep_all = TRUE)
+
+
 
 count  |>
   arrange(Time_deployed )  |>
@@ -64,10 +76,17 @@ count  |>
     align = "c",
 
 
-    caption = "Total catch in pieces by set and hook type of all species encountered in comparative sets fishing in 2019.",
     #caption = "Total catch in pieces by set and hook type of all species encountered in comparative sets fishing in 2019.",
+    #label = "species-catch2019"
 
-    label = "species-catch2019"
+    #caption = "Total catch in pieces by set and hook type of all species encountered in comparative sets fishing in 2022.",
+    #label = "species-catch2022"
+
+    #caption = "Total catch in pieces by set and hook type of all species encountered in comparative sets fishing in 2023 on the HBLL survey.",
+    #label = "species-catch2023HBLL"
+
+    caption = "Total catch in pieces by set and hook type of all species encountered in comparative sets fishing in 2023 on the SoG dogfish survey.",
+    label = "species-catch2023dog"
 
   ) |>
 

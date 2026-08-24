@@ -6,9 +6,10 @@ log_offset <- (all$estimate)
 exp(log_offset)
 
 dat <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") # need the depth fished to create pairs
+years <- dat |> group_by(survey_lumped) |> reframe(year = sort(unique(year)))
 
 exp(dat$offset)
-dat$offset_hksoak
+exp(dat$offset_hksoak)
 unique(dat$survey_abbrev)
 x <- filter(dat, survey_abbrev == "OTHER")
 
@@ -45,13 +46,13 @@ dogfish <-
 
   mutate(survey_abbrev = ifelse(survey_abbrev == "DOG" & year %in% c(1986, 1989), "j-hook", survey_abbrev)) |>
   mutate(
-    offset_jhook = offset - ifelse(survey_abbrev == "DOG", 0,
+    offset_jhook = offset_hksoak - ifelse(survey_abbrev == "DOG", 0,
       ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, log(1.45))
     ), # 1.45 from Jackies report
-    offset_rho = offset - ifelse(survey_abbrev == "DOG", log_offset,
+    offset_rho = offset_hksoak - ifelse(survey_abbrev == "DOG", log_offset,
       ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, log(exp(log_offset) * 1.45))
     ),
-    offset_dogcircle = offset + ifelse(survey_abbrev == "DOG", 0,
+    offset_dogcircle = offset_hksoak + ifelse(survey_abbrev == "DOG", 0,
       ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), log_offset, -(log(1.45)))
     ), # scale to dog gear
 
@@ -426,13 +427,13 @@ write_csv(index_dog, file = "analysis/calibration/index/index_dog.csv")
 
 
 index_compare <- rbind(   #seasonally paired value and center data
-  index |> mutate(Survey = "Calibrated HBLL + SoG dogfish (circle and j-hook)") |>
+  index |> mutate(Survey = "Calibrated HBLL + SoG dogfish") |>
     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
   index_hbll |> mutate(Survey = "HBLL") |>
     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
   #index_dog |> mutate(Survey = "SoG dogfish (circle)") |>
   #  mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
-  index_dc |> mutate(Survey = "Calibrated SoG dogfish (circle and j-hook)") |>
+  index_dc |> mutate(Survey = "Calibrated SoG dogfish") |>
     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est))
 
 )
@@ -453,7 +454,7 @@ gg <- index_compare %>%
   ggplot(aes(year, est_c, ymin = lwr_c, ymax = upr_c, group = Survey, colour = Survey)) +
   geom_line(aes(group = Survey, colour = Survey), linewidth = 1) +
   geom_point(aes(group = Survey, colour = Survey), size = 2) +
-  geom_ribbon(aes(year, est_c, ymin = lwr_c, ymax = upr_c, fill = Survey), alpha = 0.7, guides = NULL) +
+  geom_ribbon(aes(year, est_c, ymin = lwr_c, ymax = upr_c, fill = Survey), alpha = 0.5, guides = NULL) +
   #geom_linerange() +
   #facet_wrap(vars(Survey), ncol = 1, scales = "free_y") +
   expand_limits(y = 0) +
