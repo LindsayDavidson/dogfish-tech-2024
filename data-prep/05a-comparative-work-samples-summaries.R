@@ -253,24 +253,101 @@ cv
 ggsave(paste0("figures/mean_length_season_boxplot.png"), cv, height = 9, width = 7, dpi = 200)
 
 
-
-
-
-
-
-
+#linear regression
 df <- comp |> mutate(sex_factor = as.factor(sex), season_factor = as.factor(season))
-one_way <- aov(length ~ season *   sex_factor, data = df)
-summary(one_way)
-TukeyHSD(one_way)
-ggplot(df, aes(x = factor(season), y = length, fill = factor(season))) +
-  geom_boxplot() +
-  labs(title = "ANOVA Results", x = "Group", y = "Dependent Variable") +
-  theme_minimal()
+df <- df |> mutate(keep = ifelse(season == 3 & hooksize_desc == "13/0" & grouping_depth_id %in% c("D2", "D3"), "keep",
+                               ifelse(season == 4 & hooksize_desc == "14/0", "keep", "erase"))) |>
+  filter(keep == "keep")
 
-tukey.plot.test<-TukeyHSD(one_way)
-plot(tukey.plot.test, las = 1)
+df_f <- filter(df, sex == 2)
+df_m <- filter(df, sex == 1)
 
+test <- glm(length ~ season, data = df_f, family = Gamma(link = "inverse"))
+test
+coef(test)
+summary(test)
+
+preds <- predict(test, newdata = newdata, type = "link", se.fit = TRUE)
+# 2. Calculate upper and lower 95% confidence bounds on the link scale
+crit_val <- qnorm(0.975) # 1.96 for a standard normal distribution
+link_lower <- preds$fit - crit_val * preds$se.fit
+link_upper <- preds$fit + crit_val * preds$se.fit
+
+# 3. Back-transform to the RESPONSE scale using inverse link (1 / x)
+# Note: Because the link is inverse (1/x), lower on link scale = upper on response scale
+newdata$pred_response <- test$family$linkinv(preds$fit)
+newdata$ci_lower      <- test$family$linkinv(link_upper)
+newdata$ci_upper      <- test$family$linkinv(link_lower)
+
+
+test_m <- glm(length ~ season, data = df_m, family = Gamma(link = "inverse"))
+test_m
+coef(test_m)
+summary(test_m)
+
+newdata <- data.frame(season = as.factor(c(3, 4)))
+preds <- predict(test_m, newdata = newdata, type = "link", se.fit = TRUE)
+# 2. Calculate upper and lower 95% confidence bounds on the link scale
+crit_val <- qnorm(0.975) # 1.96 for a standard normal distribution
+link_lower <- preds$fit - crit_val * preds$se.fit
+link_upper <- preds$fit + crit_val * preds$se.fit
+
+# 3. Back-transform to the RESPONSE scale using inverse link (1 / x)
+# Note: Because the link is inverse (1/x), lower on link scale = upper on response scale
+newdata$pred_response <- test_m$family$linkinv(preds$fit)
+newdata$ci_lower      <- test_m$family$linkinv(link_upper)
+newdata$ci_upper      <- test_m$family$linkinv(link_lower)
+
+
+#linear regression
+df <- comp |> mutate(sex_factor = as.factor(sex), season_factor = as.factor(season))
+df <- df |> mutate(keep = ifelse(season == 3 & hooksize_desc == "13/0", "keep",
+                                 ifelse(season == 4 & hooksize_desc == "14/0", "keep", "erase"))) |>
+  filter(keep == "keep")
+
+df_f <- filter(df, sex == 2)
+
+test <- glm(length ~ season, data = df_f, family = Gamma(link = "inverse"))
+test
+coef(test)
+summary(test)
+
+preds <- predict(test, newdata = newdata, type = "link", se.fit = TRUE)
+# 2. Calculate upper and lower 95% confidence bounds on the link scale
+crit_val <- qnorm(0.975) # 1.96 for a standard normal distribution
+link_lower <- preds$fit - crit_val * preds$se.fit
+link_upper <- preds$fit + crit_val * preds$se.fit
+
+# 3. Back-transform to the RESPONSE scale using inverse link (1 / x)
+# Note: Because the link is inverse (1/x), lower on link scale = upper on response scale
+newdata$pred_response <- test$family$linkinv(preds$fit)
+newdata$ci_lower      <- test$family$linkinv(link_upper)
+newdata$ci_upper      <- test$family$linkinv(link_lower)
+
+#linear regression
+df <- comp |> mutate(sex_factor = as.factor(sex), season_factor = as.factor(season))
+df <- df |> mutate(keep = ifelse(season == 3 & hooksize_desc == "13/0", "keep",
+                                 ifelse(season == 4 & hooksize_desc == "14/0", "keep", "erase"))) |>
+  filter(keep == "keep")
+
+df_m <- filter(df, sex == 1)
+
+test <- glm(length ~ season, data = df_m, family = Gamma(link = "inverse"))
+test
+coef(test)
+summary(test)
+
+preds <- predict(test, newdata = newdata, type = "link", se.fit = TRUE)
+# 2. Calculate upper and lower 95% confidence bounds on the link scale
+crit_val <- qnorm(0.975) # 1.96 for a standard normal distribution
+link_lower <- preds$fit - crit_val * preds$se.fit
+link_upper <- preds$fit + crit_val * preds$se.fit
+
+# 3. Back-transform to the RESPONSE scale using inverse link (1 / x)
+# Note: Because the link is inverse (1/x), lower on link scale = upper on response scale
+newdata$pred_response <- test$family$linkinv(preds$fit)
+newdata$ci_lower      <- test$family$linkinv(link_upper)
+newdata$ci_upper      <- test$family$linkinv(link_lower)
 
 
 
