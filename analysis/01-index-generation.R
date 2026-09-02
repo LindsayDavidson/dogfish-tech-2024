@@ -27,6 +27,52 @@ coast_proj <- sf::st_transform(coast, crs = bccrs)
 
 # load data----------------------------------------------
 
+#load samps, count by length bin, apply calibration coeff for that length group, and then sum
+#run a model 20 times selecting a value in the length coeffs table and run
+
+lengthcoeffs <- readRDS("output/calibration_coeffs_length.rds") #exp these
+# I need to create a distribtuion and pull 20 values fro each of the lengths bins from this...
+
+#first pull in sample data and bin by length
+samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
+min <- min(samps$total_length, na.rm = TRUE) #some really small ones I didn't include in the count (probably babies)
+max <- max(samps$total_length, na.rm = TRUE)
+breaks <- c(20, 64, 84, max + 1) #thelengths in the full database of samples is different than that in the comp work. I therefore included lengths from 20-64 in the smallest bin and extended the 80 plus bing to include 121 cm.
+
+dogsamps <- samps |>
+  filter(survey_abbrev %in% c("DOG", "OTHER") & hooksize_desc == "14/0" & year %in% c(2004, 2005, 2008, 2011, 2014, 2019, 2023)) |>
+  mutate(length_bin = cut(total_length, breaks)) |>
+  drop_na(total_length) |>
+  ungroup()
+
+unique(dogsamps$length_bin)
+dogsamps <- dogsamps |> drop_na(length_bin)
+
+nsim <- 1 #20
+#put all of this in iteration??
+#now select a calibration coeff value for each length bin
+bin <- dogsamps |> dplyr::select(length_bin)|> distinct()
+bin$coeff <- 0
+bin$coeff[bin$length_bin == "(20,64]"] <- exp(rnorm(n = nsim, mean = lengthcoeffs$estimate[lengthcoeffs$term == "factor(length_bin)(43,64]"], sd = lengthcoeffs$std.error[1]))
+bin$coeff[bin$length_bin == "(64,84]"] <- exp(rnorm(n = nsim, mean = lengthcoeffs$estimate[lengthcoeffs$term == "factor(length_bin)(64,84]"], sd = lengthcoeffs$std.error[1]))
+bin$coeff[bin$length_bin == "(84,121]"] <- exp(rnorm(n = nsim, mean = lengthcoeffs$estimate[lengthcoeffs$term == "factor(length_bin)(84,113]"], sd = lengthcoeffs$std.error[1]))
+bin <- bin |> mutate(length_binf = ifelse(length_bin == "(64,84]", 2, ifelse(length_bin == "(20,64]", 1, 3)))
+
+unique(dogsamps$length_bin)
+dogsamps <- dogsamps |> mutate(length_binf = ifelse(length_bin == "(64,84]", 2, ifelse(length_bin == "(20,64]", 1, 3)))
+
+dogsamps <- left_join(dogsamps, bin, by = "length_binf")
+d <- dogsamps |>
+  group_by(fishing_event_id, length_binf, coeff, survey_abbrev, hooksize_desc, year, julian, lglsp_hook_count) |>
+  reframe(catch_count = n())
+
+ggplot(data = d, aes(year, (catch_count))) + geom_jitter()
+
+
+
+#so does the model include a length bin factor and then I can include the catch count per depth and change the offset???
+
+
 df <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
   drop_na(catch_count) |>
   drop_na(offset) |>
@@ -59,10 +105,10 @@ df <- df |>
 # params
 cutoff <- 10
 
- #model = "hblldog"
- # model = "hbll-n-s"
- # model = "dog"
-  model = "dog-predict"
+#model = "hblldog"
+# model = "hbll-n-s"
+# model = "dog"
+model = "dog-predict"
 
 if (model == "hblldog") {
   d <- df #<- check if 2004 is here now as I added soak times
@@ -161,7 +207,7 @@ if (model == "dog-predict") {
     filter(year %in% c(2005, 2008, 2011, 2014, 2019, 2023)) |>
     mutate(HBLLcomp = ifelse(month == 9 & day < 27, "erase", "keep")) |>
     filter(HBLLcomp == "keep") |>
-   # filter(month > 9) |> # i did this to drop the comp work that happened in summer, keep in and include julian if wanted
+    # filter(month > 9) |> # i did this to drop the comp work that happened in summer, keep in and include julian if wanted
     drop_na(offset) |>
     drop_na(depth_m) |>
     drop_na(julian) |>
@@ -173,8 +219,8 @@ if (model == "dog-predict") {
     filter(GROUPING_DESC != 	"SoG Dogfish 0 - 55 m") |>
     distinct(.keep_all = TRUE) |>
     add_utm_columns(ll_names = c("LONGITUDE", "LATITUDE"),
-                         utm_names = c("UTM.lon", "UTM.lat"),
-                         utm_crs = 32609
+                    utm_names = c("UTM.lon", "UTM.lat"),
+                    utm_crs = 32609
     ) |>
     mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
 
@@ -209,13 +255,13 @@ mesh$mesh$n
 
 
 if (model %in% c("dog")) { #<- two surveys
-    priorsint <- sdmTMBpriors(b = normal(c(NA, NA), c(NA, NA)),
-         matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
-         matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1))
-    priors <-  sdmTMBpriors(
-      matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
-      matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1),
-      b = normal(c(NA, 0, 0, 0), c(NA, 1, 1, 1)))
+  priorsint <- sdmTMBpriors(b = normal(c(NA, NA), c(NA, NA)),
+                            matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
+                            matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1))
+  priors <-  sdmTMBpriors(
+    matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
+    matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1),
+    b = normal(c(NA, 0, 0, 0), c(NA, 1, 1, 1)))
 }
 
 ggplot() +
@@ -226,14 +272,14 @@ ggplot() +
     pch = 16
   ) +
   inlabru::gg(mesh$mesh,
-    edge.color = "grey60",
-    edge.linewidth = 0.15,
-    # interior = TRUE,
-    # int.color = "blue",
-    int.linewidth = 0.25,
-    exterior = FALSE,
-    # ext.color = "black",
-    ext.linewidth = 0.5
+              edge.color = "grey60",
+              edge.linewidth = 0.15,
+              # interior = TRUE,
+              # int.color = "blue",
+              int.linewidth = 0.25,
+              exterior = FALSE,
+              # ext.color = "black",
+              ext.linewidth = 0.5
   ) +
   scale_colour_viridis_c(direction = -1) +
   labs(colour = "Year") +
