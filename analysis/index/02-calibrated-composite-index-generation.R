@@ -4,100 +4,7 @@
 
 source("analysis/calibration/index/01-index-generation-data-prep.R") #each time I call this different values are pulled from the calibration coeff distribution
 
-d <- readRDS("output/data-index-generation-calibrated.rds")
-
-# m <- readRDS("data-generated/model_nolength_season_bb.rds")
-# all <- tidy(m, ran.pars = TRUE)
-# log_offset <- (all$estimate)
-# exp(log_offset)
-#
-# dat <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") # need the depth fished to create pairs
-# years <- dat |> group_by(survey_lumped) |> reframe(year = sort(unique(year)))
-#
-# exp(dat$offset)
-# exp(dat$offset_hksoak)
-# unique(dat$survey_abbrev)
-# x <- filter(dat, survey_abbrev == "OTHER")
-#
-# # define offsets for composite indexes for all surveys
-#
-# id_remove <- dat %>%
-#   filter(grepl("COMPARISON", activity_desc) & !year %in% c(2004, 2023)) |>
-#   pull(fishing_event_id)
-#
-# id_remove2 <- dat %>%
-#   filter(grepl("COMPARISON", activity_desc) & hooksize_desc == "12/0" & year %in% c(2022, 2023, 2024)) |>
-#   pull(fishing_event_id)
-#
-# dogfish <-
-#   dat |>
-#   filter(!fishing_event_id %in% id_remove) %>%
-#   filter(!fishing_event_id %in% id_remove2) %>%
-#
-#   #  filter(dat, !grepl("COMPARISON", activity_desc)) %>% #I want to keep the 2004 and the 2023 comp work
-#
-#   mutate(survey_abbrev = ifelse(year == 2023 & time_deployed > as.POSIXct("2023-09-06 09:15:21") & hooksize_desc == "14/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "DOG",
-#                                 ifelse(year == 2023 & time_deployed > as.POSIXct("2023-09-06 09:15:21") & hooksize_desc == "13/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase", # don't want this one
-#                                        ifelse(year == 2023 & time_deployed <= as.POSIXct("2023-09-06 09:15:21") & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase",
-#                                               ifelse(year == 2004 & hooksize_desc == "14/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "DOG",
-#                                                      ifelse(year == 2004 & hooksize_desc == "12/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "j-hook",
-#                                                             survey_abbrev
-#                                                      )
-#                                               )
-#                                        )
-#                                 )
-#   )) |>
-#
-#   filter(survey_abbrev != "erase") %>%
-#
-#   mutate(survey_abbrev = ifelse(survey_abbrev == "DOG" & year %in% c(1986, 1989), "j-hook", survey_abbrev)) |>
-#   mutate(
-#     offset_jhook = offset_hksoak - ifelse(survey_abbrev == "DOG", 0,
-#                                           ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, log(1.45))
-#     ), # 1.45 from Jackies report
-#     offset_rho = offset_hksoak - ifelse(survey_abbrev == "DOG", log_offset,
-#                                         ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, log(exp(log_offset) * 1.45))
-#     ),
-#     offset_dogcircle = offset_hksoak + ifelse(survey_abbrev == "DOG", 0,
-#                                               ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), log_offset, -(log(1.45)))
-#     ), # scale to dog gear
-#
-#     # cpue = catch_count / exp(log_offset),
-#     cpue_rho = catch_count / exp(offset_rho),
-#     cpue_dogcircle = catch_count / exp(offset_dogcircle)
-#   ) %>%
-#   arrange(year) %>%
-#   #mutate(survey = ifelse(survey_abbrev == "DOG", "dog", "hbll")) %>%
-#   select(!UTM.lon & !UTM.lat) %>%
-#   sdmTMB::add_utm_columns(ll_names = c("longitude", "latitude"), utm_crs = 32609, utm_names = c("UTM.lon", "UTM.lat"))
-#
-# ggplot(dogfish, aes(longitude, latitude, fill = cpue_rho)) +
-#   geom_point(shape = 21) +
-#   facet_grid(vars(year), vars(survey_abbrev)) +
-#   scale_fill_viridis_c(trans = "sqrt")
-#
-# ggplot(dogfish, aes(depth_m, cpue_rho)) +
-#   geom_point(shape = 21) +
-#   facet_grid(vars(survey_abbrev)) +
-#   scale_fill_viridis_c()
-#
-# ggplot(dogfish, aes(depth_m, offset_rho)) +
-#   geom_point(shape = 21) +
-#   facet_grid(vars(survey_abbrev)) +
-#   scale_fill_viridis_c()
-#
-# ggplot(dogfish, aes(depth_m, offset)) +
-#   geom_point(shape = 21) +
-#   facet_grid(vars(survey_abbrev)) +
-#   scale_fill_viridis_c()
-#
-# ggplot(dogfish, aes(year, catch_count, colour = survey_abbrev)) +
-#   geom_jitter(shape = 21) +
-#   scale_fill_viridis_c()
-#
-# ggplot(dogfish, aes(year, cpue_dogcircle, colour = survey_abbrev)) +
-#   geom_jitter(shape = 21) +
-#   scale_fill_viridis_c()
+dogfish <- readRDS("output/data-index-generation-calibrated.rds")
 
 # calibrated with j-hook --------------------------------------------------
 
@@ -424,73 +331,73 @@ ggplot(index_dog, aes(year, est, ymin = lwr, ymax = upr)) +
   geom_line(linewidth = 0.1) +
   geom_linerange()
 
-write_csv(index_dog, file = "analysis/calibration/index/index_dog.csv")
-#write_csv(index_dog, file = "analysis/calibration/index/index_dog_julian.csv")
-
-
-
-# compare indices ---------------------------------------------------------
-
-
-index_compare <- rbind(   #seasonally paired value and center data
-  index |> mutate(Survey = "Calibrated HBLL + SoG dogfish") |>
-    mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
-  index_hbll |> mutate(Survey = "HBLL") |>
-    mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
-  #index_dog |> mutate(Survey = "SoG dogfish (circle)") |>
-  #  mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
-  index_dc |> mutate(Survey = "Calibrated SoG dogfish") |>
-    mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est))
-
-)
-
-# index_compare2 <- index_compare <- rbind(
-#   index |> mutate(Survey = "Calibrated HBLL + SoG dogfish (circle and j-hook)", value = "1.19"), #paired value
-#   index_hbll |> mutate(Survey = "HBLL", value = "1.19"),
-#   index_dog |> mutate(Survey = "SoG dogfish", value = "1.19")
-# )
-
-#index_compare <- rbind(index_compare, index_compare2)
-
-x <- palette.colors(palette = "Okabe-Ito")
-
-gg <- index_compare %>%
-  # mutate(dyear = year %in% year_dogfish) %>%
-  #ggplot(aes(year, est, ymin = lwr, ymax = upr, group = Survey, colour = Survey)) +
-  ggplot(aes(year, est_c, ymin = lwr_c, ymax = upr_c, group = Survey, colour = Survey)) +
-  geom_line(aes(group = Survey, colour = Survey), linewidth = 1) +
-  geom_point(aes(group = Survey, colour = Survey), size = 2) +
-  geom_ribbon(aes(year, est_c, ymin = lwr_c, ymax = upr_c, fill = Survey), alpha = 0.5, guides = NULL) +
-  #geom_linerange() +
-  #facet_wrap(vars(Survey), ncol = 1, scales = "free_y") +
-  expand_limits(y = 0) +
-  scale_colour_manual(values = x[c(2,4,7)]) +
-  scale_fill_manual(values = x[c(2,4,7)]) +
-  labs(x = "Year", y = "Index") +
-  theme_classic()
-
-ggsave("figures/calibrated_index.jpg", gg, width = 6, height =3)
-
-# index_compare <- rbind(
-#   read.csv(file = "analysis/calibration/index/index_dogfish_hbll_calibrate.csv") %>%
-#     mutate(Survey = "Calibrated HBLL + SoG dogfish"),
-#   read.csv(file = "analysis/calibration/index/index_dog.csv") %>%
-#     mutate(Survey = "SoG dogfish"),
-#   read.csv(file = "analysis/calibration/index/index_hbll.csv") %>%
-#     mutate(Survey = "HBLL")
+# write_csv(index_dog, file = "analysis/calibration/index/index_dog.csv")
+# #write_csv(index_dog, file = "analysis/calibration/index/index_dog_julian.csv")
+#
+#
+#
+# # compare indices ---------------------------------------------------------
+#
+#
+# index_compare <- rbind(   #seasonally paired value and center data
+#   index |> mutate(Survey = "Calibrated HBLL + SoG dogfish") |>
+#     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
+#   index_hbll |> mutate(Survey = "HBLL") |>
+#     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
+#   #index_dog |> mutate(Survey = "SoG dogfish (circle)") |>
+#   #  mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
+#   index_dc |> mutate(Survey = "Calibrated SoG dogfish") |>
+#     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est))
+#
 # )
 #
-# year_dogfish <- index_compare %>%
-#   filter(Survey == "SoG dogfish") %>%
-#   pull(year)
+# # index_compare2 <- index_compare <- rbind(
+# #   index |> mutate(Survey = "Calibrated HBLL + SoG dogfish (circle and j-hook)", value = "1.19"), #paired value
+# #   index_hbll |> mutate(Survey = "HBLL", value = "1.19"),
+# #   index_dog |> mutate(Survey = "SoG dogfish", value = "1.19")
+# # )
+#
+# #index_compare <- rbind(index_compare, index_compare2)
+#
+# x <- palette.colors(palette = "Okabe-Ito")
 #
 # gg <- index_compare %>%
-#   mutate(dyear = year %in% year_dogfish) %>%
-#   ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = dyear)) +
-#   geom_point() +
-#   geom_line(aes(group = Survey), linewidth = 0.1) +
-#   geom_linerange() +
-#   facet_wrap(vars(Survey), ncol = 1, scales = "free_y") +
+#   # mutate(dyear = year %in% year_dogfish) %>%
+#   #ggplot(aes(year, est, ymin = lwr, ymax = upr, group = Survey, colour = Survey)) +
+#   ggplot(aes(year, est_c, ymin = lwr_c, ymax = upr_c, group = Survey, colour = Survey)) +
+#   geom_line(aes(group = Survey, colour = Survey), linewidth = 1) +
+#   geom_point(aes(group = Survey, colour = Survey), size = 2) +
+#   geom_ribbon(aes(year, est_c, ymin = lwr_c, ymax = upr_c, fill = Survey), alpha = 0.5, guides = NULL) +
+#   #geom_linerange() +
+#   #facet_wrap(vars(Survey), ncol = 1, scales = "free_y") +
 #   expand_limits(y = 0) +
-#   labs(x = "Year", y = "Index", colour = "Year with \nSoG dogfish survey?")
-# ggsave("analysis/index-calibration/index/compare_index.png", g, height = 6, width = 5)
+#   scale_colour_manual(values = x[c(2,4,7)]) +
+#   scale_fill_manual(values = x[c(2,4,7)]) +
+#   labs(x = "Year", y = "Index") +
+#   theme_classic()
+#
+# ggsave("figures/calibrated_index.jpg", gg, width = 6, height =3)
+#
+# # index_compare <- rbind(
+# #   read.csv(file = "analysis/calibration/index/index_dogfish_hbll_calibrate.csv") %>%
+# #     mutate(Survey = "Calibrated HBLL + SoG dogfish"),
+# #   read.csv(file = "analysis/calibration/index/index_dog.csv") %>%
+# #     mutate(Survey = "SoG dogfish"),
+# #   read.csv(file = "analysis/calibration/index/index_hbll.csv") %>%
+# #     mutate(Survey = "HBLL")
+# # )
+# #
+# # year_dogfish <- index_compare %>%
+# #   filter(Survey == "SoG dogfish") %>%
+# #   pull(year)
+# #
+# # gg <- index_compare %>%
+# #   mutate(dyear = year %in% year_dogfish) %>%
+# #   ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = dyear)) +
+# #   geom_point() +
+# #   geom_line(aes(group = Survey), linewidth = 0.1) +
+# #   geom_linerange() +
+# #   facet_wrap(vars(Survey), ncol = 1, scales = "free_y") +
+# #   expand_limits(y = 0) +
+# #   labs(x = "Year", y = "Index", colour = "Year with \nSoG dogfish survey?")
+# # ggsave("analysis/index-calibration/index/compare_index.png", g, height = 6, width = 5)
