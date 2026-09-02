@@ -67,7 +67,7 @@ ggplot(df) +
 
 d |>
   mutate(month_text = forcats::fct_relevel(month_text,
-                                  c("Nov.", "Oct.", "Sept.", "Aug.", "July")))  |>
+                                           c("Nov.", "Oct.", "Sept.", "Aug.", "July")))  |>
   drop_na(month, julian, catch_count, year, survey_abbrev) |>
   group_by(survey_abbrev, year) |>
   ggplot() +
