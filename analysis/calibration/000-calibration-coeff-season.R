@@ -17,9 +17,9 @@ samps <- filter(samps, !fishing_event_id %in% id_remove) %>%
   filter(!year %in% c(2004, 2019, 2024)) |>
   mutate(hook_name = ifelse(hooksize_desc == "13/0", "HBLL_13/0", "Dog_14/0")) |>
   mutate(survey_abbrev = ifelse(year == 2023 & time_deployed > as.POSIXct("2023-09-06 09:15:21"), "Dog_14/0",
-    ifelse(year == 2023 & time_deployed <= as.POSIXct("2023-09-06 09:15:21"), "HBLL_13/0",
-      "HBLL_13/0"
-    )
+                                ifelse(year == 2023 & time_deployed <= as.POSIXct("2023-09-06 09:15:21"), "HBLL_13/0",
+                                       "HBLL_13/0"
+                                )
   )) |>
   dplyr::select(-grouping_desc)
 
@@ -139,6 +139,8 @@ m2 <- sdmTMB(
 sanity(m2)
 AIC(m2)
 tidy(m2, ran.pars = TRUE)
+saveRDS(tidy(m2), "output/calibration_coeffs_length.rds")
+
 exp(tidy(m2, ran.pars = TRUE)$estimate)
 exp(tidy(m2, ran.pars = TRUE)$conf.low)
 exp(tidy(m2, ran.pars = TRUE)$conf.high)
@@ -280,11 +282,12 @@ table <- table |> dplyr::select("Data", "Length..cm.", final)
 rownames(table) <- NULL
 table$"Length..cm." <- rbind(table$"Length..cm.", "all lengths")
 
+
 table |>
   knitr::kable(
     format = "latex",
     col.names = c("Data",
-      "Length bin (cm)", "rho (CI)"
+                  "Length bin (cm)", "rho (CI)"
     ),
     booktabs = TRUE,
     align = "c",

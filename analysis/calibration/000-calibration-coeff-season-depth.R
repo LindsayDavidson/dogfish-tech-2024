@@ -41,9 +41,9 @@ unique(final$grouping_desc)
 # separate by depht
 
 hbll <- filter(final, survey_abbrev == "HBLL_13/0", hook_name == "HBLL_13/0") |>
-rename(catch_count_hbll = "catch_count", offset_hbll = "lglsp_hook_count", hbll_survey = "survey_abbrev") |>
-mutate(offset_hbll = log(offset_hbll)) |>
-select(-hook_name)
+  rename(catch_count_hbll = "catch_count", offset_hbll = "lglsp_hook_count", hbll_survey = "survey_abbrev") |>
+  mutate(offset_hbll = log(offset_hbll)) |>
+  select(-hook_name)
 
 dog <- filter(final, survey_abbrev == "Dog_14/0", hook_name == "Dog_14/0") |>
   rename(catch_count_dog = "catch_count", offset_dog = "lglsp_hook_count", dog_survey = "survey_abbrev") |>

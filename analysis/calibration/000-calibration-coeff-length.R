@@ -16,10 +16,10 @@ samps <- filter(samps, !fishing_event_id %in% id_remove) %>%
 samps <- samps |>
   filter(year %in% c(2022, 2023)) |>
   mutate(hook_name = ifelse(hooksize_desc == "13/0", "HBLL_13/0", "Dog_14/0")) |>
-  dplyr::select(hook_name, sex, fishing_event_id, year, length, time_deployed, lglsp_hook_count, latitude, longitude, depth_m)
+  dplyr::select(hook_name, sex, fishing_event_id, year, length, time_deployed, lglsp_hook_count, latitude, longitude, depth_m, grouping_depth_id)
 
 samps <- samps |> mutate(survey_abbrev = ifelse(time_deployed > "2023-09-06 09:15:21", "Dog_14/0", hook_name))
-
+unique(samps$grouping_depth_id)
 
 min <- min(samps$length, na.rm = TRUE)
 max <- max(samps$length, na.rm = TRUE)
@@ -51,7 +51,8 @@ test4 <- test3 |>
   rename(catch_count_hbll_length = "HBLL_13/0", catch_count_dog_length = "Dog_14/0") |>
   ungroup()
 
-test_all <- samps |> group_by(hook_name, fishing_event_id, year) |>
+
+depth <- samps |> group_by(hook_name, fishing_event_id, year, grouping_depth_id) |>
   reframe(catch_count = n(), offset = mean(lglsp_hook_count)) |>
   ungroup() |>
   pivot_wider(
@@ -65,8 +66,22 @@ test_all <- samps |> group_by(hook_name, fishing_event_id, year) |>
   rename(catch_count_HBLL = "catch_count_HBLL_13/0" , catch_count_Dog = "catch_count_Dog_14/0") |>
   mutate(offset = log(offset_HBLL) - log(offset_Dog))
 
+# test_all <- samps |> group_by(hook_name, fishing_event_id, year) |>
+#   reframe(catch_count = n(), offset = mean(lglsp_hook_count)) |>
+#   ungroup() |>
+#   pivot_wider(
+#     names_from = hook_name    ,
+#     values_from = c(catch_count, offset)
+#   ) |>
+#   ungroup() |>
+#   arrange(year, fishing_event_id) |>
+#   drop_na("offset_HBLL_13/0", "offset_Dog_14/0") |>
+#   rename(offset_HBLL = "offset_HBLL_13/0" , offset_Dog = "offset_Dog_14/0") |>
+#   rename(catch_count_HBLL = "catch_count_HBLL_13/0" , catch_count_Dog = "catch_count_Dog_14/0") |>
+#   mutate(offset = log(offset_HBLL) - log(offset_Dog))
+
 test5 <- test3 |>
-  select(year, fishing_event_id, lglsp_hook_count, hook_name) %>%
+  select(year, fishing_event_id, lglsp_hook_count, hook_name, grouping_depth_id) %>%
   distinct() |>
   mutate(offset_name = ifelse(hook_name == "HBLL_13/0", "offset_hbll", "offset_dog")) |>
   dplyr::select(-hook_name) |>
@@ -80,9 +95,10 @@ test5 <- test3 |>
   mutate(offset = log(offset_hbll) - log(offset_dog))
 
 final <- left_join(test4, test5)
+final$grouping_depth_id
+
 
 #change to UTMs
-
 final <- add_utm_columns(
   final,
   ll_names = c("longitude", "latitude"),
@@ -127,14 +143,14 @@ exp(q3)
 
 
 #no length
-weight = exp(test_all$offset)
+weight = exp(depth$offset)
 
 all <- sdmTMB(
   cbind(catch_count_HBLL , catch_count_Dog ) ~ 1,
   mesh = dummy_mesh,
   spatial = "off",
   spatiotemporal = "off",
-  data = test_all,
+  data = depth,
   #offset = final$offset,
   #family = binomial(),
   family = betabinomial(),
@@ -147,6 +163,29 @@ all2 <- tidy(all, ran.pars = TRUE)
 exp(all2$estimate)
 exp(all2$conf.low)
 exp(all2$conf.high)
+
+
+
+weight = exp(depth$offset)
+
+depthm <- sdmTMB(
+  cbind(catch_count_HBLL , catch_count_Dog ) ~ 1 + as.factor(grouping_depth_id),
+  mesh = dummy_mesh,
+  spatial = "off",
+  spatiotemporal = "off",
+  data = depth,
+  #offset = final$offset,
+  #family = binomial(),
+  family = betabinomial(),
+  weights = weight,
+  control = sdmTMBcontrol(multiphase = FALSE)
+)
+coef(depthm)
+depthc <- tidy(depthm, ran.pars = TRUE)
+exp(depthc$estimate)
+exp(depthc$conf.low)
+exp(depthc$conf.high)
+
 
 site <- sdmTMB(
   cbind(catch_count_HBLL , catch_count_Dog ) ~ 1,
@@ -169,6 +208,15 @@ exp(site2$conf.low)
 exp(site2$conf.high)
 
 
+AIC(all)
+AIC(m2)
+AIC(depthm)
+
+table = (tidy(all))
+exp(table$estimate)
+exp(table$conf.low)
+exp(table$conf.high)
+
 #log_offset = log(mean(c(exp(q1), exp(q2), exp(q3))))
 #log_offset
 #exp(log_offset) #68 percent more fish caught on HBLL
@@ -188,7 +236,7 @@ table |>
   knitr::kable(
     format = "latex",
     col.names = c("Data",
-      "Length bin (cm)", "rho (CI)"),
+                  "Length bin (cm)", "rho (CI)"),
     booktabs = TRUE,
     align = "c",
     caption = "rho for seasonally paired comparative sets",
