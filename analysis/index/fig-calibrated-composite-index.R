@@ -1,97 +1,103 @@
 # calibrated composite index
+#
 
-m <- readRDS("data-generated/model_nolength_season_bb.rds")
-all <- tidy(m, ran.pars = TRUE)
-log_offset <- (all$estimate)
-exp(log_offset)
 
-dat <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") # need the depth fished to create pairs
-years <- dat |> group_by(survey_lumped) |> reframe(year = sort(unique(year)))
+source("analysis/calibration/index/01-index-generation-data-prep.R") #each time I call this different values are pulled from the calibration coeff distribution
 
-exp(dat$offset)
-exp(dat$offset_hksoak)
-unique(dat$survey_abbrev)
-x <- filter(dat, survey_abbrev == "OTHER")
+d <- readRDS("output/data-index-generation-calibrated.rds")
 
-# define offsets for composite indexes for all surveys
-
-id_remove <- dat %>%
-  filter(grepl("COMPARISON", activity_desc) & !year %in% c(2004, 2023)) |>
-  pull(fishing_event_id)
-
-id_remove2 <- dat %>%
-  filter(grepl("COMPARISON", activity_desc) & hooksize_desc == "12/0" & year %in% c(2022, 2023, 2024)) |>
-  pull(fishing_event_id)
-
-dogfish <-
-  dat |>
-  filter(!fishing_event_id %in% id_remove) %>%
-  filter(!fishing_event_id %in% id_remove2) %>%
-
-  #  filter(dat, !grepl("COMPARISON", activity_desc)) %>% #I want to keep the 2004 and the 2023 comp work
-
-  mutate(survey_abbrev = ifelse(year == 2023 & time_deployed > as.POSIXct("2023-09-06 09:15:21") & hooksize_desc == "14/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "DOG",
-    ifelse(year == 2023 & time_deployed > as.POSIXct("2023-09-06 09:15:21") & hooksize_desc == "13/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase", # don't want this one
-      ifelse(year == 2023 & time_deployed <= as.POSIXct("2023-09-06 09:15:21") & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase",
-        ifelse(year == 2004 & hooksize_desc == "14/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "DOG",
-          ifelse(year == 2004 & hooksize_desc == "12/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "j-hook",
-            survey_abbrev
-          )
-        )
-      )
-    )
-  )) |>
-
-  filter(survey_abbrev != "erase") %>%
-
-  mutate(survey_abbrev = ifelse(survey_abbrev == "DOG" & year %in% c(1986, 1989), "j-hook", survey_abbrev)) |>
-  mutate(
-    offset_jhook = offset_hksoak - ifelse(survey_abbrev == "DOG", 0,
-      ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, log(1.45))
-    ), # 1.45 from Jackies report
-    offset_rho = offset_hksoak - ifelse(survey_abbrev == "DOG", log_offset,
-      ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, log(exp(log_offset) * 1.45))
-    ),
-    offset_dogcircle = offset_hksoak + ifelse(survey_abbrev == "DOG", 0,
-      ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), log_offset, -(log(1.45)))
-    ), # scale to dog gear
-
-    # cpue = catch_count / exp(log_offset),
-    cpue_rho = catch_count / exp(offset_rho),
-    cpue_dogcircle = catch_count / exp(offset_dogcircle)
-  ) %>%
-  arrange(year) %>%
-  #mutate(survey = ifelse(survey_abbrev == "DOG", "dog", "hbll")) %>%
-  select(!UTM.lon & !UTM.lat) %>%
-  sdmTMB::add_utm_columns(ll_names = c("longitude", "latitude"), utm_crs = 32609, utm_names = c("UTM.lon", "UTM.lat"))
-
-ggplot(dogfish, aes(longitude, latitude, fill = cpue_rho)) +
-  geom_point(shape = 21) +
-  facet_grid(vars(year), vars(survey_abbrev)) +
-  scale_fill_viridis_c(trans = "sqrt")
-
-ggplot(dogfish, aes(depth_m, cpue_rho)) +
-  geom_point(shape = 21) +
-  facet_grid(vars(survey_abbrev)) +
-  scale_fill_viridis_c()
-
-ggplot(dogfish, aes(depth_m, offset_rho)) +
-  geom_point(shape = 21) +
-  facet_grid(vars(survey_abbrev)) +
-  scale_fill_viridis_c()
-
-ggplot(dogfish, aes(depth_m, offset)) +
-  geom_point(shape = 21) +
-  facet_grid(vars(survey_abbrev)) +
-  scale_fill_viridis_c()
-
-ggplot(dogfish, aes(year, catch_count, colour = survey_abbrev)) +
-  geom_jitter(shape = 21) +
-  scale_fill_viridis_c()
-
-ggplot(dogfish, aes(year, cpue_dogcircle, colour = survey_abbrev)) +
-  geom_jitter(shape = 21) +
-  scale_fill_viridis_c()
+# m <- readRDS("data-generated/model_nolength_season_bb.rds")
+# all <- tidy(m, ran.pars = TRUE)
+# log_offset <- (all$estimate)
+# exp(log_offset)
+#
+# dat <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") # need the depth fished to create pairs
+# years <- dat |> group_by(survey_lumped) |> reframe(year = sort(unique(year)))
+#
+# exp(dat$offset)
+# exp(dat$offset_hksoak)
+# unique(dat$survey_abbrev)
+# x <- filter(dat, survey_abbrev == "OTHER")
+#
+# # define offsets for composite indexes for all surveys
+#
+# id_remove <- dat %>%
+#   filter(grepl("COMPARISON", activity_desc) & !year %in% c(2004, 2023)) |>
+#   pull(fishing_event_id)
+#
+# id_remove2 <- dat %>%
+#   filter(grepl("COMPARISON", activity_desc) & hooksize_desc == "12/0" & year %in% c(2022, 2023, 2024)) |>
+#   pull(fishing_event_id)
+#
+# dogfish <-
+#   dat |>
+#   filter(!fishing_event_id %in% id_remove) %>%
+#   filter(!fishing_event_id %in% id_remove2) %>%
+#
+#   #  filter(dat, !grepl("COMPARISON", activity_desc)) %>% #I want to keep the 2004 and the 2023 comp work
+#
+#   mutate(survey_abbrev = ifelse(year == 2023 & time_deployed > as.POSIXct("2023-09-06 09:15:21") & hooksize_desc == "14/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "DOG",
+#                                 ifelse(year == 2023 & time_deployed > as.POSIXct("2023-09-06 09:15:21") & hooksize_desc == "13/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase", # don't want this one
+#                                        ifelse(year == 2023 & time_deployed <= as.POSIXct("2023-09-06 09:15:21") & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase",
+#                                               ifelse(year == 2004 & hooksize_desc == "14/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "DOG",
+#                                                      ifelse(year == 2004 & hooksize_desc == "12/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "j-hook",
+#                                                             survey_abbrev
+#                                                      )
+#                                               )
+#                                        )
+#                                 )
+#   )) |>
+#
+#   filter(survey_abbrev != "erase") %>%
+#
+#   mutate(survey_abbrev = ifelse(survey_abbrev == "DOG" & year %in% c(1986, 1989), "j-hook", survey_abbrev)) |>
+#   mutate(
+#     offset_jhook = offset_hksoak - ifelse(survey_abbrev == "DOG", 0,
+#                                           ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, log(1.45))
+#     ), # 1.45 from Jackies report
+#     offset_rho = offset_hksoak - ifelse(survey_abbrev == "DOG", log_offset,
+#                                         ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, log(exp(log_offset) * 1.45))
+#     ),
+#     offset_dogcircle = offset_hksoak + ifelse(survey_abbrev == "DOG", 0,
+#                                               ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), log_offset, -(log(1.45)))
+#     ), # scale to dog gear
+#
+#     # cpue = catch_count / exp(log_offset),
+#     cpue_rho = catch_count / exp(offset_rho),
+#     cpue_dogcircle = catch_count / exp(offset_dogcircle)
+#   ) %>%
+#   arrange(year) %>%
+#   #mutate(survey = ifelse(survey_abbrev == "DOG", "dog", "hbll")) %>%
+#   select(!UTM.lon & !UTM.lat) %>%
+#   sdmTMB::add_utm_columns(ll_names = c("longitude", "latitude"), utm_crs = 32609, utm_names = c("UTM.lon", "UTM.lat"))
+#
+# ggplot(dogfish, aes(longitude, latitude, fill = cpue_rho)) +
+#   geom_point(shape = 21) +
+#   facet_grid(vars(year), vars(survey_abbrev)) +
+#   scale_fill_viridis_c(trans = "sqrt")
+#
+# ggplot(dogfish, aes(depth_m, cpue_rho)) +
+#   geom_point(shape = 21) +
+#   facet_grid(vars(survey_abbrev)) +
+#   scale_fill_viridis_c()
+#
+# ggplot(dogfish, aes(depth_m, offset_rho)) +
+#   geom_point(shape = 21) +
+#   facet_grid(vars(survey_abbrev)) +
+#   scale_fill_viridis_c()
+#
+# ggplot(dogfish, aes(depth_m, offset)) +
+#   geom_point(shape = 21) +
+#   facet_grid(vars(survey_abbrev)) +
+#   scale_fill_viridis_c()
+#
+# ggplot(dogfish, aes(year, catch_count, colour = survey_abbrev)) +
+#   geom_jitter(shape = 21) +
+#   scale_fill_viridis_c()
+#
+# ggplot(dogfish, aes(year, cpue_dogcircle, colour = survey_abbrev)) +
+#   geom_jitter(shape = 21) +
+#   scale_fill_viridis_c()
 
 # calibrated with j-hook --------------------------------------------------
 
@@ -218,8 +224,8 @@ compfit <- sdmTMB( # composite index
   offset = dogfish$offset_rho, # different offsets see above
   family = nbinom2(),
 
- #weights = weight,
- #family = betabinomial(), #couldnt' get this to converge
+  #weights = weight,
+  #family = betabinomial(), #couldnt' get this to converge
 
   anisotropy = TRUE
 )
