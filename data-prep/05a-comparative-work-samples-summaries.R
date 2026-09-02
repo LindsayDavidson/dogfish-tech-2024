@@ -58,7 +58,7 @@ comp <- comp |> mutate(sex_text = ifelse(sex == 1, "male", ifelse(sex == 2, "fem
 unique(comp$id)
 comp <- comp  |>
   mutate(survey_timing = forcats::fct_relevel(survey_timing,
-                             "hbll", 'dog'))
+                                              "hbll", 'dog'))
 
 
 comp <- comp |>
@@ -105,7 +105,11 @@ fig2 <-
   #filter(id == "hbll 2023") |>
   ggplot(aes(as.factor(hooksize_desc), length, group = as.factor(hooksize_desc), fill = as.factor(hooksize_desc))) +
   geom_jitter (aes(as.factor(hooksize_desc), length, group = as.factor(hooksize_desc), colour = as.factor(hooksize_desc)),  alpha = 0.25) +
-  geom_boxplot() +
+  #geom_boxplot() +
+  geom_violin(alpha = 0.45,
+              draw_quantiles  = c(0.25, 0.5, 0.75),
+              trim = FALSE
+  ) +
   facet_grid(rows = vars(survey_timing), cols = vars(sex_text), scales = "free") +
   theme_classic() +
   #theme(axis.text.x = element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank()) +
@@ -119,7 +123,6 @@ fig2 <-
     axis.title = element_text(size = 15),
     strip.text = element_text(size = 15)
   )
-
 
 fig2
 
@@ -213,7 +216,7 @@ comp |>
   filter(sex %in% c(1, 2))
 
 fig2 <-
-comp |>
+  comp |>
   filter(year != 2019) |>
   filter(id %in% c("2023hbll13/0", "2023dog14/0", "2022hbll13/0" , "2019hbll13/0")) |>
   group_by(id) |>
@@ -222,8 +225,13 @@ comp |>
   ggplot() +
   facet_grid(cols = vars(sex_text),   scales = "free") +
   geom_jitter (aes(as.factor(season_text), length, group = as.factor(season_text), colour = as.factor(season_text)),  alpha = 0.25) +
-  #geom_violin (aes(as.factor(season_text), length, group = as.factor(season_text),  fill = as.factor(season_text)), colour = "black") +
-  geom_boxplot (aes(as.factor(season_text), length, group = as.factor(season_text),  fill = as.factor(season_text)), colour = "black") +
+
+  geom_violin(aes(as.factor(season_text), length, group = as.factor(season_text),  fill = as.factor(season_text)), alpha = 0.45,
+              draw_quantiles  = c(0.25, 0.5, 0.75),
+              trim = FALSE
+  ) +
+
+  #geom_boxplot (aes(as.factor(season_text), length, group = as.factor(season_text),  fill = as.factor(season_text)), colour = "black") +
   theme_classic() +
   theme(axis.title.x = element_blank()) +
   scale_colour_manual(values = c("grey80", "grey30"), guide = NULL) +
@@ -254,101 +262,83 @@ ggsave(paste0("figures/mean_length_season_boxplot.png"), cv, height = 9, width =
 
 
 #linear regression
+
+#females length and season
 df <- comp |> mutate(sex_factor = as.factor(sex), season_factor = as.factor(season))
 df <- df |> mutate(keep = ifelse(season == 3 & hooksize_desc == "13/0" & grouping_depth_id %in% c("D2", "D3"), "keep",
-                               ifelse(season == 4 & hooksize_desc == "14/0", "keep", "erase"))) |>
+                                 ifelse(season == 4 & hooksize_desc == "14/0", "keep", "erase"))) |>
   filter(keep == "keep")
 
 df_f <- filter(df, sex == 2)
 df_m <- filter(df, sex == 1)
 
-test <- glm(length ~ season, data = df_f, family = Gamma(link = "inverse"))
+test <- glm(length ~ season, data = df_f, family = Gamma(link = "log"))
 test
 coef(test)
 summary(test)
 
 preds <- predict(test, newdata = newdata, type = "link", se.fit = TRUE)
-# 2. Calculate upper and lower 95% confidence bounds on the link scale
 crit_val <- qnorm(0.975) # 1.96 for a standard normal distribution
 link_lower <- preds$fit - crit_val * preds$se.fit
 link_upper <- preds$fit + crit_val * preds$se.fit
-
-# 3. Back-transform to the RESPONSE scale using inverse link (1 / x)
-# Note: Because the link is inverse (1/x), lower on link scale = upper on response scale
 newdata$pred_response <- test$family$linkinv(preds$fit)
 newdata$ci_lower      <- test$family$linkinv(link_upper)
 newdata$ci_upper      <- test$family$linkinv(link_lower)
+newdata #females length and season
 
 
-test_m <- glm(length ~ season, data = df_m, family = Gamma(link = "inverse"))
+#males and season
+test_m <- glm(length ~ season, data = df_m, family = Gamma(link = "log"))
 test_m
 coef(test_m)
 summary(test_m)
-
 newdata <- data.frame(season = as.factor(c(3, 4)))
 preds <- predict(test_m, newdata = newdata, type = "link", se.fit = TRUE)
-# 2. Calculate upper and lower 95% confidence bounds on the link scale
 crit_val <- qnorm(0.975) # 1.96 for a standard normal distribution
 link_lower <- preds$fit - crit_val * preds$se.fit
 link_upper <- preds$fit + crit_val * preds$se.fit
-
-# 3. Back-transform to the RESPONSE scale using inverse link (1 / x)
-# Note: Because the link is inverse (1/x), lower on link scale = upper on response scale
 newdata$pred_response <- test_m$family$linkinv(preds$fit)
 newdata$ci_lower      <- test_m$family$linkinv(link_upper)
 newdata$ci_upper      <- test_m$family$linkinv(link_lower)
 
 
-#linear regression
+#females and season for different hooks (HBLL versus Dog)
 df <- comp |> mutate(sex_factor = as.factor(sex), season_factor = as.factor(season))
 df <- df |> mutate(keep = ifelse(season == 3 & hooksize_desc == "13/0", "keep",
-                                 ifelse(season == 4 & hooksize_desc == "14/0", "keep", "erase"))) |>
-  filter(keep == "keep")
-
+                                 ifelse(season == 4 & hooksize_desc == "14/0", "keep", "erase"))) |> filter(keep == "keep")
 df_f <- filter(df, sex == 2)
-
-test <- glm(length ~ season, data = df_f, family = Gamma(link = "inverse"))
+test <- glm(length ~ season, data = df_f, family = Gamma(link = "log"))
 test
 coef(test)
 summary(test)
-
 preds <- predict(test, newdata = newdata, type = "link", se.fit = TRUE)
-# 2. Calculate upper and lower 95% confidence bounds on the link scale
 crit_val <- qnorm(0.975) # 1.96 for a standard normal distribution
 link_lower <- preds$fit - crit_val * preds$se.fit
 link_upper <- preds$fit + crit_val * preds$se.fit
-
-# 3. Back-transform to the RESPONSE scale using inverse link (1 / x)
-# Note: Because the link is inverse (1/x), lower on link scale = upper on response scale
 newdata$pred_response <- test$family$linkinv(preds$fit)
 newdata$ci_lower      <- test$family$linkinv(link_upper)
 newdata$ci_upper      <- test$family$linkinv(link_lower)
+newdata
 
-#linear regression
+
+#males and season for different hooks (HBLL versus Dog)
 df <- comp |> mutate(sex_factor = as.factor(sex), season_factor = as.factor(season))
 df <- df |> mutate(keep = ifelse(season == 3 & hooksize_desc == "13/0", "keep",
                                  ifelse(season == 4 & hooksize_desc == "14/0", "keep", "erase"))) |>
   filter(keep == "keep")
-
 df_m <- filter(df, sex == 1)
-
-test <- glm(length ~ season, data = df_m, family = Gamma(link = "inverse"))
+test <- glm(length ~ season, data = df_m, family = Gamma(link = "log"))
 test
 coef(test)
 summary(test)
-
 preds <- predict(test, newdata = newdata, type = "link", se.fit = TRUE)
-# 2. Calculate upper and lower 95% confidence bounds on the link scale
 crit_val <- qnorm(0.975) # 1.96 for a standard normal distribution
 link_lower <- preds$fit - crit_val * preds$se.fit
 link_upper <- preds$fit + crit_val * preds$se.fit
-
-# 3. Back-transform to the RESPONSE scale using inverse link (1 / x)
-# Note: Because the link is inverse (1/x), lower on link scale = upper on response scale
 newdata$pred_response <- test$family$linkinv(preds$fit)
 newdata$ci_lower      <- test$family$linkinv(link_upper)
 newdata$ci_upper      <- test$family$linkinv(link_lower)
-
+newdata
 
 
 # lengths by depths -------------------------------------------------------
@@ -364,24 +354,32 @@ levels(comp$season) <- c("summer", "fall")
 fig <-
   comp |>
   filter(sex %in% c("male", "female")) |>
-  ggplot(aes((grouping_depth_id), length,  group = grouping_depth_id, fill = (grouping_depth_id))) +
-  geom_jitter(aes((grouping_depth_id), length), colour = "grey80") +
-  geom_boxplot() +
+  ggplot(aes((grouping_depth_id), length,  group = grouping_depth_id)) +
+  geom_jitter(aes(grouping_depth_id, length, colour = sex), alpha = 0.25) +
+  #geom_boxplot() +
+  geom_violin(alpha = 0.25,
+    draw_quantiles  = c(0.25, 0.5, 0.75),
+    trim = FALSE
+  ) +
+  scale_colour_hue(l = 45, guide = guide_legend(override.aes = list(size = 3,
+                                                                    alpha = 1))) +
   facet_grid(rows =vars(sex), cols = vars(season)) +
   theme_classic() +
   labs(x = "Depth group") +
   labs(y = "Length (TLext cm)") +
   #labs(fill = "Depth group") + #could be na
-  guides(fill = "none") + #could be na
+  guides(fill = "none", colour = "none") + #could be na
   scale_fill_grey(start = 0.2, end = 0.8) +
   theme(
     axis.text = element_text(size = 15 ),
     axis.title = element_text(size = 15),
-    strip.text = element_text(size = 15)
+    strip.text = element_text(size = 15),
+    legend.text = element_text(size = 15),
+    legend.title = element_text(size = 15)
   )
 fig
 
-ggsave(paste0("figures/mean_length_depth_boxplot.png"), fig, height = 8, width = 7, dpi = 200)
+ggsave(paste0("figures/mean_length_depth_boxplot.png"), fig, height = 5, width = 5, dpi = 200)
 
 comp |>
   group_by(sex, season, hooksize_desc) |>
