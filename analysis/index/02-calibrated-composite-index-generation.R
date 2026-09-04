@@ -1,94 +1,16 @@
-# calibrated composite index
-#
+# generate calibrated composite indices
 
 
-source("analysis/calibration/index/01-index-generation-data-prep.R") #each time I call this different values are pulled from the calibration coeff distribution
+#can I iterated this 50 times to get 50 different calibration coefficients and curves
 
-dogfish <- readRDS("output/data-index-generation-calibrated.rds")
+index_all <- data.frame()
 
-# calibrated with j-hook --------------------------------------------------
+for (i in c(1:50)){
+set.seed(575+ i*7)
+source("analysis/index/01-index-generation-data-prep.R") #each time I call this different values are pulled from the calibration coeff distribution
+print(range(d$estc, na.rm = TRUE))
 
-dogfishj <- dogfish |> filter(survey_abbrev %in% c("DOG", "j-hook"))
-# dogfishj <- dogfish
-dogfishj <- dogfishj |> drop_na(offset_jhook) # offset_jhook
-unique(dogfishj$year)
-unique(dogfishj$survey_abbrev)
-unique(dogfishj$offset_jhook)
-
-ggplot(dogfishj, aes(year, catch_count, colour = survey_abbrev)) +
-  geom_jitter(shape = 21) +
-  scale_fill_viridis_c()
-
-dogfishj <- dogfishj |> mutate(catch_cpue = catch_count / exp(offset_jhook))
-range(dogfishj$catch_cpue)
-weight <- exp(dogfishj$offset_jhook)
-range(weight)
-
-ggplot(dogfishj, aes(year, catch_cpue, colour = survey_abbrev)) +
-  geom_jitter(shape = 21) +
-  scale_fill_viridis_c()
-
-ggplot(dogfishj, aes(year, offset_jhook, colour = survey_abbrev)) +
-  geom_jitter(shape = 21) +
-  scale_fill_viridis_c()
-
-ggplot(dogfishj, aes(year, offset_hksoak, colour = survey_abbrev)) +
-  geom_jitter(shape = 21) +
-  scale_fill_viridis_c()
-
-mesh <- sdmTMB::make_mesh(
-  dogfishj,
-  c("UTM.lon", "UTM.lat"),
-  n_knots = 5
-)
-
-# dogfish gears just use the dogfish calibration
-fit <- sdmTMB( # composite index
-  #catch_count ~ 1, # + log_botdepth, #could include gear and hopefully the coef is zero
-  catch_cpue ~ 1 ,
-  mesh = mesh,
-  data = dogfishj,
-  spatial = "on",
-  spatiotemporal = "rw",
-  extra_time = c(1987, 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006, 2007, 2009, 2010, 2012, 2013, 2015, 2016, 2017, 2018),
-
-  # offset = dogfish$offset_rho_quang, # different offsets see above
-
-  time = "year",
-
-  family = betabinomial(),
-  weights = weight,
-
-  #family = nbinom2(),
-  #offset = dogfishj$offset_jhook,
-
-  anisotropy = TRUE
-)
-
-sanity(fit)
-tidy(fit)
-exp(tidy(fit)$estimate)
-
-grid_hbll <- rbind(
-  gfplot::hbll_inside_n_grid$grid,
-  gfplot::hbll_inside_s_grid$grid
-) %>%
-  sdmTMB::add_utm_columns(ll_names = c("X", "Y"), utm_crs = 32609, utm_names = c("UTM.lon", "UTM.lat"))
-
-
-index <- local({
-  newdata <- replicate_df(grid_hbll, "year", c(1986, 1989, 2004, 2005, 2008, 2011, 2014, 2019, 2023))
-  pred <- predict(fit, newdata, return_tmb_object = TRUE)
-  get_index(pred, TRUE)
-})
-
-index <- filter(index, year %in% c(1986, 1989, 2004, 2005, 2008, 2011, 2014, 2019, 2023))
-
-ggplot(index, aes(year, est, ymin = lwr, ymax = upr)) +
-  geom_point() +
-  geom_line(linewidth = 0.1) +
-  geom_linerange()
-
+dogfish <- d
 
 # calibrated hbll and dog j hook and circle --------------------------------------------------------------
 
@@ -98,6 +20,8 @@ dogfish$cpue_rho <- dogfish$catch_count / (exp(dogfish$offset_rho))
 weight <- exp(dogfish$offset_rho)
 
 dogfish <- dogfish |> drop_na(julian)
+dogfish <- dogfish |> drop_na(cpue_rho_mean)
+
 
 dogfish$julian_c <- dogfish$julian - mean(dogfish$julian)
 
@@ -140,76 +64,113 @@ compfit <- sdmTMB( # composite index
 sanity(compfit)
 tidy(compfit, ran.pars = TRUE)
 
+#compfitd <- update(compfit, formula = catch_count ~ 1 + s(depth_m))
+#AIC(compfitd)
+
+AIC(compfit)
+
 grid_hbll <- rbind(
   gfplot::hbll_inside_n_grid$grid,
   gfplot::hbll_inside_s_grid$grid
 ) %>%
   sdmTMB::add_utm_columns(ll_names = c("X", "Y"), utm_crs = 32609, utm_names = c("UTM.lon", "UTM.lat"))
 
-index <- local({
-  newdata <- replicate_df(grid_hbll, "year", unique(dogfish$year))
-  newdata$julian_c <- 0
-  pred <- predict(compfit, newdata, return_tmb_object = TRUE)
-  get_index(pred, TRUE)
-})
+s <- sanity(compfit)
 
-ggplot(index, aes(year, est, ymin = lwr, ymax = upr)) +
-  geom_point() +
-  geom_line(linewidth = 0.1) +
-  geom_linerange()
+if (!s$gradients_ok) {
+  index <- local({
+    newdata <- replicate_df(grid_hbll, "year", unique(dogfish$year))
+    newdata$julian_c <- 0
+    pred <- predict(compfit, newdata, return_tmb_object = TRUE)
+    get_index(pred, TRUE)
+    index$iter <- paste0("iter_", i)
+    index_all <- bind_rows(index_all, index)
+    write_csv(index_all, file = "data-generated/index_dogfish_calibrate.csv")
+      })
+}
 
-write_csv(index, file = "analysis/calibration/index/index_dogfish_calibrate.csv")
-#write_csv(index, file = "analysis/calibration/index/index_dogfish_calibrate_julian.csv")
+# ggplot(index, aes(year, est, ymin = lwr, ymax = upr)) +
+#   geom_point() +
+#   geom_line(linewidth = 0.1) +
+#   geom_linerange()
+
+rm(d, dogfish, compfit, mesh, index, weight)
+gc()
+}
 
 
-# calibrated dog j hook and circle --------------------------------------------------------------
 
-dogfishd <- dogfish |> drop_na(offset_jhook) |> filter(survey_lumped != c("hbll"))
-unique(dogfishd$year)
-dogfishd$cpue_jhook <- dogfishd$catch_count / (exp(dogfishd$offset_jhook))
-weight <- exp(dogfishd$offset_jhook)
-dogfishd <- dogfishd |> drop_na(julian)
 
-dogfishd$julian_c <- dogfishd$julian - mean(dogfishd$julian)
+
+
+# Models outside of the loop (jhook/circle hook, hbll) --------------------
+
+source("analysis/index/01-index-generation-data-prep.R")
+
+dogfish <- d
+test <- dogfish |> dplyr::select(catch_count, offset_rho_mean, survey_abbrev, year, cpue_rho_mean)
+range(d$cpue_rho)
+dogfish <- dogfish |> drop_na(cpue_rho_mean)
+dogfish <- dogfish |> drop_na(offset_rho_mean)
+
+# calibrated dogfish circle, jhook, and hbll
+ggplot(dogfish, aes(year, cpue_rho_mean, colour = survey_abbrev)) +
+  geom_jitter(shape = 21) +
+  scale_fill_viridis_c()
+
+
+cpue_rho_mean <- dogfish$catch_count/exp(dogfish$offset_rho_mean)
+range(dogfish$cpue_rho_mean)
+range(cpue_rho_mean)
+weight <- exp(dogfish$offset_rho_mean)
+range(weight)
+
+ggplot(dogfish, aes(year, catch_count, colour = survey_abbrev)) +
+  geom_jitter(shape = 21) +
+  scale_fill_viridis_c()
+
+ggplot(dogfish, aes(year, cpue_rho_mean, colour = survey_abbrev)) +
+  geom_jitter(shape = 21) +
+  scale_fill_viridis_c()
+
+ggplot(dogfish, aes(year, offset_rho_mean, colour = survey_abbrev)) +
+  geom_jitter(shape = 21) +
+  scale_fill_viridis_c()
 
 mesh <- sdmTMB::make_mesh(
-  dogfishd,
+  dogfish,
   c("UTM.lon", "UTM.lat"),
   n_knots = 5
 )
 
-ggplot(dogfishd, aes(year, cpue_jhook)) +
-  geom_point() +
-  facet_wrap(~survey_lumped)
 
-ggplot(dogfishd, aes(year, offset_jhook)) +
-  geom_point() +
-  facet_wrap(~survey_lumped)
 
-compfit <- sdmTMB( # composite index
-
-  #catch_count ~ 1 + poly(julian_c,2), # + log_botdepth,
-  #catch_count ~ 1, # + log_botdepth,
-  cpue_jhook ~ 1, # + poly(julian_c, 2), # + as.factor(survey_abbrev), #include gear and hopefully the coef is zero
-
+# dogfish gears just use the dogfish calibration
+fit <- sdmTMB(
+  #catch_count ~ 1, # + log_botdepth, #could include gear and hopefully the coef is zero
+  catch_count ~ 1 ,
   mesh = mesh,
-  data = dogfishd,
-  spatial = "off",
+  data = dogfish,
+  spatial = "on",
   spatiotemporal = "rw",
-  extra_time = c(1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2006, 2007, 2009, 2010, 2012, 2013, 2015, 2016, 2017, 2018, 2020, 2021, 2022),
+  extra_time = c(1987, 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2006, 2017, 2020),
   time = "year",
 
-  #offset = dogfish$offset_jhook, # different offsets see above
-  #family = nbinom2(),
+  family = nbinom2(),
+  offset = dogfish$offset_rho_mean,
 
-  weights = weight,
-  family = betabinomial(), #couldnt' get this to converge
+  #family = betabinomial(), #couldnt get this to converge
+  #weights = weight,
 
-  anisotropy = TRUE
+  anisotropy = FALSE
 )
 
-sanity(compfit)
-tidy(compfit, ran.pars = TRUE)
+sanity(fit)
+tidy(fit)
+
+#fitd <- update(fit, formula = catch_cpue ~ 1 + s(depth_m))
+#AIC(fitd)
+#AIC(fit)
 
 grid_hbll <- rbind(
   gfplot::hbll_inside_n_grid$grid,
@@ -217,22 +178,116 @@ grid_hbll <- rbind(
 ) %>%
   sdmTMB::add_utm_columns(ll_names = c("X", "Y"), utm_crs = 32609, utm_names = c("UTM.lon", "UTM.lat"))
 
-index_dc<- local({
-  newdata <- replicate_df(grid_hbll, "year", unique(dogfishd$year))
-  newdata$julian_c <- 0
-  pred <- predict(compfit, newdata, return_tmb_object = TRUE)
-  get_index(pred, TRUE)
-})
+s <- sanity(fit)
 
-ggplot(index_dc, aes(year, est, ymin = lwr, ymax = upr)) +
-  geom_point() +
-  geom_line(linewidth = 0.1) +
-  geom_linerange()
+if (!s$gradients_ok) {
+  index <- local({
+  newdata <- replicate_df(grid_hbll, "year", c(1986 ,1989, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2021, 2022, 2023, 2024, 2025))
+    pred <- predict(fit, newdata, return_tmb_object = TRUE)
+    get_index(pred, TRUE)
+  })
+}
 
-write_csv(index_dc, file = "analysis/calibration/index/index_dogfish_jcirclehook_calibrate.csv")
-#write_csv(index, file = "analysis/calibration/index/index_dogfish_calibrate_julian.csv")
+#index <- filter(index, year %in% c(1986, 1989, 2004, 2005, 2008, 2011, 2014, 2019, 2023))
+index$iter <- paste0("iter_", 1)
+write_csv(index, file = "data-generated/index_dogfish_jcirclehookhbll_mean.csv")
 
 
+# ggplot(index, aes(year, est, ymin = lwr, ymax = upr)) +
+#   geom_point() +
+#   geom_line(linewidth = 0.1) +
+#   geom_linerange()
+
+
+
+# calibrated dogfish circle with j-hook --------------------------------------------------
+
+dogfishj <- dogfish |> filter(survey_abbrev %in% c("DOG", "j-hook", "OTHER"))
+dogfishj <- dogfishj |> drop_na(offset_jhook) # offset_jhook
+# unique(dogfishj$year)
+# unique(dogfishj$survey_abbrev)
+# unique(dogfishj$offset_jhook)
+
+# ggplot(dogfishj, aes(year, catch_count, colour = survey_abbrev)) +
+#   geom_jitter(shape = 21) +
+#   scale_fill_viridis_c()
+
+dogfishj <- dogfishj |> mutate(catch_cpue = catch_count / exp(offset_jhook))
+range(dogfishj$catch_cpue)
+weight <- exp(dogfishj$offset_jhook)
+range(weight)
+
+# ggplot(dogfishj, aes(year, catch_cpue, colour = survey_abbrev)) +
+#   geom_jitter(shape = 21) +
+#   scale_fill_viridis_c()
+#
+# ggplot(dogfishj, aes(year, offset_jhook, colour = survey_abbrev)) +
+#   geom_jitter(shape = 21) +
+#   scale_fill_viridis_c()
+#
+# ggplot(dogfishj, aes(year, offset_hksoak, colour = survey_abbrev)) +
+#   geom_jitter(shape = 21) +
+#   scale_fill_viridis_c()
+
+mesh <- sdmTMB::make_mesh(
+  dogfishj,
+  c("UTM.lon", "UTM.lat"),
+  n_knots = 5
+)
+
+
+
+# dogfish gears just use the dogfish calibration
+fit <- sdmTMB( # composite index
+  #catch_count ~ 1, # + log_botdepth, #could include gear and hopefully the coef is zero
+  catch_cpue ~ 1 ,
+  mesh = mesh,
+  data = dogfishj,
+  spatial = "on",
+  spatiotemporal = "rw",
+  extra_time = c(1987, 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006, 2007, 2009, 2010, 2012, 2013, 2015, 2016, 2017, 2018),
+
+  # offset = dogfish$offset_rho_quang, # different offsets see above
+
+  time = "year",
+
+  family = betabinomial(),
+  weights = weight,
+
+  #family = nbinom2(),
+  #offset = dogfishj$offset_jhook,
+
+  anisotropy = TRUE
+)
+
+sanity(fit)
+tidy(fit)
+
+#fitd <- update(fit, formula = catch_cpue ~ 1 + s(depth_m))
+#AIC(fitd)
+#AIC(fit)
+
+grid_hbll <- rbind(
+  gfplot::hbll_inside_n_grid$grid,
+  gfplot::hbll_inside_s_grid$grid
+) %>%
+  sdmTMB::add_utm_columns(ll_names = c("X", "Y"), utm_crs = 32609, utm_names = c("UTM.lon", "UTM.lat"))
+
+if (!s$gradients_ok) {
+index <- local({
+  newdata <- replicate_df(grid_hbll, "year", c(1986, 1989, 2004, 2005, 2008, 2011, 2014, 2019, 2023))
+  pred <- predict(fit, newdata, return_tmb_object = TRUE)
+  index <- get_index(pred, TRUE)
+  index <- filter(index, year %in% c(1986, 1989, 2004, 2005, 2008, 2011, 2014, 2019, 2023))
+  write_csv(index, file = "data-generated/index_dogfish_jcirclehook_calibrate.csv")
+  })
+}
+
+
+# ggplot(index, aes(year, est, ymin = lwr, ymax = upr)) +
+#   geom_point() +
+#   geom_line(linewidth = 0.1) +
+#   geom_linerange()
 
 # HBLL model --------------------------------------------------------------
 
@@ -279,125 +334,8 @@ ggplot(index_hbll, aes(year, est, ymin = lwr, ymax = upr)) +
   geom_line(linewidth = 0.1) +
   geom_linerange()
 
-write_csv(index_hbll, file = "analysis/calibration/index/index_hbll.csv")
+
+index_hbll$iter <- paste0("iter_", 1)
+write_csv(index_hbll, file = "data-generated/index_hbll.csv")
 
 
-# dog circle only ---------------------------------------------------------
-
-
-# Dogfish only
-dog <- filter(dogfish, survey_abbrev == "DOG")
-range(dog$year)
-dog <- dog |> mutate(cpue = catch_count/exp(offset))
-weight = exp(dog$offset)
-
-mesh <- sdmTMB::make_mesh(
-  dog,
-  c("UTM.lon", "UTM.lat"),
-  n_knots = 5
-)
-
-fit_dog <- sdmTMB(
-  #catch_count ~ 1, # + log_botdepth,
-  cpue ~ 1, # + log_botdepth,
-  mesh = mesh,
-  data = dog,
-
-  #offset = dog$offset_rho,
-  #family = nbinom2(),
-
-  weights = weight,
-  family = betabinomial(),
-
-  time = "year",
-  spatial = "on",
-  spatiotemporal = "rw",
-  anisotropy = TRUE
-)
-
-sanity(fit_dog)
-
-grid_dog <- gfplot::dogfish_grid$grid %>%
-  mutate(UTM.lon = X / 1e3, UTM.lat = Y / 1e3)
-
-index_dog <- local({
-  newdata <- replicate_df(grid_dog, "year", unique(dog$year))
-  pred <- predict(fit_dog, newdata, return_tmb_object = TRUE)
-  get_index(pred, TRUE)
-})
-
-ggplot(index_dog, aes(year, est, ymin = lwr, ymax = upr)) +
-  geom_point() +
-  geom_line(linewidth = 0.1) +
-  geom_linerange()
-
-# write_csv(index_dog, file = "analysis/calibration/index/index_dog.csv")
-# #write_csv(index_dog, file = "analysis/calibration/index/index_dog_julian.csv")
-#
-#
-#
-# # compare indices ---------------------------------------------------------
-#
-#
-# index_compare <- rbind(   #seasonally paired value and center data
-#   index |> mutate(Survey = "Calibrated HBLL + SoG dogfish") |>
-#     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
-#   index_hbll |> mutate(Survey = "HBLL") |>
-#     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
-#   #index_dog |> mutate(Survey = "SoG dogfish (circle)") |>
-#   #  mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
-#   index_dc |> mutate(Survey = "Calibrated SoG dogfish") |>
-#     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est))
-#
-# )
-#
-# # index_compare2 <- index_compare <- rbind(
-# #   index |> mutate(Survey = "Calibrated HBLL + SoG dogfish (circle and j-hook)", value = "1.19"), #paired value
-# #   index_hbll |> mutate(Survey = "HBLL", value = "1.19"),
-# #   index_dog |> mutate(Survey = "SoG dogfish", value = "1.19")
-# # )
-#
-# #index_compare <- rbind(index_compare, index_compare2)
-#
-# x <- palette.colors(palette = "Okabe-Ito")
-#
-# gg <- index_compare %>%
-#   # mutate(dyear = year %in% year_dogfish) %>%
-#   #ggplot(aes(year, est, ymin = lwr, ymax = upr, group = Survey, colour = Survey)) +
-#   ggplot(aes(year, est_c, ymin = lwr_c, ymax = upr_c, group = Survey, colour = Survey)) +
-#   geom_line(aes(group = Survey, colour = Survey), linewidth = 1) +
-#   geom_point(aes(group = Survey, colour = Survey), size = 2) +
-#   geom_ribbon(aes(year, est_c, ymin = lwr_c, ymax = upr_c, fill = Survey), alpha = 0.5, guides = NULL) +
-#   #geom_linerange() +
-#   #facet_wrap(vars(Survey), ncol = 1, scales = "free_y") +
-#   expand_limits(y = 0) +
-#   scale_colour_manual(values = x[c(2,4,7)]) +
-#   scale_fill_manual(values = x[c(2,4,7)]) +
-#   labs(x = "Year", y = "Index") +
-#   theme_classic()
-#
-# ggsave("figures/calibrated_index.jpg", gg, width = 6, height =3)
-#
-# # index_compare <- rbind(
-# #   read.csv(file = "analysis/calibration/index/index_dogfish_hbll_calibrate.csv") %>%
-# #     mutate(Survey = "Calibrated HBLL + SoG dogfish"),
-# #   read.csv(file = "analysis/calibration/index/index_dog.csv") %>%
-# #     mutate(Survey = "SoG dogfish"),
-# #   read.csv(file = "analysis/calibration/index/index_hbll.csv") %>%
-# #     mutate(Survey = "HBLL")
-# # )
-# #
-# # year_dogfish <- index_compare %>%
-# #   filter(Survey == "SoG dogfish") %>%
-# #   pull(year)
-# #
-# # gg <- index_compare %>%
-# #   mutate(dyear = year %in% year_dogfish) %>%
-# #   ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = dyear)) +
-# #   geom_point() +
-# #   geom_line(aes(group = Survey), linewidth = 0.1) +
-# #   geom_linerange() +
-# #   facet_wrap(vars(Survey), ncol = 1, scales = "free_y") +
-# #   expand_limits(y = 0) +
-# #   labs(x = "Year", y = "Index", colour = "Year with \nSoG dogfish survey?")
-# # ggsave("analysis/index-calibration/index/compare_index.png", g, height = 6, width = 5)
