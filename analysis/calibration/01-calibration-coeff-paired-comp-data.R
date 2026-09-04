@@ -12,6 +12,10 @@ samps <- samps %>%
 
 id_remove <- samps %>% filter(hook_desc == "J-HOOK") %>% pull(fishing_event_id)
 
+site_id <- samps |>
+  distinct(fishing_event_id) |>
+  mutate(fold_id = factor(1:n()))
+
 samps <- filter(samps, !fishing_event_id %in% id_remove) %>%
   arrange(year, fishing_event_id, survey_abbrev)
 
@@ -22,6 +26,8 @@ samps <- samps |>
 
 samps <- samps |> mutate(survey_abbrev = ifelse(time_deployed > "2023-09-06 09:15:21", "Dog_14/0", hook_name))
 unique(samps$grouping_depth_id)
+
+samps <- left_join(samps, site_id)
 
 min <- min(samps$length, na.rm = TRUE)
 max <- max(samps$length, na.rm = TRUE)
@@ -51,7 +57,7 @@ test4 <- test3 |>
   ungroup()
 
 
-depth <- samps |> group_by(hook_name, fishing_event_id, year, grouping_depth_id) |>
+depth <- samps |> group_by(hook_name, fishing_event_id, year, grouping_depth_id, fold_id) |>
   reframe(catch_count = n(), offset = mean(lglsp_hook_count)) |>
   ungroup() |>
   pivot_wider(
@@ -66,7 +72,7 @@ depth <- samps |> group_by(hook_name, fishing_event_id, year, grouping_depth_id)
   mutate(offset = log(offset_HBLL) - log(offset_Dog))
 
 test5 <- test3 |>
-  select(year, fishing_event_id, lglsp_hook_count, hook_name, grouping_depth_id) %>%
+  select(year, fishing_event_id, lglsp_hook_count, hook_name, grouping_depth_id, fold_id) %>%
   distinct() |>
   mutate(offset_name = ifelse(hook_name == "HBLL_13/0", "offset_hbll", "offset_dog")) |>
   dplyr::select(-hook_name) |>
@@ -98,7 +104,7 @@ final <- final |> drop_na()
 weight = exp(final$offset)
 dummy_mesh <- sdmTMB::make_mesh(final, c("UTM.lon", "UTM.lat"), n_knots = 10)
 
-m2 <- sdmTMB(
+mlength <- sdmTMB(
   cbind(catch_count_hbll_length , catch_count_dog_length) ~ 0 + factor(length_bin), #length calibration coeff, then each catch should be for a length bin
   #cbind(cpue_hbll_length , cpue_dog_length ) ~ 0 + factor(length_bin),
   mesh = dummy_mesh,
@@ -112,11 +118,11 @@ m2 <- sdmTMB(
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 
-AIC(m2)
-coef(m2)
-exp(tidy(m2)$estimate)
-exp(tidy(m2)$conf.low)
-exp(tidy(m2)$conf.high)
+AIC(mlength)
+coef(mlength)
+exp(tidy(mlength)$estimate)
+exp(tidy(mlength)$conf.low)
+exp(tidy(mlength)$conf.high)
 
 
 
@@ -124,7 +130,7 @@ exp(tidy(m2)$conf.high)
 
 weight = exp(depth$offset)
 
-all <- sdmTMB(
+mint <- sdmTMB(
   cbind(catch_count_HBLL , catch_count_Dog ) ~ 1,
   mesh = dummy_mesh,
   spatial = "off",
@@ -135,11 +141,11 @@ all <- sdmTMB(
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 
-coef(all)
-all2 <- tidy(all, ran.pars = TRUE)
-exp(all2$estimate)
-exp(all2$conf.low)
-exp(all2$conf.high)
+coef(mint)
+mint2 <- tidy(mint, ran.pars = TRUE)
+exp(mint2$estimate)
+exp(mint2$conf.low)
+exp(mint2$conf.high)
 
 
 
@@ -170,12 +176,12 @@ exp(depthc$conf.high)
 # random effect of site model ---------------------------------------------
 
 site <- sdmTMB(
-  cbind(catch_count_HBLL , catch_count_Dog ) ~ 1,
+  cbind(catch_count_HBLL , catch_count_Dog ) ~ 1 + (1|fishing_event_id),
   #cbind(cpue_hbll , cpue_dog ) ~ 1 + (1|fishing_event_id),
   mesh = dummy_mesh,
   spatial = "off",
   spatiotemporal = "off",
-  data = test_all,
+  data = depth,
   #offset = final$offset,
   #family = binomial(),
   family = betabinomial(),
@@ -193,11 +199,66 @@ exp(site2$conf.high)
 
 # compete aics ------------------------------------------------------------
 
-AIC(all)
-AIC(m2)
+AIC(site) #cant compare but the coefs are the same as the mint so chose that
+AIC(mint)
+AIC(mlength) #how to compare length?
 AIC(depthm)
 
-table = (tidy(all))
+dummy_mesh <- sdmTMB::make_mesh(final, c("UTM.lon", "UTM.lat"), n_knots = 10)
+final <- final |> drop_na(offset, catch_count_hbll_length, catch_count_dog_length)
+weight = exp(final$offset)
+
+k_folds <- 5
+clust_folds <- data.frame(fishing_event_id = unique(final$fishing_event_id)) %>%
+  mutate(clust = sample(rep(1:k_folds, length.out = n())))
+
+final <- left_join(final, clust_folds)
+depth <- left_join(depth, clust_folds)
+
+table(final$clust, final$fishing_event_id)
+table(depth$clust, depth$fishing_event_id)
+
+
+m_cv_length <- sdmTMB_cv(
+    cbind(catch_count_hbll_length , catch_count_dog_length) ~ 0 + factor(length_bin),
+    mesh = dummy_mesh,
+    spatial = "off",
+    spatiotemporal = "off",
+    data = final,
+    #offset = final$offset,
+    #family = binomial(),
+    family = betabinomial(),
+    weights = weight,
+    control = sdmTMBcontrol(multiphase = FALSE),
+    k_folds = 5,
+    fold_ids = final$clust
+)
+
+m_cv_length$fold_loglik
+m_cv_length$sum_loglik
+
+weight = exp(depth$offset)
+
+m_cv_depth <- sdmTMB_cv(
+    cbind(catch_count_HBLL , catch_count_Dog ) ~ 1,
+    mesh = dummy_mesh,
+    spatial = "off",
+    spatiotemporal = "off",
+    data = depth,
+    #offset = final$offset,
+    #family = binomial(),
+    family = betabinomial(),
+    weights = weight,
+    control = sdmTMBcontrol(multiphase = FALSE),
+    k_folds = 5,
+    fold_ids = depth$clust
+)
+
+m_cv_depth$fold_loglik
+m_cv_depth$sum_loglik
+
+#depth model has the higher loglik and therefore better model
+table = (tidy(mint))
 
 exp(table$estimate)
 exp(table$conf.low)
