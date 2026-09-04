@@ -4,6 +4,7 @@ library(dplyr)
 library(tidyr)
 library(sdmTMB)
 library(ggplot2)
+library(stringr)
 
 
 # Pair by season ----------------------------------------------------------
@@ -249,7 +250,7 @@ join2 <- left_join(join2, latlon) |> mutate(offset = offset_hbll - offset_dog)
 head(join2)
 
 # change to UTMs
-final3 <- add_utm_columns(
+lengthd <- add_utm_columns(
   join2,
   ll_names = c("longitude", "latitude"),
   ll_crs = 4326,
@@ -257,9 +258,9 @@ final3 <- add_utm_columns(
 )
 
 # model run for length based calibration coefficient
-final3 <- final3 |> drop_na()
-weight <- exp(final3$offset)
-dummy_mesh <- sdmTMB::make_mesh(final3, c("UTM.lon", "UTM.lat"), n_knots = 10)
+lengthd <- lengthd |> drop_na()
+weight <- exp(lengthd$offset)
+dummy_mesh <- sdmTMB::make_mesh(lengthd, c("UTM.lon", "UTM.lat"), n_knots = 10)
 
 mlength <- sdmTMB(
   # cbind(catch_count_hbll_length, catch_count_dog_length) ~ 1 + (1 | grouping_desc),
@@ -269,7 +270,7 @@ mlength <- sdmTMB(
   mesh = dummy_mesh,
   spatial = "off",
   spatiotemporal = "off",
-  data = final3,
+  data = lengthd,
 
   # offset = final3$offset,
   # family = binomial(),
@@ -284,23 +285,81 @@ AIC(mlength)
 tidy(mlength, ran.pars = TRUE)
 saveRDS(tidy(mlength), "output/calibration_coeffs_length.rds")
 
-exp(tidy(m2, ran.pars = TRUE)$estimate)
-exp(tidy(m2, ran.pars = TRUE)$conf.low)
-exp(tidy(m2, ran.pars = TRUE)$conf.high)
+exp(tidy(mlength, ran.pars = TRUE)$estimate)
+exp(tidy(mlength, ran.pars = TRUE)$conf.low)
+exp(tidy(mlength, ran.pars = TRUE)$conf.high)
 
-q1 <- coef(m2)["factor(length_bin)(43,64]"]
-q2 <- coef(m2)["factor(length_bin)(64,84]"]
-q3 <- coef(m2)["factor(length_bin)(84,113]"]
-
-
+q1 <- coef(mlength)["factor(length_bin)(43,64]"]
+q2 <- coef(mlength)["factor(length_bin)(64,84]"]
+q3 <- coef(mlength)["factor(length_bin)(84,113]"]
 
 
-# Compete AICs and generate table -----------------------------------------
+
+
+# Compete model fits and generate table -----------------------------------------
 
 #cant compete AICs for the length model and depth model
 AIC(int)
+
 AIC(mdepth)
-AIC(mlength)
+AIC(mlength) #can compare with depth
+
+dummy_mesh <- sdmTMB::make_mesh(lengthd, c("UTM.lon", "UTM.lat"), n_knots = 10)
+#final <- final |> drop_na(offset, catch_count_hbll_length, catch_count_dog_length)
+weight = exp(lengthd$offset)
+
+k_folds <- 5
+clust_folds <- data.frame(grouping_desc = unique(lengthd$grouping_desc)) %>%
+  mutate(clust = sample(rep(1:k_folds, length.out = n())))
+
+lengthd <- left_join(lengthd, clust_folds)
+final3 <- left_join(final3, clust_folds)
+
+table(lengthd$clust, lengthd$grouping_desc)
+table(final3$clust, final3$grouping_desc)
+
+
+m_cv_length <- sdmTMB_cv(
+  cbind(catch_count_hbll_length, catch_count_dog_length) ~ 0 + factor(length_bin), # + (1 | grouping_desc),
+  mesh = dummy_mesh,
+  spatial = "off",
+  spatiotemporal = "off",
+  data = lengthd,
+  #offset = lengthd$offset,
+  #family = binomial(),
+  family = betabinomial(),
+  weights = weight,
+  control = sdmTMBcontrol(multiphase = FALSE),
+  k_folds = 5,
+  fold_ids = lengthd$clust
+)
+
+m_cv_length$fold_loglik
+m_cv_length$sum_loglik
+
+
+weight = exp(final3$offset)
+
+m_cv_depth <- sdmTMB_cv(
+  cbind(catch_count_hbll, catch_count_dog) ~ 0 + factor(depth_bin), # + (1 | grouping_desc),
+  mesh = dummy_mesh,
+  spatial = "off",
+  spatiotemporal = "off",
+  data = final3,
+  #offset = final$offset,
+  #family = binomial(),
+  family = betabinomial(),
+  weights = weight,
+  control = sdmTMBcontrol(multiphase = FALSE),
+  k_folds = 5,
+  fold_ids = final3$clust
+)
+
+m_cv_depth$fold_loglik
+m_cv_depth$sum_loglik
+
+# table of coeff values for overleaf --------------------------------------
+
 
 table <- data.frame(est = exp(tidy(mdepth, ran.pars = TRUE)$estimate))
 table$conf.low <- data.frame(conf.low = exp(tidy(mdepth, ran.pars = TRUE)$conf.low))
