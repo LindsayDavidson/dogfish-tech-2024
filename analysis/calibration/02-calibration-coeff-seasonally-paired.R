@@ -105,6 +105,11 @@ unique(final3$depth_bin)
 # Depth model ------------------------------------------------------
 
 final3 <- final3 |> drop_na()
+
+glimpse(final3)
+
+ggplot(final3, aes(catch_count_dog, catch_count_hbll, group = depth_bin, colour = depth_bin)) + geom_point() + geom_abline()
+
 weight <- exp(final3$offset)
 dummy_mesh <- sdmTMB::make_mesh(final3, c("UTM.lon", "UTM.lat"), n_knots = 10)
 
@@ -122,6 +127,16 @@ mdepth <- sdmTMB(
   family = betabinomial(),
   control = sdmTMBcontrol(multiphase = FALSE)
 )
+
+tidy(mdepth)
+exp(tidy(mdepth, ran.pars = TRUE)$estimate)
+exp(tidy(mdepth, ran.pars = TRUE)$conf.low)
+exp(tidy(mdepth, ran.pars = TRUE)$conf.high)
+
+q4 <- coef(mdepth)["factor(depth_bin) > 220 m"]
+q2 <- coef(mdepth)["factor(depth_bin) 111 - 165 m"]
+q3 <- coef(mdepth)["factor(depth_bin) 166 - 220 m"]
+q1 <- coef(mdepth)["factor(depth_bin) 56 - 110 m"]
 
 
 
@@ -355,30 +370,27 @@ m_cv_depth <- sdmTMB_cv(
   fold_ids = final3$clust
 )
 
+tidy(m_cv_depth)
 m_cv_depth$fold_loglik
 m_cv_depth$sum_loglik
 
 # table of coeff values for overleaf --------------------------------------
 
+#<- not reproducible, check order of params
+tidy(mdepth, ran.pars = TRUE)
 
-table <- data.frame(est = exp(tidy(mdepth, ran.pars = TRUE)$estimate))
-table$conf.low <- data.frame(conf.low = exp(tidy(mdepth, ran.pars = TRUE)$conf.low))
-table$conf.high <- data.frame(conf.high = exp(tidy(mdepth, ran.pars = TRUE)$conf.high))
+table <- data.frame("Depth (m)" = c(">220 m", "111-165 m", "166-220 m", "56-110 m" ))
+table <- table |> mutate(rho = round(exp(tidy(mdepth, ran.pars = TRUE)$estimate),2))
 
-
-depth <- data.frame("Depth (m)" = c("56-110 m", "111-165 m", "166-220 m", ">220 m"))
-q <- data.frame("rho" = round(c(table$est[1], table$est[2], table$est[3], table$est[4]), 2))
-data <- data.frame(Data = "seasonally paired")
-
-table <- cbind(data, depth, q)
-table$conf.low <- c(round(exp(tidy(m2)$conf.low), 2))
-table$conf.high <- c(round(exp(tidy(m2)$conf.high), 2))
-table$CI <- paste0((table$conf.low), "-", (table$conf.high))
+table <- table |> mutate(conf.low = round(exp(tidy(mdepth, ran.pars = TRUE)$conf.low),2))
+table <- table |> mutate(conf.high = round(exp(tidy(mdepth, ran.pars = TRUE)$conf.high),2))
+table <- table  |>  mutate(Data = c("seasonally paired", "seasonally paired", "seasonally paired", "seasonally paired"))
+table <- table |> group_by(rho) |> mutate(CI = paste0((conf.low), "-", (conf.high)))
 table <- table |> mutate(final = paste0(rho, " (", conf.low, "-", conf.high, ")"))
 table <- table |> dplyr::select("Data", "Depth..m.", final)
 rownames(table) <- NULL
-#table$"Depth..m." <- rbind(table$"Depth..m.", "all lengths")
-
+table$"Depth..m." <- factor(table$"Depth..m.", levels = c("56-110 m", "111-165 m","166-220 m",  ">220 m"))
+table <- table |> ungroup() |>  dplyr::select(-rho)
 
 table |>
   knitr::kable(
