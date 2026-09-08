@@ -143,8 +143,6 @@ mesh <- sdmTMB::make_mesh(
   n_knots = 5
 )
 
-
-
 # dogfish gears just use the dogfish calibration
 fit <- sdmTMB(
   #catch_count ~ 1, # + log_botdepth, #could include gear and hopefully the coef is zero

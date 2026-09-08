@@ -113,8 +113,10 @@ ggplot(final3, aes(catch_count_dog, catch_count_hbll, group = depth_bin, colour 
 weight <- exp(final3$offset)
 dummy_mesh <- sdmTMB::make_mesh(final3, c("UTM.lon", "UTM.lat"), n_knots = 10)
 
+final3$grouping_desc <- as.factor(final3$grouping_desc)
+
 mdepth <- sdmTMB(
-  cbind(catch_count_hbll, catch_count_dog) ~ 0 + factor(depth_bin), # + (1 | grouping_desc),
+  cbind(catch_count_hbll, catch_count_dog) ~ 0 + factor(depth_bin) , # + (1 | grouping_desc),
   mesh = dummy_mesh,
   spatial = "off",
   spatiotemporal = "off",
@@ -275,13 +277,15 @@ lengthd <- add_utm_columns(
 # model run for length based calibration coefficient
 lengthd <- lengthd |> drop_na()
 weight <- exp(lengthd$offset)
-dummy_mesh <- sdmTMB::make_mesh(lengthd, c("UTM.lon", "UTM.lat"), n_knots = 10)
+dummy_mesh <- sdmTMB::make_mesh(lengthd, c("UTM.lon", "UTM.lat"), n_knots = 5)
+
+lengthd$grouping_desc <- as.factor(lengthd$grouping_desc)
 
 mlength <- sdmTMB(
   # cbind(catch_count_hbll_length, catch_count_dog_length) ~ 1 + (1 | grouping_desc),
   # cbind(catch_count_hbll_length, catch_count_dog_length) ~ 0 + factor(length_bin) + (1 | grouping_desc),
   # could have a season and calc q for paired comp and q for across season, here data is just season
-  cbind(catch_count_hbll_length, catch_count_dog_length) ~ 0 + factor(length_bin), # + (1 | grouping_desc),
+  cbind(catch_count_hbll_length, catch_count_dog_length) ~ 0 + factor(length_bin) + as.factor(grouping_desc), # + (1 | grouping_desc),
   mesh = dummy_mesh,
   spatial = "off",
   spatiotemporal = "off",

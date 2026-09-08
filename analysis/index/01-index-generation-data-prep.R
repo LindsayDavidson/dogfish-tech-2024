@@ -53,7 +53,7 @@ log_est_165 <- rnorm(n = 1, mean = coeffs$estimate[coeffs$term == "factor(depth_
 log_est_220 <- rnorm(n = 1, mean = coeffs$estimate[coeffs$term == "factor(depth_bin) 166 - 220 m"], sd = coeffs$std.error[coeffs$term == "factor(depth_bin) 166 - 220 m"])
 log_est_110 <- rnorm(n = 1, mean = coeffs$estimate[coeffs$term == "factor(depth_bin) 56 - 110 m"], sd = coeffs$std.error[coeffs$term == "factor(depth_bin) 56 - 110 m"])
 
-coeffs$estc <- c(log_est_221, log_est_220, log_est_165, log_est_110)
+coeffs$estc <- c(log_est_221, log_est_220, log_est_165, log_est_110) #randomly generated rho values
 
 coeffs <- coeffs |> mutate(depth_bin = c("D5", "D3", "D4", "D2"))
 
@@ -110,7 +110,7 @@ d <- bind_rows(d, hbll)
 
 d <- left_join(d, depths, by = "depth_bin")
 d <- left_join(d, coeffs, by = "depth_bin")
-d$estc
+unique(d$estc)
 d$estimate
 
 d <- d %>%

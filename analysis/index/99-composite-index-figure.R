@@ -1,4 +1,7 @@
 #figure of calibrated indicies
+library(ggplot2)
+library(tidyverse)
+
 
 #index_dog <- read_csv(file = "data-generated/index_dog.csv")
 index_hbll <- read_csv(file = "data-generated/index_hbll.csv")
@@ -36,7 +39,7 @@ ggsave("figures/sensitivity_calibrated_index.jpg", gg2, width = 4, height =4)
 # compare indices ---------------------------------------------------------
 
 index_compare <- rbind(   #seasonally paired value and center data
-  index |> mutate(Survey = "Calibrated HBLL & SoG dogfish") |>
+  index_mean |> mutate(Survey = "Calibrated HBLL & SoG dogfish") |>
     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
   index_hbll |> mutate(Survey = "HBLL") |>
     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
