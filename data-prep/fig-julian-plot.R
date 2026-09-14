@@ -57,7 +57,7 @@ d <- d |>
 
 
 # Plot using numeric 'julian' for positioning and 'date_text' for axis labels
-ggplot(df) +
+ggplot(d) +
   geom_jitter(aes(x = year, y = julian, colour = catch_count, size = catch_count), alpha = 0.25) +
   scale_y_continuous(
     breaks = julian_labels$julian,
@@ -65,30 +65,63 @@ ggplot(df) +
   ) +
   theme_classic()
 
-d |>
+
+d <- d |>
   mutate(month_text = forcats::fct_relevel(month_text,
                                            c("Nov.", "Oct.", "Sept.", "Aug.", "July")))  |>
   drop_na(month, julian, catch_count, year, survey_abbrev) |>
-  group_by(survey_abbrev, year) |>
-  ggplot() +
-  geom_jitter(aes(year, julian, colour = month_text, size = catch_count), alpha = 0.15) +
+  group_by(survey_abbrev, year)
+
+gg <- ggplot() +
+  geom_rect(data = d,
+            aes(
+              xmin = -Inf, xmax = Inf,
+              ymin = min(d$julian), ymax = 212
+            ),
+            fill = "grey90", alpha = 0.15, inherit.aes = FALSE
+  ) +
+  geom_rect(data = d,
+            aes(
+              xmin = -Inf, xmax = Inf,
+              ymin = 244, ymax = 273
+            ),
+            fill = "grey90", alpha = 0.15, inherit.aes = FALSE
+  ) +
+  geom_rect(data = d,
+            aes(
+              xmin = -Inf, xmax = Inf,
+              ymin = 305, ymax = 334
+            ),
+            fill = "grey90", alpha = 0.15, inherit.aes = FALSE
+  ) +
+  geom_jitter(data= d, aes(year, julian,
+                  #colour = month_text, size = catch_count
+                  colour = catch_count, size = catch_count
+                  ), alpha = 0.15) +
   theme_classic() +
   #facet_wrap(~survey_abbrev, scales = "free_y") +
   facet_wrap(~survey_abbrev) +
-  scale_colour_viridis_d(guide = guide_legend(override.aes = list(size = 3,
-                                                                  alpha = 1))) +
-  # scale_y_continuous(
+  #scale_size(range = c(0.05, 10)) +
+  scale_colour_viridis_c(guide = guide_legend(override.aes = list(size = 3))) +
+  scale_y_continuous(expand = c(0,0)) +
   #   breaks = c(min(julian_labels$julian), max(julian_labels$julian, 10)),
   #   labels = c(min(julian_labels$month_day), max(julian_labels$julian), 10)
   # ) +
   labs(y = "Julian day", x = "Year") +
-  #guides(size = "none") +
+  guides(size = "none") +
   theme(
     axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5),
     axis.title = element_text(size = 15),
     axis.text = element_text(size = 12),
     strip.text = element_text(size = 12)
   ) +
-  labs(colour = "Month", size = "Catch count")
+  labs(colour = "Catch count", size = NULL)
+
+cowplot::ggdraw(gg) +
+  cowplot::draw_text(text = "July", x = 0.10, y = 0.2, size = 10, color = "black", hjust = 0.5, vjust = 0.5) +
+  cowplot::draw_text(text = "Aug.", x = 0.10, y = 0.35, size = 10, color = "black", hjust = 0.5, vjust = 0.5) +
+  cowplot::draw_text(text = "Sept.", x = 0.1, y = 0.53, size = 10, color = "black", hjust = 0.5, vjust = 0.5) +
+  cowplot::draw_text(text = "Oct.", x = 0.13, y = 0.72, size = 10, color = "black", hjust = 0.5, vjust = 0.5) +
+  cowplot::draw_text(text = "Nov.", x = 0.10, y = 0.88, size = 10, color = "black", hjust = 0.5, vjust = 0.5)
 
 ggsave("Figures/summary_julian.png", width = 9, height = 4)
