@@ -3,21 +3,18 @@ library(ggplot2)
 library(tidyverse)
 
 
-#index_dog <- read_csv(file = "data-generated/index_dog.csv")
-index_hbll <- read_csv(file = "data-generated/index_hbll.csv")
-index_sens <- read_csv(file = "data-generated/index_dogfish_sensitivity.csv")
-index_dc <- read_csv(file = "data-generated/index_dogfish_calibrate.csv")
-index_mean <- read_csv(file = "data-generated/index_dogfish_mean.csv")
+index <- readRDS(file = "data-generated/index_dogfish_depth_int.rds")
 
 
 # sensitivity to calibration params ---------------------------------------
 
 gg <-
-  index_sens %>%
-  ggplot(aes(year, est, ymin = lwr, ymax = upr, group = iter)) +
-  geom_ribbon(aes(year, est, ymin = lwr, ymax = upr ), fill = "grey90", colour  = NA, alpha = 0.05) +
-  geom_line(aes(group = iter), colour = "grey70", linewidth = 1, alpha = 0.15) +
-  geom_point(aes(group = iter), colour = "grey70", size = 2, alpha = 0.15) +
+  index %>%
+  filter(id == "depth") |>
+  ggplot(aes(year, est, ymin = lwr, ymax = upr, group = id)) +
+  geom_ribbon(aes(year, est, ymin = lwr, ymax = upr ), fill = "grey90", colour  = NA, alpha = 0.25) +
+  geom_line(aes(group = id), colour = "grey70", linewidth = 1, alpha = 0.25) +
+  geom_point(aes(group = id), colour = "grey70", size = 2, alpha = 0.25) +
   #geom_linerange() +
   #facet_wrap(vars(Survey), ncol = 1, scales = "free_y") +
   expand_limits(y = 0) +
@@ -27,13 +24,12 @@ gg <-
   labs(x = "Year", y = "Index") +
   theme_classic()
 gg2 <- gg +
-  geom_ribbon(data = index_mean, aes(year, est, ymin = lwr, ymax = upr), fill = "red", alpha = 0.05) +
-  geom_line(data = index_mean, aes(year, est), colour = "red") +
-  geom_point(data = index_mean, aes(year, est), colour = "red")
+  geom_ribbon(data = filter(index, id == "int"), aes(year, est, ymin = lwr, ymax = upr), fill = "red", alpha = 0.05) +
+  geom_line(data = filter(index, id == "int"), aes(year, est), colour = "red") +
+  geom_point(data = filter(index, id == "int"), aes(year, est), colour = "red")
 
 gg2
-
-ggsave("figures/sensitivity_calibrated_index.jpg", gg2, width = 4, height =4)
+ggsave("figures/sensitivity_calibrated_index_depth_int.jpg", gg2, width = 4, height =4)
 
 
 
@@ -41,13 +37,13 @@ ggsave("figures/sensitivity_calibrated_index.jpg", gg2, width = 4, height =4)
 # compare indices ---------------------------------------------------------
 
 index_compare <- rbind(   #seasonally paired value and center data
-  index_mean |> mutate(Survey = "Calibrated HBLL & SoG dogfish (circle & J-hook)") |>
+  index_mean |> mutate(Survey = "Calibrated HBLL & SoG dogfish") |>
     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
   index_hbll |> mutate(Survey = "HBLL") |>
     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
   #index_dog |> mutate(Survey = "SoG dogfish (circle)") |>
   #  mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est)),
-  index_dc |> mutate(Survey = "Calibrated SoG dogfish (circle & J-hook)") |>
+  index_dc |> mutate(Survey = "Calibrated SoG dogfish circle & Jhook") |>
     mutate(est_c = scale(est, center = TRUE, scale = TRUE), lwr_c = (lwr - mean(est))/sd(est), upr_c = (upr - mean(est))/sd(est))
 
 )

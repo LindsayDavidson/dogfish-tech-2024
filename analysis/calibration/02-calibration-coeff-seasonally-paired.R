@@ -122,11 +122,11 @@ mdepth <- sdmTMB(
   spatiotemporal = "off",
   data = final3,
 
-  # offset = final3$offset,
-  # family = binomial(),
+  offset = final3$offset,
+  family = binomial(),
 
-  weights = weight,
-  family = betabinomial(),
+  #weights = weight,
+  #family = betabinomial(),
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 
@@ -144,6 +144,28 @@ q1 <- coef(mdepth)["factor(depth_bin) 56 - 110 m"]
 
 # Intercept only model ----------------------------------------------------
 
+intbb <- sdmTMB(
+  cbind(catch_count_hbll, catch_count_dog) ~ 1 ,
+  mesh = dummy_mesh,
+  spatial = "off",
+  spatiotemporal = "off",
+  data = final3,
+
+   #offset = final3$offset,
+   #family = binomial(),
+
+  weights = weight,
+  family = betabinomial(),
+  control = sdmTMBcontrol(multiphase = FALSE)
+)
+
+AIC(intbb)
+tidy(intbb)
+exp(tidy(intbb, ran.pars = TRUE)$estimate)
+exp(tidy(intbb, ran.pars = TRUE)$conf.low)
+exp(tidy(intbb, ran.pars = TRUE)$conf.high)
+
+
 int <- sdmTMB(
   cbind(catch_count_hbll, catch_count_dog) ~ 1 ,
   mesh = dummy_mesh,
@@ -151,14 +173,19 @@ int <- sdmTMB(
   spatiotemporal = "off",
   data = final3,
 
-  # offset = final3$offset,
-  # family = binomial(),
+  offset = final3$offset,
+  family = binomial(),
 
-  weights = weight,
-  family = betabinomial(),
   control = sdmTMBcontrol(multiphase = FALSE)
 )
+
 AIC(int)
+tidy(int)
+exp(tidy(int, ran.pars = TRUE)$estimate)
+exp(tidy(int, ran.pars = TRUE)$conf.low)
+exp(tidy(int, ran.pars = TRUE)$conf.high)
+saveRDS(tidy(int), "output/calibration_coeffs_intercept.rds")
+
 
 
 
@@ -291,11 +318,11 @@ mlength <- sdmTMB(
   spatiotemporal = "off",
   data = lengthd,
 
-  # offset = final3$offset,
-  # family = binomial(),
+  offset = lengthd$offset,
+  family = binomial(),
 
-  weights = weight,
-  family = betabinomial(),
+  #weights = weight,
+  #family = betabinomial(),
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 
@@ -337,6 +364,7 @@ final3 <- left_join(final3, clust_folds)
 table(lengthd$clust, lengthd$grouping_desc)
 table(final3$clust, final3$grouping_desc)
 
+lengthd <- lengthd |> drop_na(offset)
 
 m_cv_length <- sdmTMB_cv(
   cbind(catch_count_hbll_length, catch_count_dog_length) ~ 0 + factor(length_bin), # + (1 | grouping_desc),
@@ -344,10 +372,13 @@ m_cv_length <- sdmTMB_cv(
   spatial = "off",
   spatiotemporal = "off",
   data = lengthd,
+
   #offset = lengthd$offset,
-  #family = binomial(),
-  family = betabinomial(),
-  weights = weight,
+  family = binomial(),
+
+  #family = betabinomial(),
+  #weights = weight,
+
   control = sdmTMBcontrol(multiphase = FALSE),
   k_folds = 5,
   fold_ids = lengthd$clust
@@ -365,10 +396,13 @@ m_cv_depth <- sdmTMB_cv(
   spatial = "off",
   spatiotemporal = "off",
   data = final3,
+
   #offset = final$offset,
-  #family = binomial(),
-  family = betabinomial(),
-  weights = weight,
+  family = binomial(),
+
+  #family = betabinomial(),
+  #weights = weight,
+
   control = sdmTMBcontrol(multiphase = FALSE),
   k_folds = 5,
   fold_ids = final3$clust

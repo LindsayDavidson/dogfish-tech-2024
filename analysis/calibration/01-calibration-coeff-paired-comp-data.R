@@ -111,10 +111,10 @@ mlength <- sdmTMB(
   spatial = "off",
   spatiotemporal = "off",
   data = final,
-  #offset = final$offset,
-  #family = binomial(),
-  family = betabinomial(),
-  weights = weight,
+  offset = final$offset,
+  family = binomial(),
+  #family = betabinomial(),
+  #weights = weight,
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 
@@ -136,8 +136,10 @@ mint <- sdmTMB(
   spatial = "off",
   spatiotemporal = "off",
   data = depth,
-  family = betabinomial(),
-  weights = weight,
+  #family = betabinomial(),
+  #weights = weight,
+  family = binomial(),
+  offset = depth$offset,
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 
@@ -159,10 +161,10 @@ depthm <- sdmTMB(
   spatial = "off",
   spatiotemporal = "off",
   data = depth,
-  #offset = final$offset,
-  #family = binomial(),
-  family = betabinomial(),
-  weights = weight,
+  offset = depth$offset,
+  family = binomial(),
+  #family = betabinomial(),
+  #weights = weight,
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 coef(depthm)
@@ -182,10 +184,10 @@ site <- sdmTMB(
   spatial = "off",
   spatiotemporal = "off",
   data = depth,
-  #offset = final$offset,
-  #family = binomial(),
-  family = betabinomial(),
-  weights = weight,
+  offset = depth$offset,
+  family = binomial(),
+  #family = betabinomial(),
+  #weights = weight,
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 
@@ -225,10 +227,13 @@ m_cv_length <- sdmTMB_cv(
     spatial = "off",
     spatiotemporal = "off",
     data = final,
+
     #offset = final$offset,
-    #family = binomial(),
-    family = betabinomial(),
-    weights = weight,
+    family = binomial(),
+
+    #family = betabinomial(),
+    #weights = weight,
+
     control = sdmTMBcontrol(multiphase = FALSE),
     k_folds = 5,
     fold_ids = final$clust
@@ -245,10 +250,13 @@ m_cv_depth <- sdmTMB_cv(
     spatial = "off",
     spatiotemporal = "off",
     data = depth,
+
     #offset = final$offset,
-    #family = binomial(),
-    family = betabinomial(),
-    weights = weight,
+    family = binomial(),
+
+    #family = betabinomial(),
+    #weights = weight,
+
     control = sdmTMBcontrol(multiphase = FALSE),
     k_folds = 5,
     fold_ids = depth$clust
@@ -259,7 +267,7 @@ m_cv_depth$sum_loglik
 
 #depth model has the higher loglik and therefore better model
 table = (tidy(mint))
-
+tidy(mint)
 exp(table$estimate)
 exp(table$conf.low)
 exp(table$conf.high)
