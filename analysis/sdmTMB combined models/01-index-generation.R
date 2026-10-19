@@ -1,16 +1,9 @@
 # notes
-# 2004 is missing deployment times and therefore I can't calculate soak time
-# soak times were between 1.5-3 hours in 2004 so I don't know how to account for that
-
-#models are int only and include depth
-#no model includes julian date
-#hbll models don't include work done during dog survey
-#dog models don't include work done during HBLL survey
-
+# soak times were between 1.5-3 hours in 2004
 
 library(ggplot2)
 library(tidyverse)
-remotes::install_github("pbs-assess/sdmTMB@dev", force = TRUE)
+#remotes::install_github("pbs-assess/sdmTMB@dev", force = TRUE)
 library(sdmTMB)
 
 
@@ -27,59 +20,12 @@ coast_proj <- sf::st_transform(coast, crs = bccrs)
 
 # load data----------------------------------------------
 
-#load samps, count by length bin, apply calibration coeff for that length group, and then sum
-#run a model 20 times selecting a value in the length coeffs table and run
-
-lengthcoeffs <- readRDS("output/calibration_coeffs_length.rds") #exp these
-# I need to create a distribtuion and pull 20 values fro each of the lengths bins from this...
-
-#first pull in sample data and bin by length
-samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
-min <- min(samps$total_length, na.rm = TRUE) #some really small ones I didn't include in the count (probably babies)
-max <- max(samps$total_length, na.rm = TRUE)
-breaks <- c(20, 64, 84, max + 1) #thelengths in the full database of samples is different than that in the comp work. I therefore included lengths from 20-64 in the smallest bin and extended the 80 plus bing to include 121 cm.
-
-dogsamps <- samps |>
-  filter(survey_abbrev %in% c("DOG", "OTHER") & hooksize_desc == "14/0" & year %in% c(2004, 2005, 2008, 2011, 2014, 2019, 2023)) |>
-  mutate(length_bin = cut(total_length, breaks)) |>
-  drop_na(total_length) |>
-  ungroup()
-
-unique(dogsamps$length_bin)
-dogsamps <- dogsamps |> drop_na(length_bin)
-
-nsim <- 1 #20
-#put all of this in iteration??
-#now select a calibration coeff value for each length bin
-bin <- dogsamps |> dplyr::select(length_bin)|> distinct()
-bin$coeff <- 0
-bin$coeff[bin$length_bin == "(20,64]"] <- exp(rnorm(n = nsim, mean = lengthcoeffs$estimate[lengthcoeffs$term == "factor(length_bin)(43,64]"], sd = lengthcoeffs$std.error[1]))
-bin$coeff[bin$length_bin == "(64,84]"] <- exp(rnorm(n = nsim, mean = lengthcoeffs$estimate[lengthcoeffs$term == "factor(length_bin)(64,84]"], sd = lengthcoeffs$std.error[1]))
-bin$coeff[bin$length_bin == "(84,121]"] <- exp(rnorm(n = nsim, mean = lengthcoeffs$estimate[lengthcoeffs$term == "factor(length_bin)(84,113]"], sd = lengthcoeffs$std.error[1]))
-bin <- bin |> mutate(length_binf = ifelse(length_bin == "(64,84]", 2, ifelse(length_bin == "(20,64]", 1, 3)))
-
-unique(dogsamps$length_bin)
-dogsamps <- dogsamps |> mutate(length_binf = ifelse(length_bin == "(64,84]", 2, ifelse(length_bin == "(20,64]", 1, 3)))
-
-dogsamps <- left_join(dogsamps, bin, by = "length_binf")
-d <- dogsamps |>
-  group_by(fishing_event_id, length_binf, coeff, survey_abbrev, hooksize_desc, year, julian, lglsp_hook_count) |>
-  reframe(catch_count = n())
-
-ggplot(data = d, aes(year, (catch_count))) + geom_jitter()
-
-
-
-#so does the model include a length bin factor and then I can include the catch count per depth and change the offset???
-
-
 df <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
   drop_na(catch_count) |>
   drop_na(offset) |>
   drop_na(julian)
 df$log_botdepth2 <- df$log_botdepth * df$log_botdepth
-df$catch_prop <- df$catch_count/df$lglsp_hook_count
-#weights <- df$lglsp_hook_count #j hooks needs the soak time included as it is variable, does that mess this up??
+df$catch_prop <- df$catch_count / df$lglsp_hook_count
 df$julian_c <- df$julian - 172
 depth <- df |>
   dplyr::select(depth_m, grouping_depth_id) |>
@@ -94,54 +40,41 @@ df <- df |>
     depth_m > 220 ~ 5
   ))
 
-#load them below
-#source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
-#source("analysis/999-load-hbll-n-s-grid.R") #this is the hbll n, s grid from gfdata
-#ggplot(grid, aes(UTM.lon, UTM.lat)) + geom_point()
-
-
 # run index ---------------------------------------------------------------
 
-# params
-cutoff <- 10
+cutoff <- 15
 
-#model = "hblldog"
+# model = "hblldog" #hbll and circle and j hook
 # model = "hbll-n-s"
-# model = "dog"
-model = "dog-predict"
+ model <- "dog-j-circle" #circle and j hook sog surveys
 
 if (model == "hblldog") {
   d <- df #<- check if 2004 is here now as I added soak times
-  unique(d$year)
+  sort(unique(d$year))
   years <- seq(min(d$year), max(d$year), 1)
 
-  #take out comparative work?? that happened in the different season?? or include and add a smoother for julian date
-  #remove <- filter(d, season == 4 & survey_lumped == "hbll")
-  #remove1 <- filter(d, season == 3 & survey_lumped == "hbll" & survey_abbrev == "OTHER")
-  #remove2 <- filter(d, season == 3 & survey_lumped == "dog")
-  #remove <- bind_rows(remove, remove1, remove2)
-  #d <- d |> filter(!fishing_event_id  %in% c(remove$fishing_event_id))
+  ggplot(d, aes(year, catch_prop)) +
+    geom_point() +
+    facet_wrap(~survey_lumped)
 
-  ggplot(d, aes(year, catch_prop)) + geom_point() + facet_wrap(~survey_lumped)
-  family = betabinomial(link = "cloglog")
+  family <- betabinomial(link = "cloglog")
 
-  source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
-  #source("analysis/999-load-hbll-n-s-grid.R") #this is the hbll n, s grid from gfdata
+  #source("analysis/999-load-grid-data.R") # this is the hbll n, s, and dogfish grid
+  source("analysis/999-load-hbll-n-s-grid.R") #this is the hbll n, s grid from gfdata
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
+  grid$julian_c <- 0
+  grid$survey_lumped <- "hbll"
 
   weights <- (d$lglsp_hook_count * d$soak)
+  formula <- catch_prop ~ 1 + as.factor(survey_lumped) + poly(julian_c, 2)
 
-  formula <- catch_prop ~ 1 + as.factor(survey_lumped) + poly(julian_c, 2)#<- survey_lumped should just be dog, dogjhook, and hbll
 
-  #formuladepth <- catch_prop ~ as.factor(depth_bin) + as.factor(survey_lumped)
-
-  grid$survey_lumped <- "hbll"
 }
 
 if (model == "hbll-n-s") {
   d <- df |>
     filter(survey_lumped %in% c("hbll")) |>
-    filter(survey_abbrev != "OTHER") |> # should I removed survey_abbrev = other? yes? not fished ast hbll areas
+    filter(survey_abbrev != "OTHER") |> #no comparative work, therefore no need for julian but could try
     drop_na(offset) |>
     drop_na(depth_m) |>
     drop_na(julian) |>
@@ -149,64 +82,22 @@ if (model == "hbll-n-s") {
 
   weights <- (d$lglsp_hook_count * d$soak)
 
-  #source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
-  source("analysis/999-load-hbll-n-s-grid.R") #this is the hbll n, s grid from gfdata
+  # source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
+  source("analysis/999-load-hbll-n-s-grid.R") # this is the hbll n, s grid from gfdata
   years <- seq(min(d$year), max(d$year), 1)
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
   grid$survey_lumped <- "hbll"
   formula <- catch_prop ~ 1
-  formuladepth <- catch_prop ~ as.factor(depth_bin)
-  family = betabinomial(link = "cloglog")
+  #formuladepth <- catch_prop ~ 1 + s(julian_c)
+  family <- betabinomial(link = "cloglog")
 }
 
-if (model == "dog") {
+if (model == "dog-j-circle") {
   d <- df |>
-    filter(survey_sep %in% c("dog comp", "dog", "dog-jhook")) |>
-    mutate(HBLLcomp = ifelse(activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & month == 9 & day < 27, "erase", "keep")) |>
-    filter(HBLLcomp == "keep") |>
-    filter(year != 2022) |>
-    drop_na(offset) |>
-    drop_na(depth_m) |>
-    drop_na(julian) |>
-    drop_na(catch_count)
-
-  grid <- readRDS("data-raw/dogfish_sets.rds") |>
-    filter(YEAR %in% 1986) |>
-    dplyr::select(LATITUDE, LONGITUDE, FE_FISHING_GROUND_COMMENT, GROUPING_DESC) |>
-    filter(GROUPING_DESC != 	"SoG Dogfish 0 - 55 m") |>
-    distinct(.keep_all = TRUE) |>
-    add_utm_columns(ll_names = c("LONGITUDE", "LATITUDE"),
-                    utm_names = c("UTM.lon", "UTM.lat"),
-                    utm_crs = 32609
-    ) |>
-    mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
-
-  cutoff <- 2
-  weights <- (d$lglsp_hook_count * d$soak)
-  years <- seq(min(d$year), max(d$year), 1)
-  spatial = "off"
-  #source("analysis/999-load-grid-data.R") #this is the hbll n, s, and dogfish grid
-  #source("analysis/999-load-hbll-n-s-grid.R") #this is the hbll n, s grid from gfdata
-  grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
-  grid$survey_lumped <- "dog"
-  formula <- catch_prop ~ 1 + as.factor(survey_lumped)
-  formuladepth <- catch_prop ~ as.factor(depth_bin) + as.factor(survey_lumped)
-  family = betabinomial(link = "cloglog")
-
-  # priors = sdmTMBpriors(b = normal(c(NA, NA), c(NA, NA)),
-  #                       #matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
-  #                       matern_s = pc_matern(range_gt = cutoff * 4, sigma_lt = 2))
-
-
-}
-
-if (model == "dog-predict") {
-  d <- df |>
-    #filter(survey_abbrev %in% c("DOG", "OTHER")) |>
     filter(survey_sep %in% c("dog", "dog comp")) |>
-    filter(year %in% c(2005, 2008, 2011, 2014, 2019, 2023)) |>
+    filter(year %in% c(2005, 2008, 2011, 2014, 2019, 2023)) |> #want all years
     mutate(HBLLcomp = ifelse(month == 9 & day < 27, "erase", "keep")) |>
-    filter(HBLLcomp == "keep") |>
+    filter(HBLLcomp == "keep") |> #dont want hbll in this one
     # filter(month > 9) |> # i did this to drop the comp work that happened in summer, keep in and include julian if wanted
     drop_na(offset) |>
     drop_na(depth_m) |>
@@ -216,17 +107,18 @@ if (model == "dog-predict") {
   grid <- readRDS("data-raw/dogfish_sets.rds") |>
     filter(YEAR %in% 1986) |>
     dplyr::select(LATITUDE, LONGITUDE, FE_FISHING_GROUND_COMMENT, GROUPING_DESC) |>
-    filter(GROUPING_DESC != 	"SoG Dogfish 0 - 55 m") |>
+    filter(GROUPING_DESC != "SoG Dogfish 0 - 55 m") |>
     distinct(.keep_all = TRUE) |>
-    add_utm_columns(ll_names = c("LONGITUDE", "LATITUDE"),
-                    utm_names = c("UTM.lon", "UTM.lat"),
-                    utm_crs = 32609
+    add_utm_columns(
+      ll_names = c("LONGITUDE", "LATITUDE"),
+      utm_names = c("UTM.lon", "UTM.lat"),
+      utm_crs = 32609
     ) |>
     mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
 
   weights <- (d$lglsp_hook_count * d$soak)
   years <- seq(min(d$year), max(d$year), 1)
-  spatial = "off"
+  spatial <- "off"
 
   years <- seq(min(d$year), max(d$year), 1)
   grid <- purrr::map_dfr(years, ~ tibble(grid, year = .x))
@@ -234,35 +126,20 @@ if (model == "dog-predict") {
 
   formula <- catch_prop ~ 1
   formuladepth <- catch_prop ~ as.factor(depth_bin)
-  family = betabinomial(link = "cloglog")
+  family <- betabinomial(link = "cloglog")
 
-  cutoff = 2
-  # priorsint <- sdmTMBpriors(b = normal(c(NA), c(NA)),
-  #                           matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2))
-
+  cutoff <- 10
 }
-
-
 
 
 # index generation--------
 
-# create the mesh
+# create the
+library(sdmTMB)
 mesh <- make_mesh(d, c("UTM.lon", "UTM.lat"), cutoff = cutoff)
 plot(mesh)
 mesh$mesh$n
 
-
-
-if (model %in% c("dog")) { #<- two surveys
-  priorsint <- sdmTMBpriors(b = normal(c(NA, NA), c(NA, NA)),
-                            matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
-                            matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1))
-  priors <-  sdmTMBpriors(
-    matern_st = pc_matern(range_gt = cutoff * 3, sigma_lt = 2),
-    matern_s = pc_matern(range_gt = cutoff * 2, sigma_lt = 1),
-    b = normal(c(NA, 0, 0, 0), c(NA, 1, 1, 1)))
-}
 
 ggplot() +
   geom_point(
@@ -272,14 +149,14 @@ ggplot() +
     pch = 16
   ) +
   inlabru::gg(mesh$mesh,
-              edge.color = "grey60",
-              edge.linewidth = 0.15,
-              # interior = TRUE,
-              # int.color = "blue",
-              int.linewidth = 0.25,
-              exterior = FALSE,
-              # ext.color = "black",
-              ext.linewidth = 0.5
+    edge.color = "grey60",
+    edge.linewidth = 0.15,
+    # interior = TRUE,
+    # int.color = "blue",
+    int.linewidth = 0.25,
+    exterior = FALSE,
+    # ext.color = "black",
+    ext.linewidth = 0.5
   ) +
   scale_colour_viridis_c(direction = -1) +
   labs(colour = "Year") +
@@ -288,16 +165,16 @@ ggplot() +
   coord_fixed(expand = FALSE) +
   theme_classic() +
   theme(legend.position = "inside", legend.position.inside = c(0.2, 0.25))
+#ggsave(paste0("Figures/sog-model-mesh-", model, ".pdf"), width = 6, height = 6)
 
-ggsave(paste0("Figures/sog-model-mesh-", model, ".pdf"), width = 6, height = 6)
 
-# get the extra time parameter
 year_range <- range(d$year)
 all_years <- data.frame(year = year_range[1]:year_range[2])
 missing_years <- anti_join(all_years, d, by = "year") %>%
   select(year) %>%
   unique()
 extratime <- missing_years$year
+
 if (length(extratime) == 0L) extratime <- NULL
 
 ggplot() +
@@ -344,20 +221,21 @@ ggplot() +
 # run model
 if (model %in% c("hbll-n-s", "hblldog")) {
   fit <- sdmTMB(
-  formula = formula,
-  data = d,
-  time = "year",
-  mesh = mesh,
-  spatial = "on",
-  spatiotemporal = "rw",
-  family = family,
-  weights = weights,
-  silent = TRUE,
-  share_range = FALSE,
-  extra_time = extratime,
-  control = sdmTMBcontrol(newton_loops = 1L)
-)
-} else{
+    formula = formula,
+    data = d,
+    time = "year",
+    mesh = mesh,
+    spatial = "on",
+    spatiotemporal = "rw",
+    family = betabinomial(),
+    weights = weights,
+    silent = TRUE,
+    share_range = FALSE,
+    extra_time = extratime,
+    control = sdmTMBcontrol(newton_loops = 1L)
+  )
+
+  } else {
   fit <- sdmTMB(
     formula = formula,
     data = d,
@@ -385,11 +263,11 @@ if (!ok) {
   # if (!exists("fit")) {
   fit <- NULL
 } else {
-  saveRDS(fit, file = paste0("output/fit-sog-intonly", model, ".rds"))
+  saveRDS(fit, file = paste0("output/fit-intonly", model, ".rds"))
 }
 
 # get index
-if (!is.null(fit)) { #<- #if fit is null ignore this
+if (!is.null(fit)) {
   pred <- predict(fit, grid, return_tmb_object = TRUE, response = TRUE)
   index <- get_index(pred, area = 1, bias_correct = TRUE)
   index <- index |> mutate(model = ifelse(year %in% unique(d$year), "yrs_surved", "yrs_interp"))
@@ -399,5 +277,5 @@ if (!is.null(fit)) { #<- #if fit is null ignore this
 }
 
 ggplot(index, aes(as.factor(year), (est), ymin = (lwr), ymax = (upr))) +
-  geom_pointrange(position = position_dodge(width = 0.25)) + theme_classic()
-
+  geom_pointrange(position = position_dodge(width = 0.25)) +
+  theme_classic()
