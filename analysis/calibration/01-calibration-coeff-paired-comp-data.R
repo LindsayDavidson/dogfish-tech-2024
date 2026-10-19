@@ -5,6 +5,7 @@ library(tidyr)
 library(sdmTMB)
 library(ggplot2)
 
+
 samps <- readRDS("output/samps_joined.rds")
 
 samps <- samps %>%
@@ -31,41 +32,6 @@ unique(samps$grouping_depth_id)
 
 samps <- left_join(samps, site_id)
 
-#min <- min(samps$length, na.rm = TRUE)
-#max <- max(samps$length, na.rm = TRUE)
-#breaks <- c(seq(min, max, by = 10), 112)
-#breaks <- c(min - 1, 64, 84, max + 1) # change to a 80 plus length bin
-
-# test <- samps |>
-#   group_by(hook_name) |>
-#   mutate(length_bin = cut(length, breaks)) |>
-#   drop_na(length) |>
-#   ungroup()
-
-# test2 <- test |>
-#   group_by(length_bin, hook_name, fishing_event_id, year) |>
-#   reframe(catch_count_length = n(), offset = mean(lglsp_hook_count)) |>
-#   drop_na(length_bin) |>
-#   ungroup()
-#
-# test3 <- test |>
-#   left_join(test2) |>
-#   dplyr::select(-length, -sex) |>
-#   distinct()
-#
-# test4 <- test3 |>
-#   # filter(hook_name == "Dog_14/0") |>
-#   select(year, length_bin, fishing_event_id, latitude, longitude, depth_m, hook_name, catch_count_length) %>%
-#   distinct() |>
-#   group_by(fishing_event_id) |>
-#   pivot_wider(
-#     names_from = hook_name,
-#     values_from = catch_count_length
-#   ) |>
-#   rename(catch_count_hbll_length = "HBLL_13/0", catch_count_dog_length = "Dog_14/0") |>
-#   ungroup()
-
-
 depth <- samps |>
   group_by(hook_name, fishing_event_id, year, grouping_depth_id, fold_id) |>
   reframe(catch_count = n(), offset = mean(lglsp_hook_count)) |>
@@ -81,120 +47,108 @@ depth <- samps |>
   rename(catch_count_HBLL = "catch_count_HBLL_13/0", catch_count_Dog = "catch_count_Dog_14/0") |>
   mutate(offset = log(offset_HBLL) - log(offset_Dog))
 
-# test5 <- test3 |>
-#   select(year, fishing_event_id, lglsp_hook_count, hook_name, grouping_depth_id, fold_id) %>%
-#   distinct() |>
-#   mutate(offset_name = ifelse(hook_name == "HBLL_13/0", "offset_hbll", "offset_dog")) |>
-#   dplyr::select(-hook_name) |>
-#   group_by(fishing_event_id) |>
-#   pivot_wider(
-#     names_from = offset_name,
-#     values_from = lglsp_hook_count
-#   ) |>
-#   ungroup() |>
-#   arrange(year, fishing_event_id) |>
-#   mutate(offset = log(offset_hbll) - log(offset_dog))
-#
-# final <- left_join(test4, test5)
-# final$grouping_depth_id
-#
-#
-# # change to UTMs
-# final <- add_utm_columns(
-#   final,
-#   ll_names = c("longitude", "latitude"),
-#   ll_crs = 4326,
-#   utm_names = c("UTM.lat", "UTM.lon")
-# )
 
 
 # intercept only model ----------------------------------------------------
 
 weight <- exp(depth$offset)
 
-mint <- sdmTMB(
+mintbb <- sdmTMB(
   cbind(catch_count_HBLL, catch_count_Dog) ~ 1,
-  mesh = dummy_mesh,
   spatial = "off",
   spatiotemporal = "off",
   data = depth,
-  # family = betabinomial(),
-  # weights = weight,
-  family = binomial(),
-  offset = depth$offset,
+  family = betabinomial(),
+  weights = weight,
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 
-coef(mint)
-mint2 <- tidy(mint, ran.pars = TRUE)
+mintb <- update(mintbb, family = binomial() , offset = depth$offset)
+
+mintqb <- glm(
+  formula = cbind(catch_count_HBLL, catch_count_Dog) ~ 1 + offset(offset),
+  data = depth,
+  family = quasibinomial()
+)
+
+sanity(mintb)
+sanity(mintbb)
+
+AIC(mintb)
+AIC(mintbb) #lower
+#AIC(mintqb) #no aic
+
+coef(mintqb)
+coef(mintbb) #very similar
+
+mint2 <- tidy(mintbb, ran.pars = TRUE)
 exp(mint2$estimate)
 exp(mint2$conf.low)
 exp(mint2$conf.high)
 
 
-# depth model -------------------------------------------------------------
+# depth factor model -------------------------------------------------------------
 
 weight <- exp(depth$offset)
 
-depthm <- sdmTMB(
-  cbind(catch_count_HBLL, catch_count_Dog) ~ 1 + as.factor(grouping_depth_id),
-  mesh = dummy_mesh,
+depthmbb <- sdmTMB(
+  cbind(catch_count_HBLL, catch_count_Dog) ~ 0 + as.factor(grouping_depth_id),
   spatial = "off",
   spatiotemporal = "off",
   data = depth,
-  offset = depth$offset,
-  family = binomial(),
-  # family = betabinomial(),
-  # weights = weight,
+  family = betabinomial(),
+  weights = weight,
   control = sdmTMBcontrol(multiphase = FALSE)
 )
-coef(depthm)
-depthc <- tidy(depthm, ran.pars = TRUE)
+
+depthmb <- update(depthmbb, family = binomial() , offset = depth$offset)
+
+sanity(depthmb)
+sanity(depthmbb)
+
+AIC(depthmb)
+AIC(depthmbb)
+
+coef(depthmbb)
+depthc <- tidy(depthmbb, ran.pars = TRUE)
 exp(depthc$estimate)
 exp(depthc$conf.low)
 exp(depthc$conf.high)
 
-
-# random effect of site model ---------------------------------------------
-
-sitebb <- sdmTMB(
-  cbind(catch_count_HBLL, catch_count_Dog) ~ 1, #+ (1 | fishing_event_id),
-  # cbind(cpue_hbll , cpue_dog ) ~ 1 + (1|fishing_event_id),
-  mesh = dummy_mesh,
-  spatial = "off",
-  spatiotemporal = "off",
-  data = depth,
-  #offset = depth$offset,
-  #family = binomial(),
-
-  family = betabinomial(),
-  weights = weight,
-
-  control = sdmTMBcontrol(multiphase = FALSE)
-)
-
-siteb <-
-  sdmTMB(
-  cbind(catch_count_HBLL, catch_count_Dog) ~ 1 + (1 | fishing_event_id),
-  mesh = dummy_mesh,
-  spatial = "off",
-  spatiotemporal = "off",
-  data = depth,
-  offset = depth$offset,
-  family = binomial(),
-  control = sdmTMBcontrol(multiphase = FALSE)
-)
-
-coef(sitebb)
-site2 <- tidy(site, ran.pars = TRUE)
-exp(site2$estimate)
-exp(site2$conf.low)
-exp(site2$conf.high)
+# # random effect of site model ---------------------------------------------
+#
+# siteb <- sdmTMB(
+#   cbind(catch_count_HBLL, catch_count_Dog) ~ 1 + (1 | fishing_event_id),
+#   spatial = "off",
+#   spatiotemporal = "off",
+#   data = depth,
+#   offset = depth$offset,
+#   family = binomial(),
+#   control = sdmTMBcontrol(multiphase = FALSE)
+# )
+#
+# sitenb <- sdmTMB(
+#   cbind(catch_count_HBLL, catch_count_Dog) ~ 1 + (1 | fishing_event_id),
+#   spatial = "off",
+#   spatiotemporal = "off",
+#   data = depth,
+#   offset = depth$offset,
+#   family = nbinom2(),
+#   control = sdmTMBcontrol(multiphase = FALSE)
+# )
+#
+# sanity(siteb)
+#
+# coef(siteb)
+# site2 <- tidy(siteb, ran.pars = TRUE)
+# exp(site2$estimate)
+# exp(site2$conf.low)
+# exp(site2$conf.high)
 
 
 # compete aics ------------------------------------------------------------
 
-AIC(site) # cant compare but the coefs are the same as the mint so chose that
-AIC(mint)
-AIC(depthm)
+#AIC(siteb) # cant compare but the coefs are the same as the mint so chose that
+AIC(mintbb)
+AIC(depthmbb)
 
