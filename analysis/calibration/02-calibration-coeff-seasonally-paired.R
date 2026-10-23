@@ -7,8 +7,6 @@ library(ggplot2)
 library(stringr)
 
 
-# Pair by season ----------------------------------------------------------
-
 samps <- readRDS("output/samps_joined.rds") |>
   dplyr::select(year, fishing_event_id, hooksize_desc, catch_count, time_deployed, total_length, activity_desc, grouping_desc, grouping_depth_id, survey_abbrev, hooksize_desc, sex, lglsp_hook_count, latitude, longitude, depth_m) |>
   filter(grepl("COMPARISON", activity_desc)) |>
@@ -170,19 +168,23 @@ saveRDS(tidy(intbb), "output/calibration_coeffs_intercept.rds")
 
 
 # table of coeff values for overleaf --------------------------------------
+AIC(mdepthbb)
+AIC(intbb)
 
 #<- not reproducible, check order of params
-tidy(mdepth, ran.pars = TRUE)
+tidy(mdepthbb, ran.pars = TRUE)
 
 table <- data.frame("Depth (m)" = c(">220 m", "111-165 m", "166-220 m", "56-110 m"))
-table <- table |> mutate(rho = round(exp(tidy(mdepth, ran.pars = TRUE)$estimate), 2))
+table <- table |> mutate(rho = round(exp(tidy(mdepthbb, ran.pars = TRUE)$estimate), 2))
 
-table <- table |> mutate(conf.low = round(exp(tidy(mdepth, ran.pars = TRUE)$conf.low), 2))
-table <- table |> mutate(conf.high = round(exp(tidy(mdepth, ran.pars = TRUE)$conf.high), 2))
+table <- table |> mutate(conf.low = round(exp(tidy(mdepthbb, ran.pars = TRUE)$conf.low), 2))
+table <- table |> mutate(conf.high = round(exp(tidy(mdepthbb, ran.pars = TRUE)$conf.high), 2))
 table <- table |> mutate(Data = c("seasonally paired", "seasonally paired", "seasonally paired", "seasonally paired"))
+
 table <- table |>
   group_by(rho) |>
   mutate(CI = paste0((conf.low), "-", (conf.high)))
+
 table <- table |> mutate(final = paste0(rho, " (", conf.low, "-", conf.high, ")"))
 table <- table |> dplyr::select("Data", "Depth..m.", final)
 rownames(table) <- NULL

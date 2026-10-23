@@ -1,10 +1,9 @@
-# calibration coeff for paired comparative sets, tested calibration coeff by depth, and intercept only model
+# calibration coeff for paired comparative sets
 
 library(dplyr)
 library(tidyr)
 library(sdmTMB)
 library(ggplot2)
-
 
 samps <- readRDS("output/samps_joined.rds")
 
@@ -45,13 +44,14 @@ depth <- samps |>
   drop_na("offset_HBLL_13/0", "offset_Dog_14/0") |>
   rename(offset_HBLL = "offset_HBLL_13/0", offset_Dog = "offset_Dog_14/0") |>
   rename(catch_count_HBLL = "catch_count_HBLL_13/0", catch_count_Dog = "catch_count_Dog_14/0") |>
-  mutate(offset = log(offset_HBLL) - log(offset_Dog))
-
+  mutate(
+    offset_log = log(offset_HBLL) - log(offset_Dog),
+    weight = (offset_HBLL) / (offset_Dog)
+  )
 
 
 # intercept only model ----------------------------------------------------
-
-weight <- exp(depth$offset)
+weight <- depth$weight
 
 mintbb <- sdmTMB(
   cbind(catch_count_HBLL, catch_count_Dog) ~ 1,
@@ -63,10 +63,10 @@ mintbb <- sdmTMB(
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 
-mintb <- update(mintbb, family = binomial() , offset = depth$offset)
+mintb <- update(mintbb, family = binomial(), offset = depth$offset_log)
 
 mintqb <- glm(
-  formula = cbind(catch_count_HBLL, catch_count_Dog) ~ 1 + offset(offset),
+  formula = cbind(catch_count_HBLL, catch_count_Dog) ~ 1 + offset(offset_log),
   data = depth,
   family = quasibinomial()
 )
@@ -75,21 +75,19 @@ sanity(mintb)
 sanity(mintbb)
 
 AIC(mintb)
-AIC(mintbb) #lower
-#AIC(mintqb) #no aic
+AIC(mintbb) # lower
+AIC(mintqb) #no aic
 
 coef(mintqb)
-coef(mintbb) #very similar
+coef(mintbb) # very similar
 
-mint2 <- tidy(mintbb, ran.pars = TRUE)
-exp(mint2$estimate)
-exp(mint2$conf.low)
-exp(mint2$conf.high)
+mintbb_params <- tidy(mintbb, ran.pars = TRUE)
+exp(mintbb_params$estimate)
+exp(mintbb_params$conf.low)
+exp(mintbb_params$conf.high)
 
 
 # depth factor model -------------------------------------------------------------
-
-weight <- exp(depth$offset)
 
 depthmbb <- sdmTMB(
   cbind(catch_count_HBLL, catch_count_Dog) ~ 0 + as.factor(grouping_depth_id),
@@ -101,7 +99,7 @@ depthmbb <- sdmTMB(
   control = sdmTMBcontrol(multiphase = FALSE)
 )
 
-depthmb <- update(depthmbb, family = binomial() , offset = depth$offset)
+depthmb <- update(depthmbb, family = binomial(), offset = depth$offset_log)
 
 sanity(depthmb)
 sanity(depthmbb)
@@ -110,45 +108,13 @@ AIC(depthmb)
 AIC(depthmbb)
 
 coef(depthmbb)
-depthc <- tidy(depthmbb, ran.pars = TRUE)
-exp(depthc$estimate)
-exp(depthc$conf.low)
-exp(depthc$conf.high)
-
-# # random effect of site model ---------------------------------------------
-#
-# siteb <- sdmTMB(
-#   cbind(catch_count_HBLL, catch_count_Dog) ~ 1 + (1 | fishing_event_id),
-#   spatial = "off",
-#   spatiotemporal = "off",
-#   data = depth,
-#   offset = depth$offset,
-#   family = binomial(),
-#   control = sdmTMBcontrol(multiphase = FALSE)
-# )
-#
-# sitenb <- sdmTMB(
-#   cbind(catch_count_HBLL, catch_count_Dog) ~ 1 + (1 | fishing_event_id),
-#   spatial = "off",
-#   spatiotemporal = "off",
-#   data = depth,
-#   offset = depth$offset,
-#   family = nbinom2(),
-#   control = sdmTMBcontrol(multiphase = FALSE)
-# )
-#
-# sanity(siteb)
-#
-# coef(siteb)
-# site2 <- tidy(siteb, ran.pars = TRUE)
-# exp(site2$estimate)
-# exp(site2$conf.low)
-# exp(site2$conf.high)
+depthmbb_params <- tidy(depthmbb, ran.pars = TRUE)
+exp(depthmbb_params$estimate)
+exp(depthmbb_params$conf.low)
+exp(depthmbb_params$conf.high)
 
 
 # compete aics ------------------------------------------------------------
 
-#AIC(siteb) # cant compare but the coefs are the same as the mint so chose that
 AIC(mintbb)
 AIC(depthmbb)
-
