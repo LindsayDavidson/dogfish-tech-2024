@@ -101,6 +101,15 @@ depthmbb <- sdmTMB(
 
 depthmb <- update(depthmbb, family = binomial(), offset = depth$offset_log)
 
+#check disperson
+pearson_chisq <- sum(residuals(depthmb, type = "pearson")^2)
+
+pchisq(
+  pearson_chisq,
+  df = df.residual(depthmb),
+  lower.tail = FALSE
+)
+
 sanity(depthmb)
 sanity(depthmbb)
 
