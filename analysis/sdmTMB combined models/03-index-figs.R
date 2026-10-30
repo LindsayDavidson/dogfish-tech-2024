@@ -69,4 +69,4 @@ gg2 <- ind %>%
 
 gg2
 
-ggsave("figures/stitched_indexes_panel.jpg", gg2, width = 8, height = 4)
+ggsave("figures/stitched_indexes_panel.jpg", gg2, width = 7, height = 3)
