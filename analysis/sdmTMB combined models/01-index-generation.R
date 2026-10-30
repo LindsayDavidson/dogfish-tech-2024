@@ -3,9 +3,9 @@ library(tidyverse)
 library(sdmTMB)
 
 #choose model
-model = "hblldog" #hbll and circle and j hook
+# model = "hblldog" #hbll and circle and j hook
 # model = "hbll-n-s" #hbll
-# model <- "dog-j-circle" # circle and j hook sog surveys
+ model <- "dog-j-circle" # circle and j hook sog surveys
 
 df <- readRDS("data-raw/wrangled-hbll-dog-sets.rds") |>
   drop_na(catch_count) |>
@@ -126,7 +126,8 @@ plot(mesh)
 mesh$mesh$n
 
 
-ggplot() +
+g <-
+  ggplot() +
   geom_point(
     data = d |> arrange(year), aes(UTM.lon, UTM.lat, colour = year),
     size = 1,
@@ -149,9 +150,10 @@ ggplot() +
   ylab("UTM (km)") +
   coord_fixed(expand = FALSE) +
   theme_classic() +
-  theme(legend.position = "inside", legend.position.inside = c(0.2, 0.25))
-ggsave(paste0("Figures/sog-model-mesh-", model, ".jpg"), width = 6, height = 6)
-
+  theme(legend.position = "right")
+  #theme(legend.position = "inside", legend.position.inside = c(0.2, 0.25))
+g
+saveRDS(g, paste0("Figures/sog-model-mesh-", model, ".rds"))
 
 year_range <- range(d$year)
 all_years <- data.frame(year = year_range[1]:year_range[2])
