@@ -17,15 +17,15 @@ dogfish <-
   filter(!fishing_event_id %in% id_remove) %>%
   filter(!fishing_event_id %in% id_remove2) %>%
   mutate(survey_abbrev = ifelse(year == 2023 & time_deployed > as.POSIXct("2023-09-06 09:15:21") & hooksize_desc == "14/0" & activity_desc == "DOGFISH GEAR/TIMING   COMPARISON SURVEYS", "DOG",
-                                ifelse(year == 2023 & time_deployed > as.POSIXct("2023-09-06 09:15:21") & hooksize_desc == "13/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase", # don't want this one
-                                       ifelse(year == 2023 & time_deployed <= as.POSIXct("2023-09-06 09:15:21") & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase",
-                                              ifelse(year == 2004 & hooksize_desc == "14/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "DOG",
-                                                     ifelse(year == 2004 & hooksize_desc == "12/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "j-hook",
-                                                            survey_abbrev
-                                                     )
-                                              )
-                                       )
-                                )
+    ifelse(year == 2023 & time_deployed > as.POSIXct("2023-09-06 09:15:21") & hooksize_desc == "13/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase", # don't want this one
+      ifelse(year == 2023 & time_deployed <= as.POSIXct("2023-09-06 09:15:21") & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "erase",
+        ifelse(year == 2004 & hooksize_desc == "14/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "DOG",
+          ifelse(year == 2004 & hooksize_desc == "12/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS", "j-hook",
+            survey_abbrev
+          )
+        )
+      )
+    )
   )) |>
   filter(survey_abbrev != "erase") %>%
   mutate(survey_abbrev = ifelse(survey_abbrev == "DOG" & year %in% c(1986, 1989), "j-hook", survey_abbrev))
@@ -33,13 +33,13 @@ dogfish <-
 sort(unique(dogfish$year))
 sort(unique(dogfish$grouping_desc))
 dogfish <- dogfish |> mutate(depth_bin = ifelse(depth_m < 56, "D1",
-                                                ifelse(depth_m >= 56 & depth_m <= 110, "D2",
-                                                       ifelse(depth_m >= 111 & depth_m <= 165, "D3",
-                                                              ifelse(depth_m >= 166 & depth_m <= 220, "D4",
-                                                                     ifelse(depth_m > 220, "D5", NA)
-                                                              )
-                                                       )
-                                                )
+  ifelse(depth_m >= 56 & depth_m <= 110, "D2",
+    ifelse(depth_m >= 111 & depth_m <= 165, "D3",
+      ifelse(depth_m >= 166 & depth_m <= 220, "D4",
+        ifelse(depth_m > 220, "D5", NA)
+      )
+    )
+  )
 ))
 unique(dogfish$depth_bin)
 unique(dogfish$survey_abbrev)
@@ -53,7 +53,7 @@ log_est_165 <- rnorm(n = 1, mean = coeffs$estimate[coeffs$term == "factor(depth_
 log_est_220 <- rnorm(n = 1, mean = coeffs$estimate[coeffs$term == "factor(depth_bin) 166 - 220 m"], sd = coeffs$std.error[coeffs$term == "factor(depth_bin) 166 - 220 m"])
 log_est_110 <- rnorm(n = 1, mean = coeffs$estimate[coeffs$term == "factor(depth_bin) 56 - 110 m"], sd = coeffs$std.error[coeffs$term == "factor(depth_bin) 56 - 110 m"])
 
-coeffs$estc <- c(log_est_221, log_est_220, log_est_165, log_est_110) #randomly generated rho values
+coeffs$estc <- c(log_est_221, log_est_220, log_est_165, log_est_110) # randomly generated rho values
 
 coeffs <- coeffs |> mutate(depth_bin = c("D5", "D3", "D4", "D2"))
 
@@ -65,12 +65,12 @@ dogc <- dogfish |>
 sort(unique(dogc$year))
 unique(dogc$depth_bin)
 
-#nsim <- 1 # 20
-#pull from a distribtuion of coeffs
+# nsim <- 1 # 20
+# pull from a distribtuion of coeffs
 
-#dogc <- left_join(dogc, coeffs)
-#unique(dogc$depth_bin)
-#unique(dogc$estc)
+# dogc <- left_join(dogc, coeffs)
+# unique(dogc$depth_bin)
+# unique(dogc$estc)
 
 
 # DOG j hook - add calibration by depth -----------------------------------
@@ -85,9 +85,9 @@ unique(dogj$depth_bin)
 depths <- data.frame(depth_bin = c("D1", "D2", "D3", "D4", "D5"))
 depths$estj <- c(log(1.2), log(1.2), log(1.65), log(1.65), log(1.65))
 
-#dogj <- left_join(dogj, depths)
-#unique(dogj$depth_bin)
-#str(dogj$estj)
+# dogj <- left_join(dogj, depths)
+# unique(dogj$depth_bin)
+# str(dogj$estj)
 
 
 # put data  together ------------------------------------------------------
@@ -95,16 +95,16 @@ depths$estj <- c(log(1.2), log(1.2), log(1.65), log(1.65), log(1.65))
 hbll <- dogfish |> filter(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"))
 
 hbll <- hbll |> mutate(depth_bin = ifelse(depth_m < 56, "D1",
-                                          ifelse(depth_m >= 56 & depth_m <= 110, "D2",
-                                                 ifelse(depth_m >= 111 & depth_m <= 165, "D3",
-                                                        ifelse(depth_m >= 166 & depth_m <= 220, "D4",
-                                                               ifelse(depth_m > 220, "D5", NA)
-                                                        )
-                                                 )
-                                          )
+  ifelse(depth_m >= 56 & depth_m <= 110, "D2",
+    ifelse(depth_m >= 111 & depth_m <= 165, "D3",
+      ifelse(depth_m >= 166 & depth_m <= 220, "D4",
+        ifelse(depth_m > 220, "D5", NA)
+      )
+    )
+  )
 ))
 
-#put data together and then modify the offsets
+# put data together and then modify the offsets
 d <- bind_rows(dogc, dogj)
 d <- bind_rows(d, hbll)
 
@@ -116,24 +116,24 @@ d$estimate
 d <- d %>%
   mutate(
     offset_jhook = offset_hksoak - ifelse(survey_abbrev %in% c("DOG", "OTHER"), 0,
-                                          ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, (estj)) #log(1.45))
+      ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, (estj)) # log(1.45))
     ), # 1.45 from Jackies report
     offset_rho = offset_hksoak - ifelse(survey_abbrev %in% c("DOG", "OTHER"), (estc),
-                                        ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, log(exp(estc) * exp(estj)))
+      ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, log(exp(estc) * exp(estj)))
     ),
     offset_rho_mean = offset_hksoak - ifelse(survey_abbrev %in% c("DOG", "OTHER"), (estimate),
-                                             ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, log(exp(estimate) * exp(estj)))
+      ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), 0, log(exp(estimate) * exp(estj)))
     ),
 
-    #offset_dogcircle = offset_hksoak + ifelse(survey_abbrev == "DOG", 0,
+    # offset_dogcircle = offset_hksoak + ifelse(survey_abbrev == "DOG", 0,
     #  ifelse(survey_abbrev %in% c("HBLL INS N", "HBLL INS S"), log_offset, -(log(1.45)))
-    #), # scale to dog gear
+    # ), # scale to dog gear
 
     # cpue = catch_count / exp(log_offset),
     cpue_rho = catch_count / exp(offset_rho),
     cpue_rho_mean = catch_count / exp(offset_rho_mean),
 
-    #cpue_dogcircle = catch_count / exp(offset_dogcircle)
+    # cpue_dogcircle = catch_count / exp(offset_dogcircle)
   ) %>%
   arrange(year) %>%
   # mutate(survey = ifelse(survey_abbrev == "DOG", "dog", "hbll")) %>%
