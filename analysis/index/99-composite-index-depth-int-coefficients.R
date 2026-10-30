@@ -29,6 +29,7 @@ gg2 <- gg +
   geom_point(data = filter(index, id == "int"), aes(year, est), colour = "red")
 
 gg2
+
 ggsave("figures/sensitivity_calibrated_index_depth_int.jpg", gg2, width = 4, height =4)
 
 
