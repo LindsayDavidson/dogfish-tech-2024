@@ -9,8 +9,6 @@ library(dplyr)
 
 samps <- readRDS("output/samps_joined.rds")
 
-unique(samps$survey_lumped)
-
 samps <- filter(samps, sex %in% c(1, 2))
 
 samps |>
