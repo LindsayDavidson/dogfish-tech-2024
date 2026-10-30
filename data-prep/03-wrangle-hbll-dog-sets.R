@@ -1,11 +1,10 @@
-# 02a-data-clean-sets.R
-bccrs <- 32609
-
-
 library(sf)
 library(ggplot2)
 library(tidyverse)
 library(sdmTMB)
+
+bccrs <- 32609
+
 
 # load data  ---------------------------------------------------------------
 
