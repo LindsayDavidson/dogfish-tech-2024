@@ -41,11 +41,11 @@ comp |>
   filter(year != 2019) |>
   reframe(sum = n())
 
-comp |>
-  filter(sex %in% c(1, 2)) |>
-  group_by(sex, hooksize_desc, year, survey_timing, survey_sep) |>
-  #filter(year != 2019) |>
-  reframe(sum = n())
+# comp |>
+#   filter(sex %in% c(1, 2)) |>
+#   group_by(sex, hooksize_desc, year, survey_timing, survey_sep) |>
+#   #filter(year != 2019) |>
+#   reframe(sum = n())
 
 #are the length comps the same across the hooks / survey??
 comp <- comp |>
