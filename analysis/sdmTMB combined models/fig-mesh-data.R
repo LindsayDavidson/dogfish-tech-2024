@@ -1,36 +1,33 @@
 library(jpeg)
+library(cowplot)
 
-model = "hblldog" #hbll and circle and j hook
-model = "hbll-n-s" #hbll
-model <- "dog-j-circle" # circle and j hook sog surveys
-
-hblldog <- readJPEG(paste0("Figures/sog-model-mesh-", "hblldog", ".jpg"))
-hbll <- readJPEG(paste0("Figures/sog-model-mesh-", "hbll-n-s", ".jpg"))
-dog <- readJPEG (paste0("Figures/sog-model-mesh-", "dog-j-circle", ".jpg"))
-
+hblldog <- readRDS(paste0("Figures/sog-model-mesh-", "hblldog", ".rds"))
+hbll <- readRDS(paste0("Figures/sog-model-mesh-", "hbll-n-s", ".rds"))
+dog <- readRDS (paste0("Figures/sog-model-mesh-", "dog-j-circle", ".rds"))
 
 cv <- cowplot::plot_grid(
   hblldog, hbll,
   ncol = 1,
   nrow = 2,
-  labels = c("(a)", "(b)"),   # Labels for each plot
+  labels = c("(a) HBLL & SoG dogfish circle/J-hook", "(b) HBLL"),   # Labels for each plot
   #align = "hv",
-  rel_heights = c(1.5,1),
-  rel_widths = rep(0.75,1)
-)
+  hjust = 0,
 
+  rel_heights = c(1,1),
+  rel_widths = rep(1,1)
+)
 cv
 
 cv2 <- cowplot::plot_grid(
   cv, dog,
   ncol = 1,
   nrow = 2,
-  labels = c("(a)", "(b)"),   # Labels for each plot
+  hjust = 0,
+  labels = c(" ", "(c) SoG dogfish circle/J-hook"),
   #align = "hv",
-  rel_heights = c(1.5,1),
-  rel_widths = rep(0.75,1)
+  rel_heights = c(1,0.56),
+  rel_widths = rep(1,1)
 )
-
 cv2
 
-ggsave(paste0("figures/length_boxplot.png"), cv2, height = 9, width = 7, dpi = 200)
+ggsave(paste0("figures/mesh_points.png"), cv2, height = 10, width = 7, dpi = 200)
