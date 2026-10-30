@@ -3,43 +3,48 @@ library(sf)
 library(tidyverse)
 library(sp)
 
-spring <- seq(12, 25, 1)
-summer <- seq(26, 38, 1)
-winter <- c(seq(1, 11, 1), 52)
-fall <- seq(39, 51, 1)
+# spring <- seq(12, 25, 1)
+# summer <- seq(26, 38, 1)
+# winter <- c(seq(1, 11, 1), 52)
+# fall <- seq(39, 51, 1)
 
 # load data ---------------------------------------------------------------
 
 sets <- readRDS("data-raw/dogfish_sets_getall.rds")
 
 
-
 # fix 2004 soak times  --------
-#soak times are not in the this databse but are in the 2005 tech report
+# soak times are not in the this databse but are in the 2005 tech report
 
-sets1 <- sets |> mutate(erase = ifelse(year == 2004 & survey_abbrev == "OTHER", "erase", "keep")) |> filter(erase == "keep") |> dplyr::select(-erase)
+sets1 <- sets |>
+  mutate(erase = ifelse(year == 2004 & survey_abbrev == "OTHER", "erase", "keep")) |>
+  filter(erase == "keep") |>
+  dplyr::select(-erase)
 comp2004 <- sets |> filter(year == 2004 & survey_abbrev == "OTHER")
 
-test <- comp2004 |> dplyr::select(time_retrieved, grouping_desc, duration_min, latitude, longitude) |> distinct()
-test <- test |> dplyr::select(time_retrieved) |> mutate(time_retrieved = as.POSIXct(time_retrieved, format("%H:%M:%S"), tz = "UTC"))
+test <- comp2004 |>
+  dplyr::select(time_retrieved, grouping_desc, duration_min, latitude, longitude) |>
+  distinct()
+test <- test |>
+  dplyr::select(time_retrieved) |>
+  mutate(time_retrieved = as.POSIXct(time_retrieved, format("%H:%M:%S"), tz = "UTC"))
 test <- test %>% arrange(time_retrieved)
 time <- format(test$time_retrieved, "%H:%M:%S")
 
 location <- c("Hornby Island", "Hornby Island", "Hornby Island", "Hornby Island", "Sinclair Bank", "Sinclair Bank", "Sinclair Bank", "Sinclair Bank", "Epsom Point", "Epsom Point", "Epsom Point", "Halibut Bank", "Halibut Bank", "Halibut Bank", "Halibut Bank", "Porlier Pass", "Porlier Pass", "Porlier Pass", "Porlier Pass", "Active Pass", "Active Pass", "Active Pass", "Northumberland Channel")
-depth <- c(1,2,3,4,4,3,2,1,4,2,1,3,3,4,2,4,3,1,2,5,4,5,NA)
-duration_min2 <- c(124, 144, 167, 121, 128, 178, 129, 130, 132, 179, 107, 126, 136, 132, 143, 139, 135, 131, 122, 128, 128, 96, 84)
-time = time
-# time <- as.POSIXct("09:19:00", "11:13:00" , "13:39:00" , "15:01:00" , "14:53:00",  "17:09:00",  "18:50:00" , "20:40:00",
-#                     "08:23:00",  "10:32:00",  "12:03:00" , "10:35:00", "12:03:00" ,  "15:36:00",  "16:52:00" ,
-#                    "09:57:00" ,  "11:07:00" ,  "15:02:00" ,  "16:34:00",  "09:38:00" ,  "10:58:00" , "13:48:00" , "09:28:00", format = "%H:%M:%S")
+depth <- c(1, 2, 3, 4, 4, 3, 2, 1, 4, 2, 1, 3, 3, 4, 2, 4, 3, 1, 2, 5, 4, 5, NA)
+duration_min <- c(124, 144, 167, 121, 128, 178, 129, 130, 132, 179, 107, 126, 136, 132, 143, 139, 135, 131, 122, 128, 128, 96, 84)
+time <- time
 
 comp <- data.frame(location, depth, duration_min, time)
-depthd <- data.frame(depth = c(1,2,3,4,5), depthm = c("0 - 55 m", "56 - 110 m", "111 - 165 m", "166 - 220 m", "> 220 m"))
+depthd <- data.frame(depth = c(1, 2, 3, 4, 5), depthm = c("0 - 55 m", "56 - 110 m", "111 - 165 m", "166 - 220 m", "> 220 m"))
 comp <- left_join(comp, depthd)
 comp <- comp |> mutate(grouping_desc = paste0("SoG Dogfish Site ", location, ", Depth Stratum ", depth, ": ", depthm))
 comp <- comp |> dplyr::select(grouping_desc, duration_min, time)
 
-comp2004 <- comp2004 |> mutate(time = format(time_retrieved, "%H:%M:%S") ) |> dplyr::select(-duration_min)
+comp2004 <- comp2004 |>
+  mutate(time = format(time_retrieved, "%H:%M:%S")) |>
+  dplyr::select(-duration_min)
 comp2004 <- left_join(comp2004, comp) |>
   dplyr::select(-time)
 
@@ -91,69 +96,36 @@ sets |>
   filter(grouping_desc == "SoG Dogfish Site") # none, fixed now
 unique(sets$grouping_depth_id) # good
 
-# still NAs - WHY
-sets |>
-  filter(is.na(grouping_desc) == TRUE) # all depths are in there
-
 
 # QA/QC soak time  -----------------------------------------------------
 
-sets$duration_min
+range(sets$duration_min, na.rm = TRUE)
 
-# d <- sets |>
-#   mutate(
-#     #deployhr = lubridate::hour(time_end_deployment),
-#     #deploymin = lubridate::minute(time_end_deployment),
-#     retrieve = as.Date(time_begin_retrieval, format = "%Y-%m-%d h:m:s"),
-#     deployed = as.Date(time_deployed, format = "%Y-%m-%d h:m:s"),
-#     month = lubridate::month(retrieve),
-#     #retrievehr = lubridate::hour(time_begin_retrieval),
-#     #retrievemin = lubridate::minute(time_begin_retrieval),
-#     dmy = lubridate::ymd(retrieve),
-#     julian = lubridate::yday(retrieve),
-#     week = lubridate::week(retrieve)
-#   ) |>
-#   mutate(
-#     soak = as.numeric(difftime(time_begin_retrieval, time_deployed,  units = "hours"))
-#     #hr_diff = (retrievehr - deployhr) * 60,
-#     #min_diff = abs(retrievemin - deploymin),
-#     #soak = (hr_diff + min_diff) / 60
-#   ) |>
-#
-# test <- d |> dplyr::select(duration_min, soak)
-# range(d$soak, na.rm = TRUE)
-#
-# #d <- d |> filter(soak < 5 & soak > 1)
-
-d |> filter(is.na(week)== TRUE) |> tally() #some dates are NAs
-
-d <- d |>
-  mutate(week = ifelse(is.na(week) == TRUE, lubridate::week(deployed), week))
-d |> filter(is.na(week)== TRUE) |> tally() #fixed
-
+sets <- sets |>
+   mutate(
+     retrieve = as.Date(time_begin_retrieval, format = "%Y-%m-%d h:m:s"),
+     julian = lubridate::yday(retrieve),
+     week = lubridate::week(retrieve))
 
 # some soaks are NA - fix this!
- d |>
-  filter(is.na(duration_min) == TRUE) #45
-
-d |>
+sets |>
   filter(is.na(duration_min) == TRUE) |>
   distinct(fishing_event_id, .keep_all = TRUE) |>
   tally() # 44 fishing events are missing soak times as the deployment time wasnt recorded
 
-d |>
+sets |>
   filter(is.na(duration_min == TRUE)) |>
   distinct(fishing_event_id, .keep_all = TRUE) |>
   group_by(year) |>
   tally() # lots of 2005s missing too soak time should have been consistently 2 hours at this time, the time_end_deployment was not recorded in 2005
 
-#2005 was two hour soak so I am going to add that in
-d <- d |> mutate(duration_min_fixed = ifelse(is.na(duration_min) == TRUE, 2, duration_min))
+# 2005 was two hour soak so I am going to add that in
+sets <- sets |> mutate(soak = ifelse(is.na(duration_min) == TRUE, 60, duration_min))
 
 # Add grouping code for survey ---------------------------------------------
 
 # this is so I can look at trends through time, designed based, that don't include the comp work
-final <- d |>
+final <- sets |>
   mutate(survey_sep = case_when(
     survey_abbrev == "HBLL INS S" ~ "HBLL INS S",
     survey_abbrev == "HBLL INS N" ~ "HBLL INS N",
@@ -169,6 +141,8 @@ final <- d |>
     year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 9 & day >= 27 ~ "hbll comp",
     year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 9 & day < 27 ~ "hbll comp",
     year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 9 & day < 27 ~ "dog comp",
+    year == 2024 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" ~ "dog",
+    year == 2024 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "12/0" ~ "dog-jhook",
     year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 8 ~ "hbll comp",
     year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 8 ~ "dog comp",
     year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 10 ~ "hbll comp",
@@ -180,31 +154,17 @@ final <- d |>
   ))
 
 
-#add season based on week of survey and definitions above
+# add season based on week of survey and definitions above
 final <- final |>
   mutate(season = ifelse(week %in% spring, "2", ifelse(week %in% summer, "3", ifelse(week %in% fall, "4", "1"))))
 
-# Put the different surveys into a model and account for julian date after (the seasonal component of the comparison work)
-final <- final |>
-  mutate(survey_lumped = case_when(
-    survey_sep %in% c("HBLL INS S", "HBLL INS N", "hbll", "hbll comp") ~ "hbll",
-    survey_sep == "dog-jhook" ~ "dog-jhook",
-    survey_sep %in% c("dog", "dog comp") ~ "dog"
-  ))
-
-
-final <- final |>
-  mutate(soak = ifelse(year %in% c(2005) & survey_abbrev == "DOG", 2, soak)) # safe to assume these are ~2 hours
 range(final$soak)
 x <- filter(final, is.na(soak) == TRUE)
 final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
-# final <- filter(final, usability_code != 0) #you lose the jhook is you do this
+# final <- filter(final, usability_code != 0) #usability_code filters out the comparison sets
 final <- filter(final, lglsp_hook_count != 0)
-# final <- filter(final, soak != 0) #will lose all the 2004s do this later
 
 final$offset_hksoak <- log(final$lglsp_hook_count * final$soak) # nas created, thats ok
 final$offset <- log(final$lglsp_hook_count)
 final$log_botdepth <- log(final$depth_m)
 saveRDS(final, "data-generated/dogfish_sets_cleaned_getall.rds")
-
-
