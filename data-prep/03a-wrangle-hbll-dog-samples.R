@@ -3,18 +3,15 @@
 # soak2005 <- 2
 bccrs <- 32609
 
-
 library(ggplot2)
 library(tidyverse)
 library(here)
-
-# load data ---------------------------------------------------------------
 
 samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
 
 sampshb <- samps |> filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N")) # drop hbll samps not included in the gfdata pull.
 
-sampsgf <- readRDS("data-raw/dogfish_samples_gfdata.rds") |>
+sampsgf <- readRDS("data-raw/dogfish_samples_getall.rds") |>
   filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
 
 sampshb <- sampshb |>
@@ -47,4 +44,4 @@ hsamps <- sampshb |>
   filter(!fishing_event_id %in% c(hbllrm$fishing_event_id))
 
 samps <- bind_rows(sampsdog, hsamps)
-saveRDS(samps, "output/samps_joined.rds")
+saveRDS(samps, "data-generated/samps_joined.rds")
