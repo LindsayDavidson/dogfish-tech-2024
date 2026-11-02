@@ -7,7 +7,7 @@ library(ggplot2)
 library(stringr)
 
 
-samps <- readRDS("output/samps_joined.rds") |>
+samps <- readRDS("data-generated/samps_joined.rds") |>
   dplyr::select(year, fishing_event_id, hooksize_desc, catch_count, time_deployed, total_length, activity_desc, grouping_desc, grouping_depth_id, survey_abbrev, hooksize_desc, sex, lglsp_hook_count, latitude, longitude, depth_m) |>
   filter(grepl("COMPARISON", activity_desc)) |>
   mutate(grouping_depth_id = ifelse(depth_m %in% seq(56, 110, 1), "D2", grouping_depth_id))
