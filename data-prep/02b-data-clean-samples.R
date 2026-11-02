@@ -1,4 +1,3 @@
-# library -----------------------------------------------------------------
 library(sf)
 library(tidyverse)
 library(sp)
@@ -9,14 +8,11 @@ summer <- seq(26, 38, 1)
 winter <- c(seq(1, 11, 1), 52)
 fall <- seq(39, 51, 1)
 
-# load data ---------------------------------------------------------------
-
 samps <- readRDS("data-raw/dogfish_samples_getall.rds")
-sets <- readRDS("data-generated/dogfish_sets_getall.rds") |>
-  dplyr::select(year, fishing_event_id, week) |>
+sets <- readRDS("data-raw/dogfish_sets_getall.rds") |>
+  dplyr::select(year, fishing_event_id) |>
   distinct()
 samps <- left_join(samps, sets)
-samps |> filter(is.na(week) == TRUE) |> tally()
 
 samplesf <- samps |>
   mutate(survey_sep = case_when(
@@ -92,7 +88,15 @@ samplesf <- samplesf |>
     year == 2004 & hooksize_desc == "12/0" & survey_abbrev == "OTHER" ~ "dog-jhook"
   ))
 
-#add season based on week of survey and definitions above
+# #add season based on week of survey and definitions above
+
+samplesf <- samplesf |>
+  mutate(
+    retrieve = as.Date(time_begin_retrieval, format = "%Y-%m-%d h:m:s"),
+    julian = lubridate::yday(retrieve),
+    week = lubridate::week(retrieve))
+
+
 samplesf <- samplesf |>
   mutate(season = ifelse(week %in% spring, "2", ifelse(week %in% summer, "3", ifelse(week %in% fall, "4", "1"))))
 
@@ -119,4 +123,4 @@ samplesf <-
 
 # remove for now
 samples <- filter(samplesf, fishing_event_id != 5490376) #<- check this
-saveRDS(samples, "data-generated/dogfish_samples_cleaned.rds")
+saveRDS(samples, "data-raw/dogfish_samples_cleaned.rds")
