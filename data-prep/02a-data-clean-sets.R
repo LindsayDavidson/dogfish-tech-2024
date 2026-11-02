@@ -14,7 +14,7 @@ sets <- readRDS("data-raw/dogfish_sets_getall.rds")
 
 
 # fix 2004 soak times  --------
-# soak times are not in the this databse but are in the 2005 tech report
+# soak times are not in the this database but are in the 2005 tech report
 
 sets1 <- sets |>
   mutate(erase = ifelse(year == 2004 & survey_abbrev == "OTHER", "erase", "keep")) |>
