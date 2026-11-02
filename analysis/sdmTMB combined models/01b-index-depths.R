@@ -150,7 +150,7 @@ index2 |>
   scale_colour_manual(values = c("#d8b365", "#5ab4ac")) +
   guides(colour = guide_legend(title = "Depth bin")) +
   theme_classic() +
-  ylab("Abundance estimate") +
+  ylab("Abundance index") +
   #guides(colour = "Depth bin") +
   xlab("Year")
 ggsave("figures/depth-bin-figure.jpg", width = 4, height = 3)
