@@ -17,15 +17,6 @@
 # 2022 comparison work has two gear types per set
 # 2023 comparison work has two gear types per set  and was completed during the HBLL and DOG survey
 
-# pull from csas down -----------------------------------------------------
-# https://github.com/pbs-assess/csasdown
-# install.packages("remotes")
-# remotes::install_github("pbs-assess/csasdown", dependencies = TRUE)
-# setwd("C:/Dogfish_GearComp_TechReport_2024/DogfishGearComp/Report")
-# csasdown::draft("techreport")
-
-
-# library -----------------------------------------------------------------
 library(tidyverse)
 library(sf)
 library(ggplot2)
