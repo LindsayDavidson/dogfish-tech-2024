@@ -5,7 +5,7 @@ library(tidyr)
 library(sdmTMB)
 library(ggplot2)
 
-samps <- readRDS("output/samps_joined.rds")
+samps <- readRDS("data-generated/samps_joined.rds")
 
 samps <- samps %>%
   filter(grepl("COMPARISON", activity_desc))
