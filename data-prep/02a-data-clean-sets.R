@@ -1,14 +1,11 @@
-# library -----------------------------------------------------------------
 library(sf)
 library(tidyverse)
 library(sp)
 
-# spring <- seq(12, 25, 1)
-# summer <- seq(26, 38, 1)
-# winter <- c(seq(1, 11, 1), 52)
-# fall <- seq(39, 51, 1)
-
-# load data ---------------------------------------------------------------
+spring <- seq(12, 25, 1)
+summer <- seq(26, 38, 1)
+winter <- c(seq(1, 11, 1), 52)
+fall <- seq(39, 51, 1)
 
 sets <- readRDS("data-raw/dogfish_sets_getall.rds")
 
@@ -122,6 +119,12 @@ sets |>
 # 2005 was two hour soak so I am going to add that in
 sets <- sets |> mutate(soak = ifelse(is.na(duration_min) == TRUE, 60, duration_min))
 
+# sets <- sets |>
+#   mutate(
+#     retrieve = as.Date(time_begin_retrieval, format = "%Y-%m-%d h:m:s"),
+#     julian = lubridate::yday(retrieve),
+#     week = lubridate::week(retrieve))
+
 # Add grouping code for survey ---------------------------------------------
 
 # this is so I can look at trends through time, designed based, that don't include the comp work
@@ -168,3 +171,4 @@ final$offset_hksoak <- log(final$lglsp_hook_count * final$soak) # nas created, t
 final$offset <- log(final$lglsp_hook_count)
 final$log_botdepth <- log(final$depth_m)
 saveRDS(final, "data-generated/dogfish_sets_cleaned_getall.rds")
+
