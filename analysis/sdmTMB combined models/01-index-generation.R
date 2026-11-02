@@ -38,7 +38,7 @@ if (model == "hblldog") {
 
   ggplot(d, aes(year, catch_prop)) +
     geom_point() +
-    facet_wrap(~survey_lumped)
+    facet_wrap(~survey_sep)
 
   family <- betabinomial(link = "logit")
 
