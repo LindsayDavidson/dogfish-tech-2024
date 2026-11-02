@@ -1,14 +1,9 @@
-#answer (1) if catch composition are different between seasons (same hooks but different surveys)
-#and (2) if catch composition is different between hooks (diff hooks same survey)
+#(1) if catch composition are different between seasons (same hooks but different surveys)
+#(2) if catch composition is different between paired comp work (diff hooks same survey)
 
 library(ggplot2)
 library(tidyverse)
 library(here)
-
-# load data ---------------------------------------------------------------
-
-#samples <- readRDS("data-raw/dogfish_samples_cleaned.rds") |>
-#  filter(species_code == "044")
 
 catch_d <- readRDS("data-raw/dogfish_allspeciescatch.rds")
 info <- readRDS("data-raw/dogfish_sets.rds")
