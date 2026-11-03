@@ -76,7 +76,7 @@ sanity(mintbb)
 
 AIC(mintb)
 AIC(mintbb) # lower
-AIC(mintqb) #no aic
+AIC(mintqb) # no aic
 
 coef(mintqb)
 coef(mintbb) # very similar
@@ -101,7 +101,7 @@ depthmbb <- sdmTMB(
 
 depthmb <- update(depthmbb, family = binomial(), offset = depth$offset_log)
 
-#check disperson
+# check disperson
 pearson_chisq <- sum(residuals(depthmb, type = "pearson")^2)
 
 pchisq(
