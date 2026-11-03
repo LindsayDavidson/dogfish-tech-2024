@@ -5,14 +5,12 @@ library(sdmTMB)
 
 bccrs <- 32609
 
-final <- readRDS("data-generated/dogfish_sets_cleaned_getall.rds") #usability_code filters out the comparison sets
+final <- readRDS("data-generated/dogfish_sets_cleaned_getall.rds") # usability_code filters out the comparison sets
 
-hbll <- filter(final, survey_sep %in% c("HBLL INS N", "HBLL INS S")  & survey_sep != "hbll comp") |>
-  filter(survey_series_og %in% c(39, 40)) |>
-  filter(usability_code  == 1)
+hbll <- filter(final, survey_sep %in% c("HBLL INS N", "HBLL INS S"))
 # note how the boundary has been different, also this is from the *get_all* function pulls survey locations that are not a part of the HBLL standardized survey, remove them
 
-dog <- filter(final, survey_series_desc %in% c("Dogfish Gear/Timing Comparison Surveys", "Strait of Georgia Dogfish Longline"))
+dog <- filter(final, !survey_sep %in% c("HBLL INS N", "HBLL INS S"))
 
 
 # hbll wrangle ------------------------------------------------------------
@@ -59,10 +57,9 @@ ggplot(final, aes(longitude, latitude, colour = survey_sep)) +
   geom_point() +
   facet_wrap(~survey_sep)
 
-test <- final |>
+final |>
   group_by(survey_sep, year) |>
   distinct() |>
-  reframe() |>
   tally() |>
   print(n = 40) # looks good
 
@@ -75,7 +72,4 @@ d <- add_utm_columns(final,
   mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
 
 d <- d |> drop_na(survey_sep)
-x <- filter(d, year == 2005)
-unique(x$survey_abbrev)
 saveRDS(d, "data-raw/wrangled-hbll-dog-sets.rds")
-
