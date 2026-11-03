@@ -1,9 +1,10 @@
 #table of the biological data collected
 
-#species, latin, num of samples (what does that mean?), length, weight, sex, age, maturity
+#species, latin, num of samples, length, weight, sex, age, maturity
 # I need to pull this in? How do I pull in all of the samples for all of the species encountered
 
 library(tidyverse)
+library(gfdata)
 
 d <- readRDS("data-raw/dogfish_samples.rds") |> filter(YEAR == 2023 & SURVEY_DESC == "2023 Dogfish Gear Comparison Survey")
 species <- unique(d$SPECIES_COMMON_NAME)
