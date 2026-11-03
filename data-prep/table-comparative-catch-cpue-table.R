@@ -19,7 +19,7 @@ d192 <- d19 |>
   group_by(hooksize_desc) |>
   reframe(sum = sum(catch_count), sumeffort = sum(lglsp_hook_count)) |>
   mutate(cpue = sum / sumeffort) |>
-  #print()
+  # print()
   mutate(Survey = "HBLL", Year = 2019)
 
 
@@ -36,7 +36,7 @@ d222 <- d22 |>
   group_by(hooksize_desc) |>
   reframe(sum = sum(catch_count), sumeffort = sum(lglsp_hook_count)) |>
   mutate(cpue = sum / sumeffort) |>
-  #print()
+  # print()
   mutate(Survey = "HBLL", Year = 2022)
 
 
@@ -61,7 +61,7 @@ xx <- filter(d23, hooksize_desc == "13/0" & fishing_event_id %in% (x$fishing_eve
 d23 |>
   filter(hooksize_desc == "13/0") |>
   reframe(print(unique(grouping_desc))) |>
-  print (n = 100)
+  print(n = 100)
 
 d23 |>
   filter(hooksize_desc == "14/0") |>
@@ -72,7 +72,7 @@ d232 <- d23 |>
   group_by(hooksize_desc) |>
   reframe(sum = sum(catch_count), sumeffort = sum(lglsp_hook_count)) |>
   mutate(cpue = sum / sumeffort) |>
-  #print()
+  # print()
   mutate(Survey = "HBLL", Year = 2023)
 
 
@@ -105,7 +105,7 @@ d23dog <- d23 |>
   group_by(hooksize_desc) |>
   reframe(sum = sum(catch_count), sumeffort = sum(lglsp_hook_count)) |>
   mutate(cpue = sum / sumeffort) |>
-  #print()
+  # print()
   mutate(Survey = "Dogfish", Year = 2023)
 
 
@@ -114,20 +114,20 @@ summary <- bind_rows(d23dog, d232) |>
   bind_rows(d192)
 
 
-#add in the counts and cpue by male/female
+# add in the counts and cpue by male/female
 
 samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
 
 comp <- samps |>
   filter(year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" |
-           year == 2022 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" |
-           year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS") |>
+    year == 2022 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" |
+    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS") |>
   mutate(Survey = ifelse(survey_timing == "hbll", "HBLL", "Dogfish"))
 jhook <- filter(comp, hooksize_desc == "12/0")
 comp <- filter(comp, !fishing_event_id %in% c(jhook$fishing_event_id))
 
 
-#need unique hook counts per survey and year
+# need unique hook counts per survey and year
 hookcount <- comp |>
   dplyr::select(lglsp_hook_count, hooksize_desc, year, survey_timing, Survey, survey_sep, fishing_event_id) |>
   distinct() |>
@@ -140,21 +140,19 @@ final_samps <- comp |>
   dplyr::select(lglsp_hook_count, sex, hooksize_desc, year, survey_timing, Survey, survey_sep, fishing_event_id) |>
   group_by(sex, hooksize_desc, year, survey_timing, Survey, survey_sep, fishing_event_id, lglsp_hook_count) |>
   summarize(sum_sex = n()) |>
-
   group_by(sex, hooksize_desc, year, survey_timing, Survey, survey_sep) |>
   summarize(sum_sex2 = sum(sum_sex))
 
 final_samps <- final_samps |>
   left_join(hookcount) |>
-
   mutate(cpue_sex = sum_sex2 / hookcount) |>
-  #filter(year != 2019) |>
+  # filter(year != 2019) |>
   rename(Year = year) |>
   dplyr::select(-survey_timing, -survey_sep) |>
   ungroup()
 
 
-count <- final_samps  |>
+count <- final_samps |>
   dplyr::select(-cpue_sex, -survey_timing) |>
   pivot_wider(
     names_from = sex,
@@ -174,32 +172,33 @@ sum_sex <- left_join(count, cpue)
 
 together <- left_join(sum_sex, summary)
 together <- together |>
-  mutate(Hook_type = paste0(hooksize_desc, " (", Survey, ")"),
-         Count_cpue = paste0(sum, " (", round(cpue,3), ")"),
-         Male_cpue = paste0(`1`, " (", round(malecpue,3), ")"),
-         Female_cpue = paste0(`2`, " (", round(femalecpue,3), ")")) |>
+  mutate(
+    Hook_type = paste0(hooksize_desc, " (", Survey, ")"),
+    Count_cpue = paste0(sum, " (", round(cpue, 3), ")"),
+    Male_cpue = paste0(`1`, " (", round(malecpue, 3), ")"),
+    Female_cpue = paste0(`2`, " (", round(femalecpue, 3), ")")
+  ) |>
   dplyr::select(-c(hooksize_desc, `1`, `2`, sum, cpue))
 
 
 together |>
-  dplyr::select(Year, Survey, Hook_type, Count_cpue, Male_cpue, Female_cpue)  |>
+  dplyr::select(Year, Survey, Hook_type, Count_cpue, Male_cpue, Female_cpue) |>
   arrange(Year) |>
   knitr::kable(
-  # format = "simple",
-  #"html",
-  format = "latex",
-  col.names = c(
-    "Year",  "Survey", "Hook type", "Count (CPUE)", "Male (CPUE)", "Female (CPUE)"),
-  booktabs = TRUE,
-  #align = "llllll",
-  align = "c",
-  caption = "Comparison of Dogfish catches and CPUE per gear type on each comparative survey (HBLL
+    # format = "simple",
+    # "html",
+    format = "latex",
+    col.names = c(
+      "Year", "Survey", "Hook type", "Count (CPUE)", "Male (CPUE)", "Female (CPUE)"
+    ),
+    booktabs = TRUE,
+    # align = "llllll",
+    align = "c",
+    caption = "Comparison of Dogfish catches and CPUE per gear type on each comparative survey (HBLL
 2019, HBLL 2022, HBLL 2023, and Dogfish 2023). Each hook type, except for 2019, were on the same
 set. HBLL gear is hook size 13/0 baited with squid which Dogfish gear is hook size 14/0 baited with
 herring",
-  label = "cpue-catches"
-) |>
-  kableExtra::row_spec(0, bold = TRUE)  |>  # header styling
+    label = "cpue-catches"
+  ) |>
+  kableExtra::row_spec(0, bold = TRUE) |> # header styling
   kableExtra::kable_styling(full_width = FALSE, stripe_color = "grey95")
-
-
