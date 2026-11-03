@@ -1,9 +1,8 @@
-library(jpeg)
 library(cowplot)
 
-hblldog <- readRDS(paste0("Figures/sog-model-mesh-", "hblldog", ".rds"))
-hbll <- readRDS(paste0("Figures/sog-model-mesh-", "hbll-n-s", ".rds"))
-dog <- readRDS (paste0("Figures/sog-model-mesh-", "dog-j-circle", ".rds"))
+hblldog <- readRDS(paste0("figures/sog-model-mesh-", "hblldog", ".rds"))
+hbll <- readRDS(paste0("figures/sog-model-mesh-", "hbll-n-s", ".rds"))
+dog <- readRDS (paste0("figures/sog-model-mesh-", "dog-j-circle", ".rds"))
 
 cv <- cowplot::plot_grid(
   hblldog, hbll,
