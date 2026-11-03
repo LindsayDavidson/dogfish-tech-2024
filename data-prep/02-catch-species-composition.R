@@ -41,3 +41,4 @@ catch <- catch |>
   mutate(diff = count_d - count_h)
 catch #<- petrale sole and bluntnose sixgill sharks
 
+catch |> filter(diff > 0) |> print (n = 100)
