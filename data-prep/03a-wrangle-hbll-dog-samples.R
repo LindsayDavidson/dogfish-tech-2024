@@ -1,6 +1,6 @@
 # Length and catch composition differences between the DOG and HBLL surveys
 # 2004 and some 2005 are missing deployment times
-# soak2005 <- 2
+
 bccrs <- 32609
 
 library(ggplot2)
@@ -9,10 +9,11 @@ library(here)
 
 samps <- readRDS("data-raw/dogfish_samples_cleaned.rds")
 
-sampshb <- samps |> filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N")) # drop hbll samps not included in the gfdata pull.
+sampshb <- samps |> filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
+# drop hbll samps not included in the gfdata pull.
 
 sampsgf <- readRDS("data-raw/dogfish_samples_getall.rds") |>
-  filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
+   filter(survey_abbrev %in% c("HBLL INS S", "HBLL INS N"))
 
 sampshb <- sampshb |>
   filter(fishing_event_id %in% c(sampsgf$fishing_event_id)) |>
@@ -29,8 +30,8 @@ hbllrm <- bind_rows(hbll1, hbll2)
 
 unique(hbllrm$fishing_event_id) # rm these
 
-test <- filter(sampshb, survey_abbrev == "HBLL INS S")
 
+test <- filter(sampshb, survey_abbrev == "HBLL INS S")
 x <- ggplot(test) +
   geom_point(aes(longitude, latitude))
 x + geom_point(data = hbllrm, aes(longitude, latitude), col = "red")
