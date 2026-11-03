@@ -11,9 +11,9 @@ hbll_ins_n$grid$area <- "hbll_n"
 hbll_ins <- rbind(hbll_ins_n$grid, hbll_ins_s$grid)
 
 hbll_ins_utm <- sdmTMB::add_utm_columns(hbll_ins,
-                                        ll_names = c("X", "Y"),
-                                        utm_names = c("UTM.lon", "UTM.lat"),
-                                        utm_crs = 32609
+  ll_names = c("X", "Y"),
+  utm_names = c("UTM.lon", "UTM.lat"),
+  utm_crs = 32609
 ) |>
   mutate(UTM.lon.m = UTM.lon * 1000, UTM.lat.m = UTM.lat * 1000)
 
@@ -34,33 +34,28 @@ hbllboth <- st_transform(hbllboth, crs = 32609)
 
 hbllgrid <-
   ggplot() +
-
   geom_sf(data = hbllboth, fill = "grey90", colour = "grey70") +
-
   theme_classic() +
   geom_point(
     data = hbll_ins_utm,
     aes(x = UTM.lon.m, y = UTM.lat.m),
-    fill = "gray100", color = "grey50", alpha = 0.25,shape = 15, size = 1
-  )  +
-
+    fill = "gray100", color = "grey50", alpha = 0.25, shape = 15, size = 1
+  ) +
   geom_point(
     data = grid_dog,
     aes(x = X, y = Y),
-    fill = NA, color = "red", alpha = 0.15,shape = 15, size = 0.1
-  )  +
-
+    fill = NA, color = "red", alpha = 0.15, shape = 15, size = 0.1
+  ) +
   scale_colour_viridis_c(option = "magma", direction = -1, guide = NULL) +
   labs(y = "Latitude", x = "Longitude") +
-
   theme(
     axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5),
     axis.title = element_text(size = 10),
     axis.line = element_blank(),
     axis.text = element_text(size = 10),
-    panel.border = element_rect(colour = "black", fill=NA, size=0.5)
+    panel.border = element_rect(colour = "black", fill = NA, size = 0.5)
   )
 
 hbllgrid
 
-ggsave("figures/hbll_dog_grid.png",hbllgrid, width = 6, height = 4)
+ggsave("figures/hbll_dog_grid.png", hbllgrid, width = 6, height = 4)
