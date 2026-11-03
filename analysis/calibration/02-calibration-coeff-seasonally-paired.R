@@ -164,7 +164,7 @@ exp(tidy(intbb, ran.pars = TRUE)$estimate)
 exp(tidy(intbb, ran.pars = TRUE)$conf.low)
 exp(tidy(intbb, ran.pars = TRUE)$conf.high)
 
-saveRDS(tidy(intbb), "output/calibration_coeffs_intercept.rds")
+saveRDS(tidy(intbb), "data-generated/calibration_coeffs_intercept.rds")
 
 
 # table of coeff values for overleaf --------------------------------------
