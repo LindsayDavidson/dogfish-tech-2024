@@ -133,37 +133,51 @@ final <- sets |>
     survey_abbrev == "HBLL INS S" ~ "HBLL INS S",
     survey_abbrev == "HBLL INS N" ~ "HBLL INS N",
     year %in% c(1986, 1989) ~ "dog-jhook",
-    year %in% c(2005, 2008, 2011, 2014) & survey_abbrev == "DOG" ~ "dog",
-    year == 2019 & survey_abbrev == "DOG" ~ "dog",
-    year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" ~ "hbll comp",
-    year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" ~ "dog comp",
-    # year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" ~ "dog",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "12/0" ~ "dog-jhook",
-    # year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" ~ "hbll comp",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 9 & day >= 27 ~ "dog comp",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 9 & day >= 27 ~ "hbll comp",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 9 & day < 27 ~ "hbll comp",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 9 & day < 27 ~ "dog comp",
-    year == 2024 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" ~ "dog",
-    year == 2024 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "12/0" ~ "dog-jhook",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 8 ~ "hbll comp",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 8 ~ "dog comp",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "13/0" & month == 10 ~ "hbll comp",
-    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" & hooksize_desc == "14/0" & month == 10 ~ "dog comp",
+    year == 2024 & hooksize_desc == "12/0" ~ "dog-jhook",
+    year == 2024 & hooksize_desc == "14/0" ~ "dog comp",
+    year %in% c(2005, 2008, 2011, 2014, 2019) & survey_abbrev == "DOG" ~ "dog",
+    year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" &
+      hooksize_desc == "13/0" ~ "hbll comp",
+    year == 2019 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" &
+      hooksize_desc == "14/0" ~ "dog comp",
+    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" &
+      hooksize_desc == "12/0" ~ "dog-jhook",
+    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" &
+      hooksize_desc == "14/0" & month == 9 & day >= 27 ~ "dog comp",
+    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" &
+      hooksize_desc == "13/0" & month == 9 & day >= 27 ~ "hbll comp",
+    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" &
+      hooksize_desc == "13/0" & month == 9 & day < 27 ~ "hbll comp",
+    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" &
+      hooksize_desc == "14/0" & month == 9 & day < 27 ~ "dog comp",
+    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" &
+      hooksize_desc == "13/0" & month == 8 ~ "hbll comp",
+    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" &
+      hooksize_desc == "14/0" & month == 8 ~ "dog comp",
+    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" &
+      hooksize_desc == "13/0" & month == 10 ~ "hbll comp",
+    year == 2023 & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" &
+      hooksize_desc == "14/0" & month == 10 ~ "dog comp",
     year == 2022 & hooksize_desc == "13/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" ~ "hbll comp",
     year == 2022 & hooksize_desc == "14/0" & activity_desc == "DOGFISH GEAR/TIMING COMPARISON SURVEYS" ~ "dog comp",
     year == 2004 & hooksize_desc == "14/0" & survey_abbrev == "OTHER" ~ "dog comp",
     year == 2004 & hooksize_desc == "12/0" & survey_abbrev == "OTHER" ~ "dog-jhook"
   ))
 
+final <- final |>
+  mutate(survey_lumped = case_when(
+    hooksize_desc == "13/0" ~ "hbll",
+    hooksize_desc == "14/0" ~ "dog",
+    hooksize_desc == "12/0" ~ "dog-jhook"))
 
 # add season based on week of survey and definitions above
 final <- final |>
   mutate(season = ifelse(week %in% spring, "2", ifelse(week %in% summer, "3", ifelse(week %in% fall, "4", "1"))))
 
 range(final$soak)
-x <- filter(final, is.na(soak) == TRUE)
-final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
+filter(final, is.na(soak) == TRUE) |> tally()
+
+#final <- final |> mutate(cpue = catch_count / (lglsp_hook_count * soak))
 # final <- filter(final, usability_code != 0) #usability_code filters out the comparison sets
 final <- filter(final, lglsp_hook_count != 0)
 
